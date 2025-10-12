@@ -18,6 +18,10 @@ pkgs-unfree.mkShell {
     pkgs-unfree.autoPatchelfHook
     pythonPackages.python-telegram-bot
     pythonPackages.python-dotenv
+    pythonPackages.sqlalchemy
+    pythonPackages.pydub
+    pkgs.ffmpeg
+
   ];
   venvDir = "./.venv";
   postVenvCreation = ''

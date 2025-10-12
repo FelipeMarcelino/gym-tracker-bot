@@ -3,3 +3,6 @@
 .ropeproject/
 .mypy_cache/
 .venv/
+__pycache__/
+.direnv/
+*.db

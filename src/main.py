@@ -2,8 +2,17 @@ import logging
 
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
-from bot.handlers import handle_text, handle_unknown, handle_voice, help_command, info_command, start
-from config.settings import TELEGRAM_BOT_TOKEN
+from bot.handlers import (
+    handle_text,
+    handle_unknown,
+    handle_voice,
+    help_command,
+    info_command,
+    myid_command,
+    start,
+    status_command,
+)
+from config.settings import settings
 
 # Configurar logging para ver o que está acontecendo
 logging.basicConfig(
@@ -20,12 +29,11 @@ def main():
     print("=" * 50)
     print("🤖 GYM TRACKER BOT")
     print("=" * 50)
-    print(f"🔑 Token configurado: {'✅' if TELEGRAM_BOT_TOKEN else '❌'}")
     print("🚀 Iniciando bot...")
     print("=" * 50)
 
     # Criar aplicação
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
 
     # ===== ADICIONAR HANDLERS =====
 
@@ -33,6 +41,8 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("info", info_command))
+    application.add_handler(CommandHandler("status", status_command))  # ← NOVO
+    application.add_handler(CommandHandler("myid", myid_command))
 
     # Mensagens de voz (ANTES de text, para ter prioridade)
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))
