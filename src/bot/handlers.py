@@ -6,6 +6,8 @@ from telegram.ext import ContextTypes
 
 from bot.middleware import authorized_only, log_access
 from config.settings import settings
+from database.connection import db
+from database.models import WorkoutSession
 from services.audio_service import get_audio_service
 from services.llm_service import get_llm_service
 from services.session_manager import get_session_manager  # ← NOVO
@@ -13,8 +15,7 @@ from services.workout_service import get_workout_service
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Comando /start - Mensagem de boas-vindas
-    """
+    """Comando /start - Mensagem de boas-vindas"""
     await log_access(update, context)
     user_name = update.effective_user.first_name
 
@@ -33,8 +34,7 @@ Estou pronto para receber seus dados! 💪
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Comando /help - Ajuda
-    """
+    """Comando /help - Ajuda"""
     await log_access(update, context)
     help_text = """
 📖 **Comandos Disponíveis:**
@@ -56,8 +56,7 @@ Digite informações sobre seu treino diretamente
 
 
 async def myid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Comando /myid - Mostra o user_id (útil para adicionar novos usuários)
-    """
+    """Comando /myid - Mostra o user_id (útil para adicionar novos usuários)"""
     await log_access(update, context)
     user_id = update.effective_user.id
     user_name = update.effective_user.first_name
@@ -72,22 +71,22 @@ async def myid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
     )
 
+
 @authorized_only
 async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Comando /info - PROTEGIDO
-    """
+    """Comando /info - PROTEGIDO"""
     await log_access(update, context)
     user = update.effective_user
 
     info_text = f"""
 👤 **Suas Informações:**
 
-**Nome:** {user.first_name} {user.last_name or ''}
-**Username:** @{user.username or 'não definido'}
+**Nome:** {user.first_name} {user.last_name or ""}
+**Username:** @{user.username or "não definido"}
 **ID:** `{user.id}`
-**Idioma:** {user.language_code or 'não definido'}
+**Idioma:** {user.language_code or "não definido"}
 
-📅 **Data/Hora atual:** {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+📅 **Data/Hora atual:** {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
 
 ✅ **Status:** Autorizado
     """
@@ -97,9 +96,8 @@ async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @authorized_only
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler para mensagens de TEXTO
-    """
-    await log_access(update,context)
+    """Handler para mensagens de TEXTO"""
+    await log_access(update, context)
     user_id = update.effective_user.id
     user_name = update.effective_user.first_name
     message_text = update.message.text
@@ -119,7 +117,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 _{message_text}_
 
 👤 Seu ID: `{user_id}`
-🕐 Horário: {timestamp.strftime('%H:%M:%S')}
+🕐 Horário: {timestamp.strftime("%H:%M:%S")}
 
 _Em breve vou processar essa informação com IA!_ 🤖
     """
@@ -132,6 +130,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler para mensagens de VOZ/ÁUDIO
     Com AUTO-DETECÇÃO de sessão ativa
     """
+    log_access(update, context)
     user_id = str(update.effective_user.id)
     user_name = update.effective_user.first_name
     voice = update.message.voice
@@ -139,9 +138,9 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     duration = voice.duration
     file_size = voice.file_size
 
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print("🎤 NOVO ÁUDIO RECEBIDO")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"👤 Usuário: {user_name} (ID: {user_id})")
     print(f"⏱️  Duração: {duration}s")
     print(f"📦 Tamanho: {file_size / 1024:.2f} KB")
@@ -204,9 +203,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if not parsed_data:
             await status_msg.edit_text(
-                "❌ **Erro ao processar**\n\n"
-                "A IA não conseguiu entender o áudio.\n"
-                "Tente novamente com mais clareza.",
+                "❌ **Erro ao processar**\n\nA IA não conseguiu entender o áudio.\nTente novamente com mais clareza.",
                 parse_mode="Markdown",
             )
             return
@@ -257,13 +254,14 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status_msg.edit_text(response, parse_mode="Markdown")
 
         print(f"✅ PROCESSAMENTO COMPLETO em {processing_time:.2f}s")
-        print(f"{'='*50}\n")
+        print(f"{'=' * 50}\n")
 
     except Exception as e:
         error_msg = f"❌ **Erro no processamento**\n\n{e!s}"
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         print(f"❌ ERRO: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -317,9 +315,11 @@ def _format_success_response(
 
     return response
 
+
 @authorized_only
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /status - Mostra sessão ativa"""
+    log_access(update, context)
     user_id = str(update.effective_user.id)
 
     session_manager = get_session_manager()
@@ -327,17 +327,20 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Buscar última sessão
     db_session = db.get_session()
-    last_session = db_session.query(WorkoutSession).filter_by(
-        user_id=user_id,
-    ).order_by(
-        WorkoutSession.last_update.desc(),
-    ).first()
+    last_session = (
+        db_session.query(WorkoutSession)
+        .filter_by(
+            user_id=user_id,
+        )
+        .order_by(
+            WorkoutSession.last_update.desc(),
+        )
+        .first()
+    )
 
     if not last_session:
         await update.message.reply_text(
-            "📊 **Status**\n\n"
-            "Você ainda não tem nenhuma sessão registrada.\n"
-            "Envie um áudio para começar!",
+            "📊 **Status**\n\nVocê ainda não tem nenhuma sessão registrada.\nEnvie um áudio para começar!",
             parse_mode="Markdown",
         )
         db_session.close()
@@ -379,11 +382,10 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(status_text, parse_mode="Markdown")
     db_session.close()
 
+
 async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler para comandos desconhecidos
-    """
+    """Handler para comandos desconhecidos"""
     log_access(update, context)
     await update.message.reply_text(
-        "❓ Comando não reconhecido.\n"
-        "Use /help para ver os comandos disponíveis.",
+        "❓ Comando não reconhecido.\nUse /help para ver os comandos disponíveis.",
     )
