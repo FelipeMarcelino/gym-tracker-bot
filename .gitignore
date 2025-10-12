@@ -1,2 +1,5 @@
 .envrc
 .env
+.ropeproject/
+.mypy_cache/
+.venv/
