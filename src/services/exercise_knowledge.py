@@ -1,15 +1,11 @@
 """Base de conhecimento de exercícios para inferência automática
 """
+import logging
+
+logger = logging.getLogger(__file__)
 
 # Mapeamento: Exercício → Grupo Muscular Primário
 EXERCISE_TO_MUSCLE = {
-    # PEITO
-    "supino": "peitoral",
-    "crucifixo": "peitoral",
-    "pullover": "peitoral",
-    "crossover": "peitoral",
-    "flexao": "peitoral",
-    "press": "peitoral",  # chest press
 
     # COSTAS
     "remada": "dorsais",
@@ -57,6 +53,14 @@ EXERCISE_TO_MUSCLE = {
     "prancha": "abdomen",
     "obliquo": "abdomen",
     "crunch": "abdomen",
+
+    # PEITO
+    "supino": "peitoral",
+    "crucifixo": "peitoral",
+    "pullover": "peitoral",
+    "crossover": "peitoral",
+    "flexao": "peitoral",
+    "press": "peitoral",
 }
 
 # Palavras-chave que indicam equipamento
@@ -74,6 +78,7 @@ def infer_muscle_group(exercise_name: str) -> str:
     """Infere o grupo muscular baseado no nome do exercício
     """
     exercise_lower = exercise_name.lower()
+    logger.info(f"Exercício a ser inferido o musculo: {exercise_lower}")
 
     for keyword, muscle in EXERCISE_TO_MUSCLE.items():
         if keyword in exercise_lower:
@@ -85,6 +90,8 @@ def infer_equipment(exercise_name: str) -> str:
     """Infere o equipamento baseado no nome do exercício
     """
     exercise_lower = exercise_name.lower()
+
+    logger.info(f"Exercício a ser inferido o equipamento: {exercise_lower}")
 
     # Verificar palavras-chave explícitas
     for equipment, keywords in EQUIPMENT_KEYWORDS.items():
