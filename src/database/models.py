@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Column, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, Time
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -11,6 +11,13 @@ class ExerciseType(enum.Enum):
     RESISTENCIA = "resistencia"
     AEROBICO = "aerobico"
 
+class SessionStatus(enum.Enum):
+    """Status da sessão de treino"""
+
+    ATIVA = "ativa"
+    FINALIZADA = "finalizada"
+    ABANDONADA = "abandonada"  # Passou 3h sem finalizar
+
 class WorkoutSession(Base):
     """Sessão de treino"""
 
@@ -18,13 +25,14 @@ class WorkoutSession(Base):
 
     session_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String(50), nullable=False)
-    date = Column(DateTime, default=datetime.now)
-    start_time = Column(DateTime)  # Primeiro áudio da sessão
-    end_time = Column(DateTime)    # Último áudio da sessão (atualizado automaticamente)
+    date = Column(Date, default=datetime.now)
+    start_time = Column(Time)  # Primeiro áudio da sessão
+    end_time = Column(Time)    # Último áudio da sessão (atualizado automaticamente)
     body_weight_kg = Column(Float)
     energy_level = Column(Integer)  # 1-10
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.now)
+    duration_minutes = Column(Integer)
 
     # ===== DADOS DA IA =====
     original_transcription = Column(Text)      # AGORA: Acumula todas as transcrições
@@ -32,6 +40,7 @@ class WorkoutSession(Base):
     processing_time_seconds = Column(Float)
 
     # ===== NOVO: Controle de sessão =====
+    status = Column(Enum(SessionStatus), default=SessionStatus.ATIVA)  # ← NOVO
     last_update = Column(DateTime, default=datetime.now, onupdate=datetime.now)  # ← NOVO
     audio_count = Column(Integer, default=0)   # ← NOVO: Quantos áudios nesta sessão
 
@@ -62,7 +71,7 @@ class WorkoutExercise(Base):
     order_in_workout = Column(Integer)
     sets = Column(Integer)
     reps = Column(JSON)  # Array: [12, 10, 8]
-    weight_kg = Column(Float)
+    weights_kg = Column(JSON)
     rest_seconds = Column(Integer)
     perceived_difficulty = Column(Integer)  # RPE 1-10
     notes = Column(Text)

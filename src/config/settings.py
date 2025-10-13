@@ -23,14 +23,11 @@ class Settings:
         self.TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
         self.AUTHORIZED_USER_IDS = self.get_authorized_users()
         self.DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///gym_tracker.db")
-        self.WHISPER_MODEL =  os.getenv("WHISPER_MODEL", "base")  # tiny, base, small, medium, large
+        self.WHISPER_MODEL =  os.getenv("WHISPER_MODEL", "whisper-large-v3")  # tiny, base, small, medium, large
         self.LLM_MODEL = os.getenv("LLM_MODEL", "llama3.1:8b")
         self.OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-        #self.DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///gym_tracker.db")
-        #self.LLM_MODEL = os.getenv("LLM_MODEL", "llama3.1:8b")
-        #self.OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-        #self.WHISPER_MODEL = os.getenv("WHISPER_MODEL", "base")
-        #self._initialized = True
+        self.GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+        self._initialized = True
 
 
     def get_authorized_users(self) -> List[int]:

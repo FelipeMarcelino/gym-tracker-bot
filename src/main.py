@@ -3,6 +3,7 @@ import logging
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 from bot.handlers import (
+    finish_command,
     handle_text,
     handle_unknown,
     handle_voice,
@@ -43,6 +44,7 @@ def main():
     application.add_handler(CommandHandler("info", info_command))
     application.add_handler(CommandHandler("status", status_command))  # ← NOVO
     application.add_handler(CommandHandler("myid", myid_command))
+    application.add_handler(CommandHandler("finish", finish_command))
 
     # Mensagens de voz (ANTES de text, para ter prioridade)
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))

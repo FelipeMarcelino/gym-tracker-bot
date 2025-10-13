@@ -1,74 +1,133 @@
 import os
 import tempfile
+import logging
+from typing import Optional
 
-from faster_whisper import WhisperModel  # ← MUDOU
+from groq import Groq
 
 from config.settings import settings
+from services.exceptions import AudioProcessingError, ServiceUnavailableError, ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 class AudioTranscriptionService:
-    """Serviço para transcrever áudios usando Faster-Whisper"""
+    """Serviço para transcrever áudios usando Groq Whisper API"""
 
-    def __init__(self, model_name: str = "base"):
-        """Inicializa o Faster-Whisper
+    def __init__(self):
+        logger.info("Inicializando Groq Whisper API...")
         
-        Modelos disponíveis:
-        - tiny: Mais rápido (~1GB RAM)
-        - base: Bom balanço (recomendado) (~1GB RAM)
-        - small: Melhor qualidade (~2GB RAM)
-        - medium: Alta qualidade (~5GB RAM)
-        - large-v3: Máxima qualidade (~10GB RAM)
+        if not settings.GROQ_API_KEY:
+            raise ServiceUnavailableError(
+                "GROQ_API_KEY não configurada",
+                "Configure a variável de ambiente GROQ_API_KEY"
+            )
+        
+        try:
+            self.client = Groq(api_key=settings.GROQ_API_KEY)
+            logger.info("Groq Whisper API inicializada com sucesso")
+        except Exception as e:
+            raise ServiceUnavailableError(
+                "Falha ao inicializar cliente Groq",
+                f"Erro: {str(e)}"
+            )
+            
+        self.gym_vocabulary = """
+        supino, agachamento, levantamento terra, leg press, cadeira extensora,
+        cadeira flexora, rosca direta, rosca martelo, tríceps testa, tríceps corda,
+        desenvolvimento, elevação lateral, remada, pulldown, puxada, flexão,
+        barra fixa, paralelas, abdominal, prancha, burpee, corrida, esteira,
+        bicicleta, elíptico, crossfit, HIIT, aeróbico, cardio, musculação,
+        repetições, séries, quilos, kg, carga
         """
-        print(f"🔄 Carregando Faster-Whisper '{model_name}'...")
-
-        # device="cpu" ou device="cuda" se tiver GPU
-        self.model = WhisperModel(
-            model_name,
-            device="cpu",
-            compute_type="int8",  # Mais rápido em CPU
-        )
-
-        print(f"✅ Faster-Whisper '{model_name}' carregado!")
 
     async def transcribe_telegram_voice(self, file_bytes: bytes) -> str:
-        """Transcreve um áudio do Telegram (bytes) sem salvar permanentemente
+        """Transcreve um áudio do Telegram usando Groq API
         
         Args:
             file_bytes: Bytes do arquivo de áudio
             
         Returns:
             Texto transcrito
+            
+        Raises:
+            ValidationError: Se os dados de entrada são inválidos
+            AudioProcessingError: Se a transcrição falhar
+            ServiceUnavailableError: Se o serviço Groq estiver indisponível
 
         """
-        # Criar arquivo temporário
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_file:
-            temp_file.write(file_bytes)
-            temp_path = temp_file.name
-
+        if not file_bytes:
+            raise ValidationError("Arquivo de áudio vazio")
+            
+        if len(file_bytes) > 25 * 1024 * 1024:  # 25MB limit
+            raise ValidationError("Arquivo de áudio muito grande (máximo 25MB)")
+            
+        temp_path: Optional[str] = None
+        
         try:
-            print("🎤 Transcrevendo áudio...")
+            # Criar arquivo temporário
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_file:
+                temp_file.write(file_bytes)
+                temp_path = temp_file.name
+                
+            logger.info(f"Transcrevendo áudio de {len(file_bytes)} bytes via Groq API...")
 
-            # Transcrever (retorna generator)
-            segments, info = self.model.transcribe(
-                temp_path,
-                language="pt",
-                beam_size=5,
-                vad_filter=True,  # Remove silêncios
+            # Abrir arquivo e enviar para Groq
+            with open(temp_path, "rb") as audio_file:
+                try:
+                    transcription = self.client.audio.transcriptions.create(
+                        file=(temp_path, audio_file.read()),
+                        model="whisper-large-v3",
+                        language="pt",
+                        response_format="text",
+                        prompt=self.gym_vocabulary,
+                    )
+                except Exception as e:
+                    if "rate_limit" in str(e).lower():
+                        raise ServiceUnavailableError(
+                            "Limite de taxa do Groq API excedido",
+                            "Tente novamente em alguns segundos"
+                        )
+                    elif "unauthorized" in str(e).lower():
+                        raise ServiceUnavailableError(
+                            "Chave API Groq inválida",
+                            "Verifique a configuração GROQ_API_KEY"
+                        )
+                    else:
+                        raise AudioProcessingError(
+                            "Falha na transcrição do áudio",
+                            f"Erro do Groq API: {str(e)}"
+                        )
+
+            # Groq retorna string diretamente
+            transcription_text = transcription.strip()
+            
+            if not transcription_text:
+                raise AudioProcessingError(
+                    "Transcrição retornou texto vazio",
+                    "Verifique se o áudio contém fala clara"
+                )
+
+            logger.info(f"Transcrição completa: {len(transcription_text)} caracteres")
+            return transcription_text
+
+        except (ValidationError, AudioProcessingError, ServiceUnavailableError):
+            # Re-raise custom exceptions
+            raise
+        except Exception as e:
+            logger.exception("Erro inesperado na transcrição")
+            raise AudioProcessingError(
+                "Erro inesperado na transcrição",
+                f"Erro interno: {str(e)}"
             )
-
-            # Juntar todos os segmentos
-            transcription = " ".join([segment.text for segment in segments]).strip()
-
-            print(f"✅ Transcrição completa: {len(transcription)} caracteres")
-
-            return transcription
 
         finally:
             # Deletar arquivo temporário
-            try:
-                os.unlink(temp_path)
-            except:
-                pass
+            if temp_path:
+                try:
+                    os.unlink(temp_path)
+                except Exception as e:
+                    logger.warning(f"Falha ao deletar arquivo temporário {temp_path}: {e}")
 
 # Instância global (Singleton pattern)
 _audio_service = None
@@ -77,7 +136,5 @@ def get_audio_service() -> AudioTranscriptionService:
     """Retorna instância única do serviço de áudio"""
     global _audio_service
     if _audio_service is None:
-        _audio_service = AudioTranscriptionService(
-            model_name=settings.WHISPER_MODEL,
-        )
+        _audio_service = AudioTranscriptionService()
     return _audio_service
