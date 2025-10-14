@@ -6,11 +6,10 @@ from typing import Any, Dict
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from config.logging_config import get_logger
-
-from bot.middleware import authorized_only, admin_only, log_access
+from bot.middleware import admin_only, authorized_only, log_access
 from bot.rate_limiter import rate_limit_commands, rate_limit_voice
 from bot.validation import validate_and_sanitize_user_input
+from config.logging_config import get_logger
 from config.messages import messages
 from config.settings import settings
 from database.models import SessionStatus
@@ -150,12 +149,12 @@ async def _process_workout_audio_optimized(
         )
 
         audio_service = get_audio_service()
-        
-        # Criar task para transcrição 
+
+        # Criar task para transcrição
         transcription_task = asyncio.create_task(
-            audio_service.transcribe_telegram_voice(file_bytes)
+            audio_service.transcribe_telegram_voice(file_bytes),
         )
-        
+
         # Aguardar transcrição (não há muito para paralelizar aqui ainda)
         transcription = await transcription_task
         logger.info(f"Transcrição concluída: {transcription[:100]}...")
@@ -167,12 +166,12 @@ async def _process_workout_audio_optimized(
         )
 
         llm_service = get_llm_service()
-        
-        # Executar LLM parsing (agora async) 
+
+        # Executar LLM parsing (agora async)
         llm_task = asyncio.create_task(
-            llm_service.parse_workout(transcription)
+            llm_service.parse_workout(transcription),
         )
-        
+
         # Por enquanto aguardamos LLM, mas futuramente podemos preparar caches aqui
         parsed_data = await llm_task
         logger.info(f"LLM parsing concluído: {len(parsed_data.get('resistance_exercises', []))} resistência, {len(parsed_data.get('aerobic_exercises', []))} aeróbico")
@@ -472,8 +471,6 @@ async def _process_workout_message(
 @rate_limit_voice  # Usar mesmo rate limit que voz para mensagens de treino (processamento pesado)
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handler para mensagens de TEXTO"""
-    await log_access(update, context)
-
     # Validar e sanitizar input do usuário
     validation_result = validate_and_sanitize_user_input(update)
 
@@ -514,8 +511,6 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     """Handler para mensagens de VOZ/ÁUDIO
     Com AUTO-DETECÇÃO de sessão ativa
     """
-    await log_access(update, context)
-
     # Validar e sanitizar input do usuário
     validation_result = validate_and_sanitize_user_input(update)
 
@@ -636,8 +631,6 @@ def _format_success_response(
 @rate_limit_commands
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /status - Mostra sessão ativa"""
-    await log_access(update, context)
-
     # Validar e sanitizar input do usuário
     validation_result = validate_and_sanitize_user_input(update)
 
@@ -793,8 +786,6 @@ async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 @rate_limit_commands
 async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /export - Exporta dados do usuário"""
-    await log_access(update, context)
-
     # Validar e sanitizar input do usuário
     validation_result = validate_and_sanitize_user_input(update)
 
@@ -907,8 +898,6 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 @rate_limit_commands
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /stats - Estatísticas e analytics do usuário"""
-    await log_access(update, context)
-
     # Validar e sanitizar input do usuário
     validation_result = validate_and_sanitize_user_input(update)
 
@@ -976,8 +965,6 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 @rate_limit_commands
 async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /progress - Progresso de um exercício específico"""
-    await log_access(update, context)
-
     # Validar e sanitizar input do usuário
     validation_result = validate_and_sanitize_user_input(update)
 
@@ -1052,8 +1039,6 @@ async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 @rate_limit_commands
 async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /exercises - Lista todos os exercícios registrados no banco"""
-    await log_access(update, context)
-
     # Validar e sanitizar input do usuário
     validation_result = validate_and_sanitize_user_input(update)
 
@@ -1067,12 +1052,12 @@ async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         from database.models import Exercise, ExerciseType
 
         session = db.get_session()
-        
+
         try:
             # Buscar todos os exercícios ordenados por tipo e nome
             exercises = session.query(Exercise).order_by(
                 Exercise.type,
-                Exercise.name
+                Exercise.name,
             ).all()
 
             if not exercises:
@@ -1080,7 +1065,7 @@ async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                     "📋 **Lista de Exercícios**\n\n"
                     "❌ Nenhum exercício encontrado no banco de dados.\n\n"
                     "Os exercícios são criados automaticamente quando você registra treinos.",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
                 )
                 return
 
@@ -1092,7 +1077,7 @@ async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 exercise_info = f"• {exercise.name.title()}"
                 if exercise.muscle_group:
                     exercise_info += f" ({exercise.muscle_group})"
-                
+
                 if exercise.type == ExerciseType.RESISTENCIA:
                     resistance_exercises.append(exercise_info)
                 else:
@@ -1100,17 +1085,17 @@ async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
             # Montar mensagem
             message = "📋 **Lista de Exercícios Registrados**\n\n"
-            
+
             if resistance_exercises:
                 message += f"💪 **Resistência ({len(resistance_exercises)}):**\n"
                 message += "\n".join(resistance_exercises)
                 message += "\n\n"
-            
+
             if aerobic_exercises:
                 message += f"🏃 **Aeróbicos ({len(aerobic_exercises)}):**\n"
                 message += "\n".join(aerobic_exercises)
                 message += "\n\n"
-            
+
             message += f"📊 **Total:** {len(exercises)} exercícios"
 
             await update.message.reply_text(message, parse_mode="Markdown")
@@ -1253,8 +1238,6 @@ def _format_progress_message(progress: Dict[str, Any]) -> str:
 @rate_limit_commands
 async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /adduser - Adiciona usuário autorizado (ADMIN ONLY)"""
-    await log_access(update, context)
-
     validation_result = validate_and_sanitize_user_input(update)
     if not validation_result["is_valid"]:
         error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
@@ -1293,27 +1276,26 @@ async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     f"👤 ID: `{target_user_id}`\n"
                     f"📝 Nome: {existing_user.first_name or 'N/A'}\n"
                     f"👑 Admin: {'Sim' if existing_user.is_admin else 'Não'}",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
                 )
                 return
-            else:
-                # Reativar usuário inativo
-                existing_user.is_active = True
-                existing_user.is_admin = is_admin
-                await update.message.reply_text(
-                    f"✅ **Usuário reativado**\n\n"
-                    f"👤 ID: `{target_user_id}`\n"
-                    f"👑 Admin: {'Sim' if is_admin else 'Não'}\n"
-                    f"👨‍💼 Reativado por: {admin_name}",
-                    parse_mode="Markdown"
-                )
-                return
+            # Reativar usuário inativo
+            existing_user.is_active = True
+            existing_user.is_admin = is_admin
+            await update.message.reply_text(
+                f"✅ **Usuário reativado**\n\n"
+                f"👤 ID: `{target_user_id}`\n"
+                f"👑 Admin: {'Sim' if is_admin else 'Não'}\n"
+                f"👨‍💼 Reativado por: {admin_name}",
+                parse_mode="Markdown",
+            )
+            return
 
         # Adicionar novo usuário
         user = user_service.add_user(
             user_id=target_user_id,
             is_admin=is_admin,
-            created_by=admin_user_id
+            created_by=admin_user_id,
         )
 
         await update.message.reply_text(
@@ -1322,7 +1304,7 @@ async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             f"👑 Admin: {'Sim' if is_admin else 'Não'}\n"
             f"👨‍💼 Adicionado por: {admin_name}\n\n"
             f"🎉 Usuário agora pode usar o bot!",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
 
         logger.info(f"Admin {admin_name} ({admin_user_id}) adicionou usuário {target_user_id} (admin: {is_admin})")
@@ -1330,14 +1312,14 @@ async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     except (ValidationError, DatabaseError) as e:
         await update.message.reply_text(
             f"❌ **Erro ao adicionar usuário**\n\n{e.message}",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
         logger.error(f"Erro adduser: {e}")
 
     except Exception as e:
         await update.message.reply_text(
             "❌ **Erro inesperado**\n\nFalha ao adicionar usuário.",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
         logger.error(f"Erro inesperado adduser: {e}")
 
@@ -1346,8 +1328,6 @@ async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 @rate_limit_commands
 async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /removeuser - Remove usuário autorizado (ADMIN ONLY)"""
-    await log_access(update, context)
-
     validation_result = validate_and_sanitize_user_input(update)
     if not validation_result["is_valid"]:
         error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
@@ -1377,7 +1357,7 @@ async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         if target_user_id == admin_user_id:
             await update.message.reply_text(
                 "❌ **Erro**\n\nVocê não pode remover a si mesmo.",
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
             return
 
@@ -1389,7 +1369,7 @@ async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text(
                 f"❌ **Usuário não encontrado**\n\n"
                 f"ID: `{target_user_id}`",
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
             return
 
@@ -1402,7 +1382,7 @@ async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"📝 Nome: {existing_user.first_name or 'N/A'}\n"
             f"👨‍💼 Removido por: {admin_name}\n\n"
             f"🚫 Usuário não pode mais usar o bot.",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
 
         logger.info(f"Admin {admin_name} ({admin_user_id}) removeu usuário {target_user_id}")
@@ -1410,14 +1390,14 @@ async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     except (ValidationError, DatabaseError) as e:
         await update.message.reply_text(
             f"❌ **Erro ao remover usuário**\n\n{e.message}",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
         logger.error(f"Erro removeuser: {e}")
 
     except Exception as e:
         await update.message.reply_text(
             "❌ **Erro inesperado**\n\nFalha ao remover usuário.",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
         logger.error(f"Erro inesperado removeuser: {e}")
 
@@ -1426,8 +1406,6 @@ async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 @rate_limit_commands
 async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /listusers - Lista usuários autorizados (ADMIN ONLY)"""
-    await log_access(update, context)
-
     try:
         user_service = get_user_service()
         users = user_service.list_users(include_inactive=False)
@@ -1436,7 +1414,7 @@ async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text(
                 "👥 **Lista de Usuários**\n\n"
                 "❌ Nenhum usuário encontrado.",
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
             return
 
@@ -1468,14 +1446,14 @@ async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except (DatabaseError) as e:
         await update.message.reply_text(
             f"❌ **Erro ao listar usuários**\n\n{e.message}",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
         logger.error(f"Erro listusers: {e}")
 
     except Exception as e:
         await update.message.reply_text(
             "❌ **Erro inesperado**\n\nFalha ao listar usuários.",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
         logger.error(f"Erro inesperado listusers: {e}")
 
@@ -1483,7 +1461,6 @@ async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 @rate_limit_commands
 async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handler para comandos desconhecidos"""
-    await log_access(update, context)
     await update.message.reply_text(messages.UNKNOWN_COMMAND)
 
 

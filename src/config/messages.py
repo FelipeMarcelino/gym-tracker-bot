@@ -120,10 +120,10 @@ _Em breve vou processar essa informação com IA!_ 🤖"""
 🔄 Processando..."""
 
     AUDIO_SUCCESS_NEW_SESSION = "✅ **Nova sessão criada e áudio processado!**\n\n"
-    AUDIO_SUCCESS_EXISTING_SESSION = "✅ **Áudio #{audio_count} adicionado à sessão!**\n\n"
+    AUDIO_SUCCESS_EXISTING_SESSION = "✅ **Áudio/Texto #{audio_count} adicionado à sessão!**\n\n"
 
     AUDIO_SUCCESS_FOOTER_NEW = "💡 _Envie mais áudios ou texto para adicionar exercícios a esta sessão_"
-    AUDIO_SUCCESS_FOOTER_CONTINUE = "💡 _Continue enviando áudios ou aguarde 3h para iniciar nova sessão_"
+    AUDIO_SUCCESS_FOOTER_CONTINUE = "💡 _Continue enviando áudios ou texto ou aguarde 3h para iniciar nova sessão_"
 
     # Status messages
     STATUS_NO_SESSION = """📊 **Status**
@@ -303,33 +303,33 @@ _Seu ID: `{user_id}`_"""
     def _format_single_aerobic_exercise(cls, ex: Dict[str, Any]) -> str:
         """Format a single aerobic exercise"""
         response = f"• **{ex['name'].title()}**:\n"
-        
+
         # Duration (always present)
-        duration = ex.get('duration_minutes')
+        duration = ex.get("duration_minutes")
         if duration:
             response += f"  └ ⏱️ Duração: {duration}min\n"
-        
+
         # Distance
-        distance = ex.get('distance_km')
+        distance = ex.get("distance_km")
         if distance:
             response += f"  └ 📏 Distância: {distance}km\n"
-        
+
         # Heart rate
-        heart_rate = ex.get('average_heart_rate')
+        heart_rate = ex.get("average_heart_rate")
         if heart_rate:
             response += f"  └ ❤️ FC média: {heart_rate} bpm\n"
-        
+
         # Calories
-        calories = ex.get('calories_burned')
+        calories = ex.get("calories_burned")
         if calories:
             response += f"  └ 🔥 Calorias: {calories} kcal\n"
-        
+
         # Intensity
-        intensity = ex.get('intensity_level')
+        intensity = ex.get("intensity_level")
         if intensity:
             intensity_emoji, intensity_desc = cls._get_intensity_emoji_and_desc(intensity)
             response += f"  └ {intensity_emoji} Intensidade: {intensity_desc}\n"
-        
+
         response += "\n"
         return response
 
@@ -340,7 +340,7 @@ _Seu ID: `{user_id}`_"""
             "low": ("😊", "Leve"),
             "moderate": ("😐", "Moderada"),
             "high": ("😤", "Alta"),
-            "hiit": ("🔥", "HIIT")
+            "hiit": ("🔥", "HIIT"),
         }
         return intensity_map.get(intensity.lower(), ("⚡", intensity.title()))
 
