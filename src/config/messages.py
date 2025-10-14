@@ -48,6 +48,21 @@ Exemplo: _"Fiz supino reto com barra, 3 séries de 12, 10 e 8 repetições com 4
 - `/removeuser <id>` - Remover usuário
 - `/listusers` - Listar usuários
 
+**🔧 Monitoramento e Saúde:**
+- `/health` - Status básico do sistema
+- `/healthfull` - Verificação completa de saúde
+- `/metrics` - Métricas de performance
+- `/performance` - Análise de performance
+
+**💾 Backup e Restore:**
+- `/backup_create` - Criar backup manual
+- `/backup_list` - Listar backups disponíveis
+- `/backup_stats` - Estatísticas dos backups
+- `/backup_cleanup` - Limpar backups antigos
+- `/backup_auto_start` - Iniciar backups automáticos
+- `/backup_auto_stop` - Parar backups automáticos
+- `/backup_restore <arquivo> confirm` - Restaurar backup
+
 **⏰ Sistema de Sessões:**
 - Todos os áudios em 3 horas = mesma sessão
 - Após 3h sem áudio = nova sessão automática

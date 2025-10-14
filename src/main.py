@@ -23,6 +23,11 @@ from bot.handlers import (
     stats_command,
     status_command,
 )
+from bot.health_endpoints import health_command, health_full_command, metrics_command, performance_command
+from bot.backup_commands import (
+    backup_create, backup_list, backup_stats, backup_restore, 
+    backup_cleanup, backup_auto_start, backup_auto_stop
+)
 from config.settings import settings
 from services.container import initialize_all_services
 
@@ -66,6 +71,21 @@ def main() -> NoReturn:
     application.add_handler(CommandHandler("adduser", add_user_command))
     application.add_handler(CommandHandler("removeuser", remove_user_command))
     application.add_handler(CommandHandler("listusers", list_users_command))
+    
+    # Health and monitoring commands (Admin only)
+    application.add_handler(CommandHandler("health", health_command))
+    application.add_handler(CommandHandler("healthfull", health_full_command))
+    application.add_handler(CommandHandler("metrics", metrics_command))
+    application.add_handler(CommandHandler("performance", performance_command))
+    
+    # Backup commands (Admin only)
+    application.add_handler(CommandHandler("backup_create", backup_create))
+    application.add_handler(CommandHandler("backup_list", backup_list))
+    application.add_handler(CommandHandler("backup_stats", backup_stats))
+    application.add_handler(CommandHandler("backup_restore", backup_restore))
+    application.add_handler(CommandHandler("backup_cleanup", backup_cleanup))
+    application.add_handler(CommandHandler("backup_auto_start", backup_auto_start))
+    application.add_handler(CommandHandler("backup_auto_stop", backup_auto_stop))
 
     # Mensagens de voz (ANTES de text, para ter prioridade)
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))

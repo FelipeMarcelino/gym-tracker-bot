@@ -74,6 +74,17 @@ class ErrorCode(Enum):
     # Rate limiting errors (1900-1999)
     RATE_LIMIT_EXCEEDED = 1900
     TOO_MANY_REQUESTS = 1901
+    
+    # Backup/Restore errors (2000-2099)
+    BACKUP_FAILED = 2000
+    RESTORE_FAILED = 2001
+    BACKUP_NOT_FOUND = 2002
+    BACKUP_VERIFICATION_FAILED = 2003
+    
+    # File operation errors (2100-2199)
+    FILE_NOT_FOUND = 2100
+    FILE_OPERATION_ERROR = 2101
+    PERMISSION_DENIED = 2102
 
 
 class GymTrackerError(Exception):
@@ -320,6 +331,31 @@ class ExportError(GymTrackerError):
             message=message,
             error_code=kwargs.get('error_code', ErrorCode.EXPORT_FAILED),
             user_message=kwargs.get('user_message', "Export operation failed"),
+            context=context,
+            **{k: v for k, v in kwargs.items() if k not in ['error_code', 'user_message', 'context']}
+        )
+
+
+class BackupError(GymTrackerError):
+    """Raised when backup/restore operations fail"""
+    
+    def __init__(
+        self, 
+        message: str, 
+        backup_path: Optional[str] = None,
+        operation: Optional[str] = None,
+        **kwargs
+    ):
+        context = kwargs.get('context', {})
+        if backup_path:
+            context['backup_path'] = backup_path
+        if operation:
+            context['operation'] = operation
+        
+        super().__init__(
+            message=message,
+            error_code=kwargs.get('error_code', ErrorCode.BACKUP_FAILED),
+            user_message=kwargs.get('user_message', "Backup operation failed"),
             context=context,
             **{k: v for k, v in kwargs.items() if k not in ['error_code', 'user_message', 'context']}
         )

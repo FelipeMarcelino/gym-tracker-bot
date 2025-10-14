@@ -33,6 +33,11 @@ from services.exceptions import (
     ErrorCode
 )
 from services.error_handler import ErrorHandler, error_handler, ErrorContext
+from bot.health_endpoints import health_command, health_full_command, metrics_command, performance_command
+from bot.backup_commands import (
+    backup_create, backup_list, backup_stats, backup_restore, 
+    backup_cleanup, backup_auto_start, backup_auto_stop
+)
 
 logger = get_logger(__name__)
 
