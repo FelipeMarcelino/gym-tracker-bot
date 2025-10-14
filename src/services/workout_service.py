@@ -2,7 +2,7 @@
 """
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -12,6 +12,7 @@ from database.models import AerobicExercise, Exercise, ExerciseType, SessionStat
 from services.exercise_knowledge import infer_equipment, infer_muscle_group
 from services.stats_service import SessionStatsCalculator
 from services.exceptions import DatabaseError, ValidationError
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 class WorkoutService:
     """Serviço para gerenciar salvamento e finalização de treinos"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.db = db
 
     # =========================================================================
@@ -200,7 +201,7 @@ class WorkoutService:
         finally:
             session.close()
             
-    def _validate_and_process_weights(self, ex_data: Dict[str, Any], exercise_idx: int) -> Optional[list]:
+    def _validate_and_process_weights(self, ex_data: Dict[str, Any], exercise_idx: int) -> Optional[List[float]]:
         """Valida e processa pesos do exercício"""
         weights_kg = ex_data.get("weights_kg")
         
@@ -383,7 +384,86 @@ class WorkoutService:
         finally:
             session.close()
 
-    def check_and_mark_abandoned_sessions(self, user_id: str):
+    def get_user_session_status(self, user_id: str) -> Dict[str, Any]:
+        """Busca status detalhado da sessão de um usuário com queries otimizadas
+        
+        Args:
+            user_id: ID do usuário
+            
+        Returns:
+            Dict com status da sessão ou None se não houver sessões
+            
+        Raises:
+            ValidationError: Se user_id é inválido
+            DatabaseError: Se operação no banco falhar
+        """
+        if not user_id or not user_id.strip():
+            raise ValidationError("ID do usuário é obrigatório")
+            
+        session = self.db.get_session()
+
+        try:
+            # Query otimizada com eager loading dos relacionamentos
+            from sqlalchemy.orm import joinedload
+            
+            last_session = (
+                session.query(WorkoutSession)
+                .options(
+                    joinedload(WorkoutSession.exercises),
+                    joinedload(WorkoutSession.aerobics)
+                )
+                .filter_by(user_id=user_id)
+                .order_by(WorkoutSession.last_update.desc())
+                .first()
+            )
+
+            if not last_session:
+                return {
+                    "has_session": False,
+                    "message": "Você ainda não tem nenhuma sessão registrada.\nEnvie um áudio para começar!"
+                }
+
+            # Calcular tempo desde última atualização
+            time_since = datetime.now() - last_session.last_update
+            hours_passed = time_since.total_seconds() / 3600
+            minutes_passed = int(hours_passed * 60)
+
+            # Determinar se está ativa
+            is_active = hours_passed < settings.SESSION_TIMEOUT_HOURS
+
+            # Contar exercícios (já carregados via joinedload)
+            resistance_count = len(last_session.exercises)
+            aerobic_count = len(last_session.aerobics)
+
+            return {
+                "has_session": True,
+                "session": last_session,
+                "is_active": is_active,
+                "hours_passed": hours_passed,
+                "minutes_passed": minutes_passed,
+                "resistance_count": resistance_count,
+                "aerobic_count": aerobic_count,
+                "timeout_hours": settings.SESSION_TIMEOUT_HOURS,
+            }
+            
+        except (ValidationError, DatabaseError):
+            raise
+        except SQLAlchemyError as e:
+            logger.exception("Erro de banco ao buscar status da sessão")
+            raise DatabaseError(
+                "Erro ao buscar status da sessão",
+                f"Erro SQLAlchemy: {str(e)}"
+            )
+        except Exception as e:
+            logger.exception("Erro inesperado ao buscar status da sessão")
+            raise DatabaseError(
+                "Erro inesperado ao buscar status da sessão",
+                f"Erro interno: {str(e)}"
+            )
+        finally:
+            session.close()
+
+    def check_and_mark_abandoned_sessions(self, user_id: str) -> None:
         """Marca sessões ativas antigas como abandonadas
         (passou mais de 3h sem finalizar)
         
@@ -480,12 +560,5 @@ class WorkoutService:
         return session_stats.to_dict()
 
 
-# Instância global
-_workout_service = None
-
-def get_workout_service() -> WorkoutService:
-    """Retorna instância única do serviço de workout"""
-    global _workout_service
-    if _workout_service is None:
-        _workout_service = WorkoutService()
-    return _workout_service
+# Service instantiation moved to container.py
+# This module only defines the service class

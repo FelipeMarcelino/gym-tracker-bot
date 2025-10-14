@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import create_engine
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from config.settings import settings
@@ -11,15 +11,15 @@ class DatabaseConnection:
     """Singleton para gerenciar conexão com o banco"""
 
     _instance: Optional["DatabaseConnection"] = None
-    _engine = None
-    _session_factory = None
+    _engine: Optional[Engine] = None
+    _session_factory: Optional[sessionmaker] = None
 
-    def __new__(cls):
+    def __new__(cls) -> "DatabaseConnection":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         if self._engine is None:
             self._engine = create_engine(
                 settings.DATABASE_URL,
@@ -39,7 +39,7 @@ class DatabaseConnection:
         return self._session_factory()
 
     @property
-    def engine(self):
+    def engine(self) -> Optional[Engine]:
         return self._engine
 
 db = DatabaseConnection()

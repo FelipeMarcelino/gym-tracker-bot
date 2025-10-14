@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class LLMParsingService:
     """Serviço para parsear transcrições usando Groq API"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         if not settings.GROQ_API_KEY:
             raise ServiceUnavailableError(
                 "GROQ_API_KEY não configurada",
@@ -48,8 +48,8 @@ class LLMParsingService:
         if not transcription or not transcription.strip():
             raise ValidationError("Transcrição vazia ou inválida")
             
-        if len(transcription) > 10000:  # Limit transcription size
-            raise ValidationError("Transcrição muito longa (máximo 10.000 caracteres)")
+        if len(transcription) > settings.MAX_TRANSCRIPTION_LENGTH:
+            raise ValidationError(f"Transcrição muito longa (máximo {settings.MAX_TRANSCRIPTION_LENGTH:,} caracteres)")
 
         prompt = self._build_prompt(transcription)
 
@@ -62,8 +62,8 @@ class LLMParsingService:
                     "role": "user",
                     "content": prompt,
                 }],
-                temperature=0.1,  # Mais determinístico
-                max_tokens=1000,
+                temperature=settings.LLM_TEMPERATURE,
+                max_tokens=settings.LLM_MAX_TOKENS,
             )
 
             if not response.choices or not response.choices[0].message:
@@ -351,12 +351,5 @@ Saída: {{"name": "tríceps na polia com corda", "sets": 3, "reps": [15,15,15]}}
 
 Retorne APENAS o JSON, sem texto adicional."""
 
-# Instância global
-_llm_service = None
-
-def get_llm_service() -> LLMParsingService:
-    """Retorna instância única do serviço de LLM"""
-    global _llm_service
-    if _llm_service is None:
-        _llm_service = LLMParsingService()
-    return _llm_service
+# Service instantiation moved to container.py
+# This module only defines the service class

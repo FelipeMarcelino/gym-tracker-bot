@@ -1,13 +1,15 @@
 from datetime import datetime
 from functools import wraps
+from typing import Callable, Any, Awaitable
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from config.settings import settings
+from config.messages import messages
 
 
-def authorized_only(func):
+def authorized_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]) -> Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]:
     """Decorator para proteger handlers - apenas usuários autorizados podem usar
     
     Uso:
@@ -16,7 +18,7 @@ def authorized_only(func):
         ...
     """
     @wraps(func)
-    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
         user = update.effective_user
         user_id = user.id
 
@@ -31,10 +33,7 @@ def authorized_only(func):
 
             # Mensagem para o usuário não autorizado
             await update.message.reply_text(
-                "🚫 **Acesso Negado**\n\n"
-                "Este bot é de uso privado.\n"
-                "Você não tem autorização para utilizá-lo.\n\n"
-                f"_Seu ID: `{user_id}`_",
+                messages.ACCESS_DENIED.format(user_id=user_id),
                 parse_mode="Markdown",
             )
             return None  # Não executa a função original
@@ -45,7 +44,7 @@ def authorized_only(func):
     return wrapper
 
 
-async def log_access(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def log_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Loga todos os acessos ao bot (opcional - para monitoramento)
     """
     user = update.effective_user
@@ -56,7 +55,7 @@ async def log_access(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Determinar tipo de mensagem
     if message.text:
         msg_type = "TEXT"
-        content = message.text[:50]  # Primeiros 50 caracteres
+        content = message.text[:settings.LOG_MESSAGE_PREVIEW_LENGTH]  # Primeiros caracteres configuráveis
     elif message.voice:
         msg_type = "VOICE"
         content = f"{message.voice.duration}s"

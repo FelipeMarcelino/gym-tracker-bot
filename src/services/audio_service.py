@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class AudioTranscriptionService:
     """Serviço para transcrever áudios usando Groq Whisper API"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         logger.info("Inicializando Groq Whisper API...")
         
         if not settings.GROQ_API_KEY:
@@ -59,8 +59,9 @@ class AudioTranscriptionService:
         if not file_bytes:
             raise ValidationError("Arquivo de áudio vazio")
             
-        if len(file_bytes) > 25 * 1024 * 1024:  # 25MB limit
-            raise ValidationError("Arquivo de áudio muito grande (máximo 25MB)")
+        max_size = settings.MAX_AUDIO_FILE_SIZE_MB * 1024 * 1024
+        if len(file_bytes) > max_size:
+            raise ValidationError(f"Arquivo de áudio muito grande (máximo {settings.MAX_AUDIO_FILE_SIZE_MB}MB)")
             
         temp_path: Optional[str] = None
         
@@ -129,12 +130,5 @@ class AudioTranscriptionService:
                 except Exception as e:
                     logger.warning(f"Falha ao deletar arquivo temporário {temp_path}: {e}")
 
-# Instância global (Singleton pattern)
-_audio_service = None
-
-def get_audio_service() -> AudioTranscriptionService:
-    """Retorna instância única do serviço de áudio"""
-    global _audio_service
-    if _audio_service is None:
-        _audio_service = AudioTranscriptionService()
-    return _audio_service
+# Service instantiation moved to container.py
+# This module only defines the service class

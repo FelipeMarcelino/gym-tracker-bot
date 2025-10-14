@@ -1,8 +1,10 @@
 import logging
+from typing import NoReturn
 
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 from bot.handlers import (
+    export_command,
     finish_command,
     handle_text,
     handle_unknown,
@@ -10,10 +12,13 @@ from bot.handlers import (
     help_command,
     info_command,
     myid_command,
+    progress_command,
     start,
+    stats_command,
     status_command,
 )
 from config.settings import settings
+from services.container import initialize_all_services
 
 # Configurar logging para ver o que está acontecendo
 logging.basicConfig(
@@ -24,14 +29,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def main():
-    """Função principal - inicializa e roda o bot
-    """
+def main() -> NoReturn:
+    """Função principal - inicializa e roda o bot"""
     print("=" * 50)
     print("🤖 GYM TRACKER BOT")
     print("=" * 50)
     print("🚀 Iniciando bot...")
     print("=" * 50)
+    
+    # Initialize all services early to catch configuration errors
+    print("🔧 Inicializando serviços...")
+    try:
+        initialize_all_services()
+        print("✅ Todos os serviços inicializados com sucesso")
+    except Exception as e:
+        print(f"❌ Erro ao inicializar serviços: {e}")
+        raise
 
     # Criar aplicação
     application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
@@ -45,6 +58,9 @@ def main():
     application.add_handler(CommandHandler("status", status_command))  # ← NOVO
     application.add_handler(CommandHandler("myid", myid_command))
     application.add_handler(CommandHandler("finish", finish_command))
+    application.add_handler(CommandHandler("export", export_command))
+    application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("progress", progress_command))
 
     # Mensagens de voz (ANTES de text, para ter prioridade)
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))

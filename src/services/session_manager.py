@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from database.connection import db
 from database.models import SessionStatus, WorkoutSession
 from services.exceptions import DatabaseError, SessionError, ValidationError
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +15,10 @@ logger = logging.getLogger(__name__)
 class SessionManager:
     """Gerencia lógica de sessões de treino"""
 
-    # Tempo máximo entre áudios para considerar mesma sessão
-    SESSION_TIMEOUT_HOURS = 3
-
-    def __init__(self):
+    def __init__(self) -> None:
         self.db = db
+        # Get timeout from configuration
+        self.SESSION_TIMEOUT_HOURS = settings.SESSION_TIMEOUT_HOURS
 
     def get_or_create_session(self, user_id: str) -> tuple[WorkoutSession, bool]:
         """Retorna sessão ativa ou cria nova
@@ -138,7 +138,7 @@ class SessionManager:
         # Reutilizar sessão existente
         return False
 
-    def _mark_as_abandoned(self, workout_session: WorkoutSession):
+    def _mark_as_abandoned(self, workout_session: WorkoutSession) -> None:
         """Marca uma sessão como abandonada
         
         Raises:
@@ -175,7 +175,7 @@ class SessionManager:
         transcription: str,
         processing_time: float,
         model_used: str,
-    ):
+    ) -> None:
         """Atualiza metadados da sessão após processar áudio
         
         Args:
@@ -243,12 +243,5 @@ class SessionManager:
             session.close()
 
 
-# Singleton
-_session_manager = None
-
-def get_session_manager() -> SessionManager:
-    """Retorna instância única do gerenciador de sessões"""
-    global _session_manager
-    if _session_manager is None:
-        _session_manager = SessionManager()
-    return _session_manager
+# Service instantiation moved to container.py
+# This module only defines the service class
