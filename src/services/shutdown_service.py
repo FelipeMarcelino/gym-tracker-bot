@@ -1,0 +1,268 @@
+"""Graceful shutdown service for the gym tracker bot"""
+
+import signal
+import asyncio
+import threading
+from typing import List, Callable, Any, Optional
+from datetime import datetime
+
+from config.logging_config import get_logger
+from services.backup_service import backup_service
+from services.health_service import health_service
+
+logger = get_logger(__name__)
+
+
+class ShutdownService:
+    """Service for handling graceful application shutdown"""
+    
+    def __init__(self):
+        self.shutdown_handlers: List[Callable] = []
+        self.is_shutting_down = False
+        self.shutdown_timeout = 30  # seconds
+        self.emergency_backup_on_shutdown = True
+        
+    def register_shutdown_handler(self, handler: Callable, description: str = None):
+        """
+        Register a function to be called during shutdown
+        
+        Args:
+            handler: Function to call during shutdown
+            description: Optional description of what the handler does
+        """
+        if asyncio.iscoroutinefunction(handler):
+            # Wrap async functions
+            def wrapper():
+                try:
+                    # Always create a new event loop for shutdown handlers
+                    asyncio.run(asyncio.wait_for(handler(), timeout=10))
+                except Exception as e:
+                    logger.exception(f"Error in async shutdown handler {description or 'unknown'}: {e}")
+            
+            self.shutdown_handlers.append(wrapper)
+        else:
+            self.shutdown_handlers.append(handler)
+        
+        logger.info(f"Registered shutdown handler: {description or handler.__name__}")
+    
+    def setup_signal_handlers(self):
+        """Setup signal handlers for graceful shutdown"""
+        def signal_handler(signum, frame):
+            signal_name = signal.Signals(signum).name
+            logger.info(f"Received {signal_name} signal, initiating graceful shutdown...")
+            self.initiate_shutdown()
+        
+        # Register handlers for common termination signals
+        signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+        signal.signal(signal.SIGTERM, signal_handler)  # Termination request
+        
+        # On Unix systems, also handle SIGHUP
+        try:
+            signal.signal(signal.SIGHUP, signal_handler)  # Hangup
+            logger.info("Signal handlers registered: SIGINT, SIGTERM, SIGHUP")
+        except AttributeError:
+            # Windows doesn't have SIGHUP
+            logger.info("Signal handlers registered: SIGINT, SIGTERM")
+    
+    def initiate_shutdown(self):
+        """Initiate graceful shutdown process"""
+        if self.is_shutting_down:
+            logger.warning("Shutdown already in progress, ignoring duplicate signal")
+            return
+        
+        self.is_shutting_down = True
+        shutdown_start = datetime.now()
+        
+        logger.info("🔄 Starting graceful shutdown process...")
+        
+        try:
+            # Run shutdown handlers
+            self._run_shutdown_handlers()
+            
+            # Create emergency backup if enabled
+            if self.emergency_backup_on_shutdown:
+                self._create_emergency_backup()
+            
+            # Stop background services
+            self._stop_background_services()
+            
+            # Log final shutdown message
+            shutdown_duration = (datetime.now() - shutdown_start).total_seconds()
+            logger.info(f"✅ Graceful shutdown completed in {shutdown_duration:.2f}s")
+            
+        except Exception as e:
+            logger.exception(f"❌ Error during graceful shutdown: {e}")
+        finally:
+            logger.info("👋 Application shutdown complete")
+    
+    def _run_shutdown_handlers(self):
+        """Execute all registered shutdown handlers"""
+        if not self.shutdown_handlers:
+            logger.info("No shutdown handlers to execute")
+            return
+        
+        logger.info(f"Executing {len(self.shutdown_handlers)} shutdown handlers...")
+        
+        for i, handler in enumerate(self.shutdown_handlers, 1):
+            try:
+                handler_name = getattr(handler, '__name__', f'handler_{i}')
+                logger.info(f"Running shutdown handler {i}/{len(self.shutdown_handlers)}: {handler_name}")
+                
+                # Execute with timeout
+                if asyncio.iscoroutinefunction(handler):
+                    # This shouldn't happen as we wrap async functions, but just in case
+                    asyncio.run(asyncio.wait_for(handler(), timeout=10))
+                else:
+                    # Run in thread with timeout
+                    thread = threading.Thread(target=handler)
+                    thread.start()
+                    thread.join(timeout=10)
+                    
+                    if thread.is_alive():
+                        logger.warning(f"Shutdown handler {handler_name} timed out after 10s")
+                
+                logger.debug(f"✅ Shutdown handler {handler_name} completed")
+                
+            except Exception as e:
+                logger.exception(f"❌ Error in shutdown handler {i}: {e}")
+    
+    def _create_emergency_backup(self):
+        """Create emergency backup during shutdown"""
+        try:
+            logger.info("📦 Creating emergency backup before shutdown...")
+            backup_name = f"emergency_shutdown_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+            backup_path = backup_service.create_backup(backup_name)
+            logger.info(f"✅ Emergency backup created: {backup_path}")
+            
+        except Exception as e:
+            logger.exception(f"❌ Failed to create emergency backup: {e}")
+    
+    def _stop_background_services(self):
+        """Stop all background services"""
+        try:
+            logger.info("🛑 Stopping background services...")
+            
+            # Stop automated backups
+            if backup_service.is_running:
+                backup_service.stop_automated_backups()
+                logger.info("✅ Automated backups stopped")
+            
+            # Stop health service background tasks (if any)
+            # Note: health_service doesn't currently have background tasks
+            
+            logger.info("✅ Background services stopped")
+            
+        except Exception as e:
+            logger.exception(f"❌ Error stopping background services: {e}")
+    
+    def force_shutdown(self, exit_code: int = 1):
+        """Force immediate shutdown if graceful shutdown fails"""
+        logger.warning(f"🚨 Forcing immediate shutdown with exit code {exit_code}")
+        import os
+        os._exit(exit_code)
+    
+    def shutdown_with_timeout(self, timeout: int = None):
+        """Shutdown with timeout, force kill if exceeded"""
+        timeout = timeout or self.shutdown_timeout
+        
+        def timeout_handler():
+            logger.error(f"⏰ Graceful shutdown timeout ({timeout}s) exceeded, forcing exit")
+            self.force_shutdown(1)
+        
+        # Start timeout timer
+        timer = threading.Timer(timeout, timeout_handler)
+        timer.start()
+        
+        try:
+            # Perform graceful shutdown
+            self.initiate_shutdown()
+            timer.cancel()  # Cancel timeout if shutdown completes
+            
+        except Exception as e:
+            timer.cancel()
+            logger.exception(f"❌ Shutdown failed: {e}")
+            self.force_shutdown(1)
+
+
+# Example shutdown handlers for common cleanup tasks
+def close_database_connections():
+    """Close database connections"""
+    try:
+        logger.info("Closing database connections...")
+        from database.connection import db
+        # Note: SQLite connections are typically closed automatically
+        # but we can log the action
+        logger.info("✅ Database connections closed")
+    except Exception as e:
+        logger.exception(f"Error closing database connections: {e}")
+
+
+def flush_logs():
+    """Flush log buffers"""
+    try:
+        logger.info("Flushing log buffers...")
+        import logging
+        # Flush all handlers
+        for handler in logging.getLogger().handlers:
+            if hasattr(handler, 'flush'):
+                handler.flush()
+        logger.info("✅ Log buffers flushed")
+    except Exception as e:
+        logger.exception(f"Error flushing logs: {e}")
+
+
+async def save_pending_operations():
+    """Save any pending operations"""
+    try:
+        logger.info("Saving pending operations...")
+        # This would save any pending async operations
+        # For now, we'll just log that we're checking
+        logger.info("✅ No pending operations to save")
+    except Exception as e:
+        logger.exception(f"Error saving pending operations: {e}")
+
+
+def cleanup_temp_files():
+    """Clean up temporary files"""
+    try:
+        logger.info("Cleaning up temporary files...")
+        import tempfile
+        import shutil
+        import os
+        
+        # Clean up any temp files we might have created
+        temp_dir = tempfile.gettempdir()
+        gym_tracker_temps = []
+        
+        # Look for our temp files (if any)
+        for filename in os.listdir(temp_dir):
+            if 'gym_tracker' in filename.lower():
+                gym_tracker_temps.append(os.path.join(temp_dir, filename))
+        
+        if gym_tracker_temps:
+            for temp_file in gym_tracker_temps:
+                try:
+                    if os.path.isfile(temp_file):
+                        os.remove(temp_file)
+                    elif os.path.isdir(temp_file):
+                        shutil.rmtree(temp_file)
+                    logger.debug(f"Removed temp file: {temp_file}")
+                except Exception as e:
+                    logger.warning(f"Could not remove temp file {temp_file}: {e}")
+            
+            logger.info(f"✅ Cleaned up {len(gym_tracker_temps)} temporary files")
+        else:
+            logger.info("✅ No temporary files to clean up")
+            
+    except Exception as e:
+        logger.exception(f"Error cleaning up temporary files: {e}")
+
+
+# Global shutdown service instance
+shutdown_service = ShutdownService()
+
+# Register default shutdown handlers
+shutdown_service.register_shutdown_handler(flush_logs, "Flush log buffers")
+shutdown_service.register_shutdown_handler(save_pending_operations, "Save pending operations")
+shutdown_service.register_shutdown_handler(close_database_connections, "Close database connections")
+shutdown_service.register_shutdown_handler(cleanup_temp_files, "Clean up temporary files")

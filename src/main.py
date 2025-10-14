@@ -30,6 +30,8 @@ from bot.backup_commands import (
 )
 from config.settings import settings
 from services.container import initialize_all_services
+from services.shutdown_service import shutdown_service
+from services.backup_service import backup_service
 
 logger = get_logger(__name__)
 
@@ -99,10 +101,44 @@ def main() -> NoReturn:
     # Comandos desconhecidos (SEMPRE POR ÚLTIMO)
     application.add_handler(MessageHandler(filters.COMMAND, handle_unknown))
 
+    # ===== SETUP GRACEFUL SHUTDOWN =====
+    logger.info("🔧 Setting up graceful shutdown...")
+    
+    # Setup signal handlers for graceful shutdown
+    shutdown_service.setup_signal_handlers()
+    
+    # Register bot-specific shutdown handlers
+    def stop_telegram_bot():
+        """Stop the Telegram bot gracefully"""
+        try:
+            logger.info("Stopping Telegram bot...")
+            application.stop()
+            logger.info("✅ Telegram bot stopped")
+        except Exception as e:
+            logger.exception(f"Error stopping Telegram bot: {e}")
+    
+    def start_automated_backups():
+        """Start automated backups if not already running"""
+        try:
+            if not backup_service.is_running:
+                logger.info("Starting automated backups...")
+                backup_service.start_automated_backups()
+                logger.info("✅ Automated backups started")
+            else:
+                logger.info("Automated backups already running")
+        except Exception as e:
+            logger.exception(f"Error starting automated backups: {e}")
+    
+    # Register shutdown handlers
+    shutdown_service.register_shutdown_handler(stop_telegram_bot, "Stop Telegram bot")
+    
+    # Start automated backups
+    start_automated_backups()
+
     # ===== INICIAR BOT =====
     logger.info("\n✅ Bot rodando! Aguardando mensagens...")
     logger.info("💡 Envie uma mensagem para o bot no Telegram")
-    logger.info("🛑 Pressione Ctrl+C para parar\n")
+    logger.info("🛑 Pressione Ctrl+C para parar gracefully\n")
 
     # Rodar bot (polling = fica checando por mensagens)
     application.run_polling(allowed_updates=["message"])
@@ -112,6 +148,13 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        logger.info("\n\n👋 Bot encerrado pelo usuário")
+        logger.info("\n\n⚠️  KeyboardInterrupt received - graceful shutdown already handled by signal")
+        logger.info("👋 Bot encerrado pelo usuário")
     except Exception as e:
         logger.error(f"\n❌ Erro ao iniciar bot: {e}")
+        # Try to perform emergency shutdown
+        try:
+            shutdown_service.initiate_shutdown()
+        except Exception as shutdown_error:
+            logger.exception(f"Failed to perform emergency shutdown: {shutdown_error}")
+        raise
