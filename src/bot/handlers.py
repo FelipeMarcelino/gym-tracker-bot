@@ -8,7 +8,7 @@ from telegram.ext import ContextTypes
 
 from bot.middleware import admin_only, authorized_only, log_access
 from bot.rate_limiter import rate_limit_commands, rate_limit_voice
-from bot.validation import validate_and_sanitize_user_input
+from bot.validation_middleware import validate_input, CommonSchemas
 from config.logging_config import get_logger
 from config.messages import messages
 from config.settings import settings
@@ -29,29 +29,23 @@ from services.exceptions import (
     ServiceUnavailableError,
     SessionError,
     ValidationError,
+    GymTrackerError,
+    ErrorCode
 )
+from services.error_handler import ErrorHandler, error_handler, ErrorContext
 
 logger = get_logger(__name__)
 
 
 @rate_limit_commands
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@validate_input(CommonSchemas.text_message(min_length=0, max_length=100))
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /start - Mensagem de boas-vindas"""
     await log_access(update, context)
 
-    # Validar e sanitizar input do usuário
-    validation_result = validate_and_sanitize_user_input(update)
-
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
-
-    # Usar dados sanitizados
-    user_name = validation_result["user"].get("first_name", "Usuário")
-
+    # Usar dados validados
+    user_name = validated_data["user"].get("first_name", "Usuário")
     message = messages.WELCOME.format(user_name=user_name)
-
     await update.message.reply_text(message)
 
 
@@ -63,20 +57,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 @rate_limit_commands
-async def myid_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@validate_input(CommonSchemas.admin_command())
+async def myid_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /myid - Mostra o user_id (útil para adicionar novos usuários)"""
     await log_access(update, context)
 
-    # Validar e sanitizar input do usuário
-    validation_result = validate_and_sanitize_user_input(update)
-
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
-
-    # Usar dados sanitizados e validados
-    user_data = validation_result["user"]
+    # Usar dados validados
+    user_data = validated_data["user"]
     user_id = user_data.get("id", "N/A")
     user_name = user_data.get("first_name", "não definido")
     username = user_data.get("username", "não definido")
@@ -135,11 +122,9 @@ async def _process_workout_audio_optimized(
     workout_session,
     is_new: bool,
     start_time: float,
+    user_id: str,
 ) -> None:
     """Processa áudio de workout com otimizações paralelas"""
-    validation_result = validate_and_sanitize_user_input(update)
-    user_data = validation_result["user"]
-    user_id = user_data.get("id", "N/A")
 
     try:
         # ===== ETAPA 1: TRANSCRIÇÃO EM PARALELO =====
@@ -256,11 +241,9 @@ async def _process_workout_audio(
     workout_session,
     is_new: bool,
     start_time: float,
+    user_id: str,
 ) -> None:
     """Processa workout de áudio após transcrição"""
-    validation_result = validate_and_sanitize_user_input(update)
-    user_data = validation_result["user"]
-    user_id = user_data.get("id", "N/A")
 
     try:
         llm_service = get_llm_service()
@@ -343,19 +326,11 @@ async def _process_workout_message(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     workout_text: str,
+    user_id: str,
+    user_name: str,
     source: str = "text",
 ) -> None:
     """Processa mensagem de treino (texto ou áudio transcrito)"""
-    validation_result = validate_and_sanitize_user_input(update)
-
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
-
-    user_data = validation_result["user"]
-    user_id = user_data.get("id", "N/A")
-    user_name = user_data.get("first_name", "Usuário")
 
     logger.info(f"Novo treino recebido ({source.upper()}) de {user_name} (ID: {user_id}): {workout_text[:100]}...")
 
@@ -469,19 +444,13 @@ async def _process_workout_message(
 
 @authorized_only
 @rate_limit_voice  # Usar mesmo rate limit que voz para mensagens de treino (processamento pesado)
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@error_handler("processing text message")
+@validate_input(CommonSchemas.text_message(min_length=1, max_length=4000))
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Handler para mensagens de TEXTO"""
-    # Validar e sanitizar input do usuário
-    validation_result = validate_and_sanitize_user_input(update)
-
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
-
-    # Usar dados sanitizados e validados
-    user_data = validation_result["user"]
-    message_data = validation_result["message"]
+    # Usar dados validados
+    user_data = validated_data["user"]
+    message_data = validated_data["message"]
 
     user_id = user_data.get("id", "N/A")
     user_name = user_data.get("first_name", "Usuário")
@@ -494,7 +463,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     # Verificar se é mensagem de treino
     if _is_workout_message(message_text):
         logger.info("Detectado conteúdo de treino - processando como workout")
-        await _process_workout_message(update, context, message_text, "text")
+        await _process_workout_message(update, context, message_text, user_id, user_name, "text")
     else:
         # Comportamento atual - apenas ecoar a mensagem
         response = messages.TEXT_RECEIVED.format(
@@ -507,21 +476,15 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 @authorized_only
 @rate_limit_voice
-async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@error_handler("processing voice message")
+@validate_input(CommonSchemas.voice_message())
+async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Handler para mensagens de VOZ/ÁUDIO
     Com AUTO-DETECÇÃO de sessão ativa
     """
-    # Validar e sanitizar input do usuário
-    validation_result = validate_and_sanitize_user_input(update)
-
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
-
-    # Usar dados sanitizados e validados
-    user_data = validation_result["user"]
-    message_data = validation_result["message"]
+    # Usar dados validados
+    user_data = validated_data["user"]
+    message_data = validated_data["message"]
 
     user_id = user_data.get("id", "N/A")
     user_name = user_data.get("first_name", "Usuário")
@@ -574,7 +537,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # Processar transcrição e LLM em paralelo usando a função otimizada
         await _process_workout_audio_optimized(
             update, context, status_msg, initial_msg,
-            bytes(file_bytes), workout_session, is_new, start_time,
+            bytes(file_bytes), workout_session, is_new, start_time, user_id,
         )
 
     except AudioProcessingError as e:
@@ -629,17 +592,10 @@ def _format_success_response(
 
 @authorized_only
 @rate_limit_commands
-async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@validate_input(CommonSchemas.admin_command())
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /status - Mostra sessão ativa"""
-    # Validar e sanitizar input do usuário
-    validation_result = validate_and_sanitize_user_input(update)
-
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
-
-    user_id = validation_result["user"].get("id", "N/A")
+    user_id = validated_data["user"].get("id", "N/A")
 
     try:
         workout_service = get_workout_service()
@@ -705,17 +661,10 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 @authorized_only
 @rate_limit_commands
-async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@validate_input(CommonSchemas.admin_command())
+async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Finaliza a sessão atual manualmente"""
-    # Validar e sanitizar input do usuário
-    validation_result = validate_and_sanitize_user_input(update)
-
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
-
-    user_data = validation_result["user"]
+    user_data = validated_data["user"]
     user_id = user_data.get("id", "N/A")
     user_name = user_data.get("first_name", "Usuário")
 
@@ -784,18 +733,12 @@ async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 @authorized_only
 @rate_limit_commands
-async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@error_handler("exporting user data")
+@validate_input(CommonSchemas.command_with_args(min_args=0, max_args=1))
+async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /export - Exporta dados do usuário"""
-    # Validar e sanitizar input do usuário
-    validation_result = validate_and_sanitize_user_input(update)
-
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
-
-    user_id = validation_result["user"].get("id", "N/A")
-    user_name = validation_result["user"].get("first_name", "Usuário")
+    user_id = validated_data["user"].get("id", "N/A")
+    user_name = validated_data["user"].get("first_name", "Usuário")
 
     # Parse format from command args (default: json)
     args = context.args or []
@@ -896,18 +839,11 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 @authorized_only
 @rate_limit_commands
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@validate_input(CommonSchemas.command_with_args(min_args=0, max_args=1))
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /stats - Estatísticas e analytics do usuário"""
-    # Validar e sanitizar input do usuário
-    validation_result = validate_and_sanitize_user_input(update)
-
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
-
-    user_id = validation_result["user"].get("id", "N/A")
-    user_name = validation_result["user"].get("first_name", "Usuário")
+    user_id = validated_data["user"].get("id", "N/A")
+    user_name = validated_data["user"].get("first_name", "Usuário")
 
     # Parse days from command args (default: 30)
     args = context.args or []
@@ -963,17 +899,10 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 @authorized_only
 @rate_limit_commands
-async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@validate_input(CommonSchemas.command_with_args(min_args=1, max_args=10))
+async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /progress - Progresso de um exercício específico"""
-    # Validar e sanitizar input do usuário
-    validation_result = validate_and_sanitize_user_input(update)
-
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
-
-    user_id = validation_result["user"].get("id", "N/A")
+    user_id = validated_data["user"].get("id", "N/A")
 
     # Parse exercise name from command args
     args = context.args
@@ -1037,15 +966,9 @@ async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 @authorized_only
 @rate_limit_commands
-async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@validate_input(CommonSchemas.admin_command())
+async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /exercises - Lista todos os exercícios registrados no banco"""
-    # Validar e sanitizar input do usuário
-    validation_result = validate_and_sanitize_user_input(update)
-
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
 
     try:
         from database.connection import db
@@ -1236,16 +1159,11 @@ def _format_progress_message(progress: Dict[str, Any]) -> str:
 
 @admin_only
 @rate_limit_commands
-async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@validate_input(CommonSchemas.command_with_args(min_args=1, max_args=2))
+async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /adduser - Adiciona usuário autorizado (ADMIN ONLY)"""
-    validation_result = validate_and_sanitize_user_input(update)
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
-
-    admin_user_id = str(validation_result["user"].get("id"))
-    admin_name = validation_result["user"].get("first_name", "Admin")
+    admin_user_id = str(validated_data["user"].get("id"))
+    admin_name = validated_data["user"].get("first_name", "Admin")
 
     # Parse user ID from command args
     args = context.args
@@ -1326,16 +1244,11 @@ async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 @admin_only
 @rate_limit_commands
-async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@validate_input(CommonSchemas.command_with_args(min_args=1, max_args=1))
+async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /removeuser - Remove usuário autorizado (ADMIN ONLY)"""
-    validation_result = validate_and_sanitize_user_input(update)
-    if not validation_result["is_valid"]:
-        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
-        await update.message.reply_text(error_msg, parse_mode="Markdown")
-        return
-
-    admin_user_id = str(validation_result["user"].get("id"))
-    admin_name = validation_result["user"].get("first_name", "Admin")
+    admin_user_id = str(validated_data["user"].get("id"))
+    admin_name = validated_data["user"].get("first_name", "Admin")
 
     # Parse user ID from command args
     args = context.args

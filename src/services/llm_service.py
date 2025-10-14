@@ -5,7 +5,13 @@ from groq import AsyncGroq
 
 from config.logging_config import get_logger
 from config.settings import settings
-from services.exceptions import LLMParsingError, ServiceUnavailableError, ValidationError
+from services.exceptions import (
+    LLMParsingError, 
+    ServiceUnavailableError, 
+    ValidationError,
+    ErrorCode,
+    handle_service_exception
+)
 
 logger = get_logger(__name__)
 
@@ -46,10 +52,22 @@ class LLMParsingService:
 
         """
         if not transcription or not transcription.strip():
-            raise ValidationError("Transcrição vazia ou inválida")
+            raise ValidationError(
+                message="Transcrição vazia ou inválida",
+                field="transcription",
+                value=transcription,
+                error_code=ErrorCode.MISSING_REQUIRED_FIELD,
+                user_message="Por favor, envie um áudio com conteúdo válido"
+            )
 
         if len(transcription) > settings.MAX_TRANSCRIPTION_LENGTH:
-            raise ValidationError(f"Transcrição muito longa (máximo {settings.MAX_TRANSCRIPTION_LENGTH:,} caracteres)")
+            raise ValidationError(
+                message=f"Transcrição muito longa (máximo {settings.MAX_TRANSCRIPTION_LENGTH:,} caracteres)",
+                field="transcription",
+                value=len(transcription),
+                error_code=ErrorCode.VALUE_OUT_OF_RANGE,
+                user_message=f"Áudio muito longo. Máximo permitido: {settings.MAX_TRANSCRIPTION_LENGTH:,} caracteres"
+            )
 
         prompt = self._build_prompt(transcription)
 
@@ -68,15 +86,21 @@ class LLMParsingService:
 
             if not response.choices or not response.choices[0].message:
                 raise LLMParsingError(
-                    "Resposta vazia do LLM",
-                    "O modelo não retornou uma resposta válida",
+                    message="Resposta vazia do LLM",
+                    details="O modelo não retornou uma resposta válida",
+                    model=self.model,
+                    error_code=ErrorCode.LLM_INVALID_RESPONSE,
+                    user_message="O sistema de IA não conseguiu processar o áudio. Tente novamente."
                 )
 
             content = response.choices[0].message.content
             if not content:
                 raise LLMParsingError(
-                    "Conteúdo vazio na resposta do LLM",
-                    "O modelo retornou uma resposta vazia",
+                    message="Conteúdo vazio na resposta do LLM",
+                    details="O modelo retornou uma resposta vazia",
+                    model=self.model,
+                    error_code=ErrorCode.LLM_INVALID_RESPONSE,
+                    user_message="O sistema de IA retornou uma resposta vazia. Tente novamente."
                 )
 
             # Limpar markdown se presente
@@ -89,15 +113,23 @@ class LLMParsingService:
                 logger.error(f"Erro ao parsear JSON: {e}")
                 logger.error(f"Resposta do Groq: {content[:500]}...")
                 raise LLMParsingError(
-                    "Resposta do LLM não é JSON válido",
-                    f"Erro de parsing: {e!s}",
+                    message="Resposta do LLM não é JSON válido",
+                    details=f"Erro de parsing: {e!s}",
+                    model=self.model,
+                    response=content,
+                    error_code=ErrorCode.LLM_INVALID_RESPONSE,
+                    user_message="O sistema de IA retornou uma resposta inválida. Tente descrever o treino de forma mais clara."
                 )
 
             # Validar estrutura básica
             if not isinstance(parsed_data, dict):
                 raise LLMParsingError(
-                    "Resposta do LLM deve ser um objeto JSON",
-                    f"Recebido: {type(parsed_data)}",
+                    message="Resposta do LLM deve ser um objeto JSON",
+                    details=f"Recebido: {type(parsed_data)}",
+                    model=self.model,
+                    response=content,
+                    error_code=ErrorCode.LLM_INVALID_RESPONSE,
+                    user_message="O sistema de IA retornou dados em formato incorreto. Tente novamente."
                 )
 
             logger.info("Groq API parseou com sucesso!")
@@ -107,21 +139,49 @@ class LLMParsingService:
             # Re-raise custom exceptions
             raise
         except Exception as e:
-            if "rate_limit" in str(e).lower():
+            error_str = str(e).lower()
+            
+            if "rate_limit" in error_str or "429" in error_str:
                 raise ServiceUnavailableError(
-                    "Limite de taxa do Groq API excedido",
-                    "Tente novamente em alguns segundos",
+                    message="Limite de taxa do Groq API excedido",
+                    details="Tente novamente em alguns segundos",
+                    service="Groq API",
+                    error_code=ErrorCode.LLM_RATE_LIMIT_EXCEEDED,
+                    user_message="Muitas solicitações ao sistema de IA. Aguarde alguns segundos e tente novamente.",
+                    retry_after=30,
+                    cause=e
                 )
-            if "unauthorized" in str(e).lower():
+            
+            elif "unauthorized" in error_str or "401" in error_str:
                 raise ServiceUnavailableError(
-                    "Chave API Groq inválida",
-                    "Verifique a configuração GROQ_API_KEY",
+                    message="Chave API Groq inválida",
+                    details="Verifique a configuração GROQ_API_KEY",
+                    service="Groq API",
+                    error_code=ErrorCode.GROQ_API_ERROR,
+                    user_message="Erro de autenticação com o sistema de IA. Contate o administrador.",
+                    cause=e
                 )
-            logger.exception("Erro inesperado no LLM parsing")
-            raise LLMParsingError(
-                "Erro inesperado no parsing",
-                f"Erro interno: {e!s}",
-            )
+            
+            elif "timeout" in error_str:
+                raise ServiceUnavailableError(
+                    message="Timeout na conexão com Groq API",
+                    details=str(e),
+                    service="Groq API", 
+                    error_code=ErrorCode.LLM_TIMEOUT,
+                    user_message="O sistema de IA demorou muito para responder. Tente novamente.",
+                    cause=e
+                )
+            
+            else:
+                logger.exception("Erro inesperado no LLM parsing")
+                raise LLMParsingError(
+                    message="Erro inesperado no parsing",
+                    details=f"Erro interno: {e!s}",
+                    model=self.model,
+                    error_code=ErrorCode.LLM_PARSING_FAILED,
+                    user_message="Erro inesperado no sistema de IA. Tente novamente.",
+                    cause=e
+                )
 
     def _build_prompt(self, transcription: str) -> str:
         """Constrói o prompt para o LLM"""
