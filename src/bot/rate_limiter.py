@@ -1,5 +1,6 @@
 """Rate limiting middleware to prevent spam and abuse"""
 
+import logging
 import time
 from collections import defaultdict, deque
 from collections.abc import Awaitable
@@ -11,6 +12,8 @@ from telegram.ext import ContextTypes
 
 from config.settings import settings
 from config.messages import messages
+
+logger = logging.getLogger(__name__)
 
 
 class RateLimiter:
@@ -92,7 +95,7 @@ def rate_limit_general(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Await
                 window_seconds=_general_limiter.window_seconds
             )
             await update.message.reply_text(message)
-            print(f"🚫 Rate limit: User {user_id} blocked for {reset_time}s")
+            logger.warning(f"Rate limit geral: Usuário {user_id} bloqueado por {reset_time}s")
             return None
 
         # Add rate limit headers to context for monitoring
@@ -118,7 +121,7 @@ def rate_limit_voice(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitab
                 window_seconds=_voice_limiter.window_seconds
             )
             await update.message.reply_text(message)
-            print(f"🚫 Voice rate limit: User {user_id} blocked for {reset_time}s")
+            logger.warning(f"Rate limit de voz: Usuário {user_id} bloqueado por {reset_time}s")
             return None
 
         context.user_data["voice_limit_remaining"] = remaining
@@ -143,7 +146,7 @@ def rate_limit_commands(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awai
                 window_seconds=_command_limiter.window_seconds
             )
             await update.message.reply_text(message)
-            print(f"🚫 Command rate limit: User {user_id} blocked for {reset_time}s")
+            logger.warning(f"Rate limit de comandos: Usuário {user_id} bloqueado por {reset_time}s")
             return None
 
         context.user_data["command_limit_remaining"] = remaining

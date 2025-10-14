@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from sqlalchemy import Engine, create_engine
@@ -5,6 +6,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from config.settings import settings
 from database.models import Base
+
+logger = logging.getLogger(__name__)
 
 
 class DatabaseConnection:
@@ -36,7 +39,7 @@ class DatabaseConnection:
             )
             # Criar tabelas se não existirem
             Base.metadata.create_all(self._engine)
-            print(f"✅ Banco de dados inicializado: {settings.DATABASE_URL}")
+            logger.info(f"Banco de dados inicializado: {settings.DATABASE_URL}")
 
     def get_session(self) -> Session:
         """Retorna uma nova sessão do banco"""

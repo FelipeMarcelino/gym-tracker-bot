@@ -362,8 +362,7 @@ class WorkoutService:
 
             session.commit()
 
-            print(f"✅ Sessão #{session_id} finalizada")
-            print(f"   ⏰ Duração: {workout_session.duration_minutes}min")
+            logger.info(f"Sessão #{session_id} finalizada com duração de {workout_session.duration_minutes}min")
 
             return {
                 "success": True,
@@ -374,7 +373,7 @@ class WorkoutService:
 
         except Exception as e:
             session.rollback()
-            print(f"❌ Erro ao finalizar sessão: {e}")
+            logger.error(f"Erro ao finalizar sessão {session_id}: {e}")
             return {"success": False, "error": str(e)}
         finally:
             session.close()
@@ -522,7 +521,6 @@ class WorkoutService:
 
             # Determinar se está ativa
             is_active = last_session.status
-            print
 
             # Contar exercícios (já carregados via joinedload)
             resistance_count = len(last_session.exercises)
@@ -577,14 +575,14 @@ class WorkoutService:
 
             for ws in abandoned:
                 ws.status = SessionStatus.ABANDONADA
-                print(f"⚠️  Sessão #{ws.session_id} marcada como abandonada")
+                logger.warning(f"Sessão #{ws.session_id} marcada como abandonada")
 
             if abandoned:
                 session.commit()
 
         except Exception as e:
             session.rollback()
-            print(f"❌ Erro ao marcar sessões abandonadas: {e}")
+            logger.error(f"Erro ao marcar sessões abandonadas: {e}")
         finally:
             session.close()
 
@@ -777,9 +775,7 @@ class WorkoutService:
             session.add(exercise)
             session.flush()
 
-            print(f"   🆕 Novo exercício: {name_lower}")
-            print(f"      💪 Músculo: {muscle_group}")
-            print(f"      🏋️  Equipamento: {equipment}")
+            logger.info(f"Novo exercício criado: {name_lower} (Músculo: {muscle_group}, Equipamento: {equipment})")
 
         return exercise
 

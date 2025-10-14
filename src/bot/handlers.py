@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 from datetime import datetime
 from typing import Any, Dict
@@ -29,6 +30,8 @@ from services.exceptions import (
     SessionError,
     ValidationError,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @rate_limit_commands
@@ -154,7 +157,7 @@ async def _process_workout_audio_optimized(
         
         # Aguardar transcrição (não há muito para paralelizar aqui ainda)
         transcription = await transcription_task
-        print(f"✅ Transcrição: {transcription}")
+        logger.info(f"Transcrição concluída: {transcription[:100]}...")
 
         # ===== ETAPA 2: LLM + PREPARAÇÃO DB EM PARALELO =====
         await status_msg.edit_text(
@@ -171,7 +174,7 @@ async def _process_workout_audio_optimized(
         
         # Por enquanto aguardamos LLM, mas futuramente podemos preparar caches aqui
         parsed_data = await llm_task
-        print(f"✅ LLM parseou: {parsed_data}")
+        logger.info(f"LLM parsing concluído: {len(parsed_data.get('resistance_exercises', []))} resistência, {len(parsed_data.get('aerobic_exercises', []))} aeróbico")
 
         # ===== ETAPA 3: SALVAR NO BANCO =====
         await status_msg.edit_text(
@@ -210,8 +213,7 @@ async def _process_workout_audio_optimized(
 
         await status_msg.edit_text(response, parse_mode="Markdown")
 
-        print(f"✅ PROCESSAMENTO OTIMIZADO COMPLETO em {processing_time:.2f}s")
-        print(f"{'=' * 50}\n")
+        logger.info(f"Processamento otimizado completo em {processing_time:.2f}s para usuário {user_id}")
 
     except ValidationError as e:
         details = f"\n\n_Detalhes: {e.details}_" if e.details else ""

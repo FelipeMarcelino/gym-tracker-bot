@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from functools import wraps
 from typing import Callable, Any, Awaitable
@@ -8,6 +9,8 @@ from telegram.ext import ContextTypes
 from config.settings import settings
 from config.messages import messages
 from services.container import get_user_service
+
+logger = logging.getLogger(__name__)
 
 
 def authorized_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]) -> Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]:
@@ -38,11 +41,7 @@ def authorized_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitabl
         
         if not user_service.is_user_authorized(str(user_id)):
             # Log da tentativa de acesso não autorizado
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"\n🚫 ACESSO NEGADO [{timestamp}]")
-            print(f"   User ID: {user_id}")
-            print(f"   Nome: {user.first_name} {user.last_name or ''}")
-            print(f"   Username: @{user.username or 'não definido'}")
+            logger.warning(f"Acesso negado para usuário {user_id} ({user.first_name} {user.last_name or ''}, @{user.username or 'não definido'})")
 
             # Mensagem para o usuário não autorizado
             await update.message.reply_text(
@@ -74,10 +73,7 @@ def admin_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any
         
         # Verificar se é admin
         if not user_service.is_user_admin(user_id):
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"\n🚫 ACESSO ADMIN NEGADO [{timestamp}]")
-            print(f"   User ID: {user_id}")
-            print(f"   Nome: {user.first_name} {user.last_name or ''}")
+            logger.warning(f"Acesso admin negado para usuário {user_id} ({user.first_name} {user.last_name or ''})")
 
             await update.message.reply_text(
                 "🚫 **Acesso Negado**\n\nApenas administradores podem usar este comando.",
@@ -111,7 +107,4 @@ async def log_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         content = "-"
 
     # Log formatado
-    print(f"\n📊 ACESSO [{timestamp}]")
-    print(f"   User: {user.first_name} (ID: {user.id})")
-    print(f"   Tipo: {msg_type}")
-    print(f"   Conteúdo: {content}")
+    logger.info(f"Acesso do usuário {user.first_name} (ID: {user.id}) - Tipo: {msg_type}, Conteúdo: {content}")
