@@ -54,8 +54,8 @@ class AnalyticsService:
             query = (
                 session.query(WorkoutSession)
                 .options(
-                    joinedload(WorkoutSession.exercises).joinedload("exercise"),
-                    joinedload(WorkoutSession.aerobics).joinedload("exercise")
+                    joinedload(WorkoutSession.exercises).joinedload(WorkoutExercise.exercise),
+                    joinedload(WorkoutSession.aerobics).joinedload(AerobicExercise.exercise)
                 )
                 .filter_by(user_id=user_id)
                 .filter(WorkoutSession.date >= start_date)
@@ -233,8 +233,35 @@ class AnalyticsService:
         total_sessions = len(sessions)
         finished_sessions = sum(1 for s in sessions if s.status == SessionStatus.FINALIZADA)
         
-        # Average duration for finished sessions
-        durations = [s.duration_minutes for s in sessions if s.duration_minutes]
+        # Calculate durations for all sessions (including active ones)
+        durations = []
+        for s in sessions:
+            duration = None
+            
+            if s.duration_minutes and s.duration_minutes > 0:
+                # Use stored duration for finished sessions
+                duration = s.duration_minutes
+            elif s.start_time and s.status == SessionStatus.ATIVA:
+                # Calculate duration for active sessions (from start to now)
+                from datetime import datetime, time as dt_time
+                start = datetime.combine(s.date, s.start_time)
+                now = datetime.now()
+                
+                # Handle case where session started on different day
+                if now.date() > s.date:
+                    # Session is old but still active - likely abandoned
+                    continue
+                
+                duration_seconds = (now - start).total_seconds()
+                duration_minutes = duration_seconds / 60
+                
+                # Only include reasonable durations (5 min to 12 hours)
+                if 5 <= duration_minutes <= 720:
+                    duration = duration_minutes
+            
+            if duration:
+                durations.append(duration)
+        
         avg_duration = sum(durations) / len(durations) if durations else 0
         
         # Audio counts
@@ -325,7 +352,8 @@ class AnalyticsService:
         for ex in exercises:
             exercise_counts[ex.exercise.name] += 1
             
-            if ex.duration_minutes:
+            # Only include positive durations
+            if ex.duration_minutes and ex.duration_minutes > 0:
                 total_duration += ex.duration_minutes
             if ex.distance_km:
                 total_distance += ex.distance_km
@@ -376,8 +404,15 @@ class AnalyticsService:
         dates = set(session.date for session in sessions)
         unique_days = len(dates)
         
-        # Calculate frequency
-        frequency_per_week = (unique_days / days) * 7 if days > 0 else 0
+        # Calculate frequency - only extrapolate if we have sufficient data
+        if days >= 7:
+            # For periods of a week or more, calculate weekly rate
+            weeks = days / 7
+            frequency_per_week = unique_days / weeks
+        else:
+            # For periods less than a week, don't extrapolate - show actual workouts
+            # This prevents showing "7 workouts/week" when someone worked out once in 1 day
+            frequency_per_week = unique_days
         
         # Find longest streak
         sorted_dates = sorted(dates)
@@ -395,7 +430,9 @@ class AnalyticsService:
             "frequency_per_week": round(frequency_per_week, 1),
             "unique_workout_days": unique_days,
             "longest_streak_days": max_streak,
-            "consistency_score": round((unique_days / days) * 100, 1) if days > 0 else 0
+            "consistency_score": round((unique_days / days) * 100, 1) if days > 0 else 0,
+            "analysis_period_days": days,
+            "is_extrapolated": days >= 7  # True if frequency is calculated, False if just showing actual workouts
         }
 
     def _calculate_progress_trends(self, sessions: List[WorkoutSession]) -> Dict[str, Any]:

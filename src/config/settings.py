@@ -27,36 +27,36 @@ class Settings:
         self.LLM_MODEL = os.getenv("LLM_MODEL", "llama3.1:8b")
         self.OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
         self.GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-        
+
         # Session and timeout settings
         self.SESSION_TIMEOUT_HOURS = int(os.getenv("SESSION_TIMEOUT_HOURS", "3"))
-        
+
         # Rate limiting settings
         self.RATE_LIMIT_GENERAL_REQUESTS = int(os.getenv("RATE_LIMIT_GENERAL_REQUESTS", "20"))
         self.RATE_LIMIT_VOICE_REQUESTS = int(os.getenv("RATE_LIMIT_VOICE_REQUESTS", "5"))
         self.RATE_LIMIT_COMMAND_REQUESTS = int(os.getenv("RATE_LIMIT_COMMAND_REQUESTS", "30"))
         self.RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
-        
+
         # File size limits (in MB)
-        self.MAX_AUDIO_FILE_SIZE_MB = int(os.getenv("MAX_AUDIO_FILE_SIZE_MB", "25"))
-        self.MAX_VOICE_FILE_SIZE_MB = int(os.getenv("MAX_VOICE_FILE_SIZE_MB", "20"))
-        
+        self.MAX_AUDIO_FILE_SIZE_MB = int(os.getenv("MAX_AUDIO_FILE_SIZE_MB", "100"))
+        self.MAX_VOICE_FILE_SIZE_MB = int(os.getenv("MAX_VOICE_FILE_SIZE_MB", "100"))
+
         # Duration limits (in seconds)
         self.MAX_AUDIO_DURATION_SECONDS = int(os.getenv("MAX_AUDIO_DURATION_SECONDS", "300"))  # 5 minutes
-        
+
         # Text limits
         self.MAX_TEXT_LENGTH = int(os.getenv("MAX_TEXT_LENGTH", "1000"))
         self.MAX_NAME_LENGTH = int(os.getenv("MAX_NAME_LENGTH", "100"))
         self.MAX_TRANSCRIPTION_LENGTH = int(os.getenv("MAX_TRANSCRIPTION_LENGTH", "10000"))
-        
+
         # LLM settings
         self.LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.1"))
-        self.LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "1000"))
-        
+        self.LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "8000"))
+
         # Logging limits
         self.LOG_TEXT_PREVIEW_LENGTH = int(os.getenv("LOG_TEXT_PREVIEW_LENGTH", "100"))
         self.LOG_MESSAGE_PREVIEW_LENGTH = int(os.getenv("LOG_MESSAGE_PREVIEW_LENGTH", "50"))
-        
+
         self._initialized = True
 
 

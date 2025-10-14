@@ -7,12 +7,12 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from config.settings import settings
 from database.connection import db
 from database.models import AerobicExercise, Exercise, ExerciseType, SessionStatus, WorkoutExercise, WorkoutSession
+from services.exceptions import DatabaseError, ValidationError
 from services.exercise_knowledge import infer_equipment, infer_muscle_group
 from services.stats_service import SessionStatsCalculator
-from services.exceptions import DatabaseError, ValidationError
-from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +51,10 @@ class WorkoutService:
         """
         if not session_id or session_id <= 0:
             raise ValidationError("ID da sessão inválido")
-            
+
         if not user_id or not user_id.strip():
             raise ValidationError("ID do usuário é obrigatório")
-            
+
         if not parsed_data or not isinstance(parsed_data, dict):
             raise ValidationError("Dados parseados inválidos")
 
@@ -67,7 +67,7 @@ class WorkoutService:
 
             if not workout_session:
                 raise ValidationError(f"Sessão {session_id} não encontrada")
-                
+
             if workout_session.user_id != user_id:
                 raise ValidationError("Usuário não autorizado para esta sessão")
 
@@ -101,11 +101,11 @@ class WorkoutService:
             resistance_exercises = parsed_data.get("resistance_exercises", [])
             if resistance_exercises and not isinstance(resistance_exercises, list):
                 raise ValidationError("resistance_exercises deve ser uma lista")
-                
+
             for idx, ex_data in enumerate(resistance_exercises):
                 if not isinstance(ex_data, dict):
                     raise ValidationError(f"Exercício de resistência {idx} deve ser um objeto")
-                    
+
                 if "name" not in ex_data or not ex_data["name"].strip():
                     raise ValidationError(f"Nome do exercício é obrigatório (exercício {idx})")
 
@@ -147,11 +147,11 @@ class WorkoutService:
             aerobic_exercises = parsed_data.get("aerobic_exercises", [])
             if aerobic_exercises and not isinstance(aerobic_exercises, list):
                 raise ValidationError("aerobic_exercises deve ser uma lista")
-                
+
             for idx, ex_data in enumerate(aerobic_exercises):
                 if not isinstance(ex_data, dict):
                     raise ValidationError(f"Exercício aeróbico {idx} deve ser um objeto")
-                    
+
                 if "name" not in ex_data or not ex_data["name"].strip():
                     raise ValidationError(f"Nome do exercício aeróbico é obrigatório (exercício {idx})")
 
@@ -189,36 +189,36 @@ class WorkoutService:
             logger.exception("Erro de banco de dados ao adicionar exercícios")
             raise DatabaseError(
                 "Erro ao salvar exercícios no banco de dados",
-                f"Erro SQLAlchemy: {str(e)}"
+                f"Erro SQLAlchemy: {e!s}",
             )
         except Exception as e:
             session.rollback()
             logger.exception("Erro inesperado ao adicionar exercícios")
             raise DatabaseError(
                 "Erro inesperado ao adicionar exercícios",
-                f"Erro interno: {str(e)}"
+                f"Erro interno: {e!s}",
             )
         finally:
             session.close()
-            
+
     def _validate_and_process_weights(self, ex_data: Dict[str, Any], exercise_idx: int) -> Optional[List[float]]:
         """Valida e processa pesos do exercício"""
         weights_kg = ex_data.get("weights_kg")
-        
+
         if not weights_kg:
             # Compatibilidade com formato antigo
             single_weight = ex_data.get("weight_kg")
             if single_weight and ex_data.get("sets"):
                 weights_kg = [single_weight] * ex_data.get("sets")
-        
+
         if weights_kg:
             if not isinstance(weights_kg, list):
                 raise ValidationError(f"Pesos devem ser uma lista (exercício {exercise_idx})")
-                
+
             for i, weight in enumerate(weights_kg):
                 if not isinstance(weight, (int, float)) or weight < 0:
                     raise ValidationError(f"Peso da série {i+1} deve ser um número não-negativo (exercício {exercise_idx})")
-            
+
             # Validar que weights_kg tem o tamanho correto
             sets = ex_data.get("sets", 0)
             if len(weights_kg) != sets:
@@ -227,7 +227,7 @@ class WorkoutService:
                     weights_kg.extend([weights_kg[-1]] * (sets - len(weights_kg)))
                 else:
                     weights_kg = weights_kg[:sets]
-                    
+
         return weights_kg
 
     def finish_session(self, session_id: int, user_id: str) -> Dict[str, Any]:
@@ -304,7 +304,7 @@ class WorkoutService:
         """
         if not user_id or not user_id.strip():
             raise ValidationError("ID do usuário é obrigatório")
-            
+
         session = self.db.get_session()
 
         try:
@@ -317,17 +317,17 @@ class WorkoutService:
             logger.exception("Erro de banco ao buscar última sessão")
             raise DatabaseError(
                 "Erro ao buscar última sessão",
-                f"Erro SQLAlchemy: {str(e)}"
+                f"Erro SQLAlchemy: {e!s}",
             )
         except Exception as e:
             logger.exception("Erro inesperado ao buscar última sessão")
             raise DatabaseError(
                 "Erro inesperado ao buscar última sessão",
-                f"Erro interno: {str(e)}"
+                f"Erro interno: {e!s}",
             )
         finally:
             session.close()
-            
+
     def get_session_summary(self, session_id: int) -> Dict[str, Any]:
         """Busca resumo de uma sessão
         
@@ -344,7 +344,7 @@ class WorkoutService:
         """
         if not session_id or session_id <= 0:
             raise ValidationError("ID da sessão inválido")
-            
+
         session = self.db.get_session()
 
         try:
@@ -366,20 +366,20 @@ class WorkoutService:
                 "session_status": workout_session.status.value,
                 "audio_count": workout_session.audio_count,
             }
-            
+
         except (ValidationError, DatabaseError):
             raise
         except SQLAlchemyError as e:
             logger.exception("Erro de banco ao buscar resumo da sessão")
             raise DatabaseError(
                 "Erro ao buscar resumo da sessão",
-                f"Erro SQLAlchemy: {str(e)}"
+                f"Erro SQLAlchemy: {e!s}",
             )
         except Exception as e:
             logger.exception("Erro inesperado ao buscar resumo da sessão")
             raise DatabaseError(
                 "Erro inesperado ao buscar resumo da sessão",
-                f"Erro interno: {str(e)}"
+                f"Erro interno: {e!s}",
             )
         finally:
             session.close()
@@ -396,21 +396,22 @@ class WorkoutService:
         Raises:
             ValidationError: Se user_id é inválido
             DatabaseError: Se operação no banco falhar
+
         """
         if not user_id or not user_id.strip():
             raise ValidationError("ID do usuário é obrigatório")
-            
+
         session = self.db.get_session()
 
         try:
             # Query otimizada com eager loading dos relacionamentos
             from sqlalchemy.orm import joinedload
-            
+
             last_session = (
                 session.query(WorkoutSession)
                 .options(
                     joinedload(WorkoutSession.exercises),
-                    joinedload(WorkoutSession.aerobics)
+                    joinedload(WorkoutSession.aerobics),
                 )
                 .filter_by(user_id=user_id)
                 .order_by(WorkoutSession.last_update.desc())
@@ -420,7 +421,7 @@ class WorkoutService:
             if not last_session:
                 return {
                     "has_session": False,
-                    "message": "Você ainda não tem nenhuma sessão registrada.\nEnvie um áudio para começar!"
+                    "message": "Você ainda não tem nenhuma sessão registrada.\nEnvie um áudio para começar!",
                 }
 
             # Calcular tempo desde última atualização
@@ -429,7 +430,8 @@ class WorkoutService:
             minutes_passed = int(hours_passed * 60)
 
             # Determinar se está ativa
-            is_active = hours_passed < settings.SESSION_TIMEOUT_HOURS
+            is_active = last_session.status
+            print
 
             # Contar exercícios (já carregados via joinedload)
             resistance_count = len(last_session.exercises)
@@ -445,20 +447,20 @@ class WorkoutService:
                 "aerobic_count": aerobic_count,
                 "timeout_hours": settings.SESSION_TIMEOUT_HOURS,
             }
-            
+
         except (ValidationError, DatabaseError):
             raise
         except SQLAlchemyError as e:
             logger.exception("Erro de banco ao buscar status da sessão")
             raise DatabaseError(
                 "Erro ao buscar status da sessão",
-                f"Erro SQLAlchemy: {str(e)}"
+                f"Erro SQLAlchemy: {e!s}",
             )
         except Exception as e:
             logger.exception("Erro inesperado ao buscar status da sessão")
             raise DatabaseError(
                 "Erro inesperado ao buscar status da sessão",
-                f"Erro interno: {str(e)}"
+                f"Erro interno: {e!s}",
             )
         finally:
             session.close()

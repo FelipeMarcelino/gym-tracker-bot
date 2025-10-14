@@ -1,11 +1,11 @@
 """User-facing messages configuration for internationalization and easy customization"""
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 class Messages:
     """Container for all user-facing messages"""
-    
+
     # Welcome and help messages
     WELCOME = """👋 Olá, {user_name}! Bem-vindo ao Gym Tracker Bot!
 
@@ -38,6 +38,7 @@ Exemplo: _"Fiz supino reto com barra, 3 séries de 12, 10 e 8 repetições com 4
 - `/finish` - Finalizar treino atual
 - `/stats [dias]` - Estatísticas e analytics
 - `/progress <exercício>` - Progresso específico
+- `/exercises` - Listar todos os exercícios
 - `/export [json|csv]` - Exportar seus dados
 - `/help` - Mostra esta ajuda
 
@@ -97,10 +98,25 @@ _Em breve vou processar essa informação com IA!_ 🤖"""
 
 🔄 Processando..."""
 
+    # Text processing messages
+    TEXT_PROCESSING_NEW_SESSION = """📝 **Mensagem de treino recebida!**
+
+✨ **Nova sessão de treino iniciada**
+🆔 Session ID: `{session_id}`
+
+🔄 Processando..."""
+
+    TEXT_PROCESSING_EXISTING_SESSION = """📝 **Mensagem de treino recebida!**
+
+➕ **Adicionando à sessão #{session_id}**
+📝 Mensagem #{message_count} desta sessão
+
+🔄 Processando..."""
+
     AUDIO_SUCCESS_NEW_SESSION = "✅ **Nova sessão criada e áudio processado!**\n\n"
     AUDIO_SUCCESS_EXISTING_SESSION = "✅ **Áudio #{audio_count} adicionado à sessão!**\n\n"
 
-    AUDIO_SUCCESS_FOOTER_NEW = "💡 _Envie mais áudios para adicionar exercícios a esta sessão_"
+    AUDIO_SUCCESS_FOOTER_NEW = "💡 _Envie mais áudios ou texto para adicionar exercícios a esta sessão_"
     AUDIO_SUCCESS_FOOTER_CONTINUE = "💡 _Continue enviando áudios ou aguarde 3h para iniciar nova sessão_"
 
     # Status messages
@@ -214,17 +230,17 @@ _Seu ID: `{user_id}`_"""
     def format_transcription_response(cls, transcription: str) -> str:
         """Format transcription part of success message"""
         return f"📝 **Você disse:**\n_{transcription}_\n\n"
-    
+
     @classmethod
     def format_exercise_section(cls, resistance_exercises: list, aerobic_exercises: list) -> str:
         """Format the exercises section of success messages"""
         response = ""
-        
+
         if resistance_exercises:
             response += "💪 **Exercícios Adicionados:**\n"
             for ex in resistance_exercises:
                 response += cls._format_single_exercise(ex)
-                
+
         if aerobic_exercises:
             response += "🏃 **Exercícios Aeróbicos:**\n"
             for ex in aerobic_exercises:
@@ -233,9 +249,9 @@ _Seu ID: `{user_id}`_"""
                     response += f" - {ex.get('distance_km')}km"
                 response += "\n"
             response += "\n"
-                
+
         return response
-    
+
     @classmethod
     def _format_single_exercise(cls, ex: Dict[str, Any]) -> str:
         """Format a single resistance exercise"""
@@ -279,21 +295,21 @@ _Seu ID: `{user_id}`_"""
 
         response += "\n"
         return response
-    
+
     @classmethod
     def _get_difficulty_emoji_and_desc(cls, difficulty: int) -> tuple[str, str]:
         """Get emoji and description for difficulty level"""
         if difficulty <= 2:
             return "😊", "Muito fácil"
-        elif difficulty <= 4:
+        if difficulty <= 4:
             return "🙂", "Fácil"
-        elif difficulty <= 6:
+        if difficulty <= 6:
             return "😐", "Moderado"
-        elif difficulty <= 8:
+        if difficulty <= 8:
             return "😤", "Difícil"
-        else:
-            return "🔥", "Muito difícil"
+        return "🔥", "Muito difícil"
 
 
 # Global messages instance
 messages = Messages()
+

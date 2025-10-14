@@ -4,6 +4,7 @@ from typing import NoReturn
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 from bot.handlers import (
+    exercises_command,
     export_command,
     finish_command,
     handle_text,
@@ -61,6 +62,7 @@ def main() -> NoReturn:
     application.add_handler(CommandHandler("export", export_command))
     application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(CommandHandler("progress", progress_command))
+    application.add_handler(CommandHandler("exercises", exercises_command))
 
     # Mensagens de voz (ANTES de text, para ter prioridade)
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))

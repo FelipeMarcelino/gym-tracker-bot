@@ -17,9 +17,9 @@ class LLMParsingService:
         if not settings.GROQ_API_KEY:
             raise ServiceUnavailableError(
                 "GROQ_API_KEY não configurada",
-                "Configure a variável de ambiente GROQ_API_KEY"
+                "Configure a variável de ambiente GROQ_API_KEY",
             )
-            
+
         try:
             self.client = Groq(api_key=settings.GROQ_API_KEY)
             self.model = settings.LLM_MODEL
@@ -27,7 +27,7 @@ class LLMParsingService:
         except Exception as e:
             raise ServiceUnavailableError(
                 "Falha ao inicializar cliente Groq LLM",
-                f"Erro: {str(e)}"
+                f"Erro: {e!s}",
             )
 
     def parse_workout(self, transcription: str) -> Dict[str, Any]:
@@ -47,7 +47,7 @@ class LLMParsingService:
         """
         if not transcription or not transcription.strip():
             raise ValidationError("Transcrição vazia ou inválida")
-            
+
         if len(transcription) > settings.MAX_TRANSCRIPTION_LENGTH:
             raise ValidationError(f"Transcrição muito longa (máximo {settings.MAX_TRANSCRIPTION_LENGTH:,} caracteres)")
 
@@ -63,20 +63,20 @@ class LLMParsingService:
                     "content": prompt,
                 }],
                 temperature=settings.LLM_TEMPERATURE,
-                max_tokens=settings.LLM_MAX_TOKENS,
+                max_completion_tokens=settings.LLM_MAX_TOKENS,
             )
 
             if not response.choices or not response.choices[0].message:
                 raise LLMParsingError(
                     "Resposta vazia do LLM",
-                    "O modelo não retornou uma resposta válida"
+                    "O modelo não retornou uma resposta válida",
                 )
 
             content = response.choices[0].message.content
             if not content:
                 raise LLMParsingError(
                     "Conteúdo vazio na resposta do LLM",
-                    "O modelo retornou uma resposta vazia"
+                    "O modelo retornou uma resposta vazia",
                 )
 
             # Limpar markdown se presente
@@ -90,14 +90,14 @@ class LLMParsingService:
                 logger.error(f"Resposta do Groq: {content[:500]}...")
                 raise LLMParsingError(
                     "Resposta do LLM não é JSON válido",
-                    f"Erro de parsing: {str(e)}"
+                    f"Erro de parsing: {e!s}",
                 )
 
             # Validar estrutura básica
             if not isinstance(parsed_data, dict):
                 raise LLMParsingError(
                     "Resposta do LLM deve ser um objeto JSON",
-                    f"Recebido: {type(parsed_data)}"
+                    f"Recebido: {type(parsed_data)}",
                 )
 
             logger.info("Groq API parseou com sucesso!")
@@ -110,19 +110,18 @@ class LLMParsingService:
             if "rate_limit" in str(e).lower():
                 raise ServiceUnavailableError(
                     "Limite de taxa do Groq API excedido",
-                    "Tente novamente em alguns segundos"
+                    "Tente novamente em alguns segundos",
                 )
-            elif "unauthorized" in str(e).lower():
+            if "unauthorized" in str(e).lower():
                 raise ServiceUnavailableError(
                     "Chave API Groq inválida",
-                    "Verifique a configuração GROQ_API_KEY"
+                    "Verifique a configuração GROQ_API_KEY",
                 )
-            else:
-                logger.exception("Erro inesperado no LLM parsing")
-                raise LLMParsingError(
-                    "Erro inesperado no parsing",
-                    f"Erro interno: {str(e)}"
-                )
+            logger.exception("Erro inesperado no LLM parsing")
+            raise LLMParsingError(
+                "Erro inesperado no parsing",
+                f"Erro interno: {e!s}",
+            )
 
     def _build_prompt(self, transcription: str) -> str:
         """Constrói o prompt para o LLM"""
@@ -137,6 +136,7 @@ IMPORTANTE sobre NOMES DE EXERCÍCIOS:
 - Preserve equipamentos: "agachamento livre", "agachamento smith", "leg press"
 - Use APENAS português brasileiro
 - Normalize para minúsculas
+- Caso erro de escrita, tente achar o exercício mais próximo utilizando fuzzy
 
 EQUIPAMENTOS que devem ser SEMPRE mencionados quando usados:
 - "com barra" (barra livre olímpica)
@@ -296,7 +296,6 @@ Saída: {{
   "perceived_difficulty": 9
 }}
 
-FORMATO JSON (retorne APENAS JSON válido, sem markdown):
 {{
   "body_weight_kg": float ou null,
   "energy_level": int de 1-10 ou null,
