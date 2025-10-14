@@ -27,6 +27,95 @@ class WorkoutService:
     # MÉTODOS PÚBLICOS - Operações Principais
     # =========================================================================
 
+    def add_exercises_to_session_batch(
+        self,
+        session_id: int,
+        parsed_data: Dict[str, Any],
+        user_id: str,
+    ) -> bool:
+        """Versão otimizada que faz todas as operações em uma única transação
+        
+        Args:
+            session_id: ID da sessão
+            parsed_data: Dados parseados do LLM
+            user_id: ID do usuário (para validação)
+            
+        Returns:
+            True se sucesso
+            
+        Raises:
+            ValidationError: Se os dados são inválidos
+            DatabaseError: Se operação no banco falhar
+        """
+        if not session_id or session_id <= 0:
+            raise ValidationError("ID da sessão inválido")
+
+        if not user_id or not user_id.strip():
+            raise ValidationError("ID do usuário é obrigatório")
+
+        if not parsed_data or not isinstance(parsed_data, dict):
+            raise ValidationError("Dados parseados inválidos")
+
+        session = self.db.get_session()
+
+        try:
+            # ===== TRANSAÇÃO ÚNICA OTIMIZADA =====
+            with session.begin():
+                # 1. Buscar sessão
+                workout_session = session.query(WorkoutSession).filter_by(
+                    session_id=session_id,
+                ).first()
+
+                if not workout_session:
+                    raise ValidationError(f"Sessão {session_id} não encontrada")
+
+                if workout_session.user_id != user_id:
+                    raise ValidationError("Usuário não autorizado para esta sessão")
+
+                # 2. Atualizar dados da sessão
+                self._update_session_data_batch(workout_session, parsed_data)
+
+                # 3. Contar exercícios existentes
+                existing_resistance = len(workout_session.exercises)
+
+                # 4. Processar exercícios de resistência em batch
+                resistance_exercises = parsed_data.get("resistance_exercises", [])
+                if resistance_exercises:
+                    self._process_resistance_exercises_batch(
+                        session, session_id, resistance_exercises, existing_resistance
+                    )
+
+                # 5. Processar exercícios aeróbicos em batch
+                aerobic_exercises = parsed_data.get("aerobic_exercises", [])
+                if aerobic_exercises:
+                    self._process_aerobic_exercises_batch(
+                        session, session_id, aerobic_exercises
+                    )
+
+                # Commit automático pelo context manager
+
+            resistance_count = len(resistance_exercises)
+            aerobic_count = len(aerobic_exercises)
+
+            logger.info(f"BATCH: Adicionado à sessão #{session_id}: {resistance_count} resistência, {aerobic_count} aeróbico")
+            return True
+
+        except (ValidationError, DatabaseError):
+            raise
+        except SQLAlchemyError as e:
+            logger.exception("Erro de banco de dados ao adicionar exercícios (batch)")
+            raise DatabaseError(
+                "Erro ao salvar exercícios no banco de dados",
+                f"Erro SQLAlchemy: {e!s}",
+            )
+        except Exception as e:
+            logger.exception("Erro inesperado ao adicionar exercícios (batch)")
+            raise DatabaseError(
+                "Erro inesperado ao adicionar exercícios",
+                f"Erro interno: {e!s}",
+            )
+        finally:
+            session.close()
 
     def add_exercises_to_session(
         self,
@@ -501,6 +590,149 @@ class WorkoutService:
     # MÉTODOS PRIVADOS - Auxiliares
     # =========================================================================
 
+    def _update_session_data_batch(self, workout_session: WorkoutSession, parsed_data: Dict[str, Any]) -> None:
+        """Atualiza dados da sessão em batch"""
+        if parsed_data.get("body_weight_kg"):
+            if not isinstance(parsed_data["body_weight_kg"], (int, float)) or parsed_data["body_weight_kg"] <= 0:
+                raise ValidationError("Peso corporal deve ser um número positivo")
+            if not workout_session.body_weight_kg:
+                workout_session.body_weight_kg = parsed_data["body_weight_kg"]
+
+        if parsed_data.get("energy_level"):
+            energy = parsed_data["energy_level"]
+            if not isinstance(energy, int) or energy < 1 or energy > 10:
+                raise ValidationError("Nível de energia deve ser um inteiro entre 1 e 10")
+            if not workout_session.energy_level:
+                workout_session.energy_level = energy
+
+        if parsed_data.get("notes"):
+            notes = parsed_data["notes"]
+            if not isinstance(notes, str):
+                raise ValidationError("Notas devem ser texto")
+            if workout_session.notes:
+                workout_session.notes += f"\n{notes}"
+            else:
+                workout_session.notes = notes
+
+    def _process_resistance_exercises_batch(
+        self, 
+        session: Session, 
+        session_id: int, 
+        resistance_exercises: List[Dict[str, Any]], 
+        existing_resistance: int
+    ) -> None:
+        """Processa exercícios de resistência em batch"""
+        # Cache para exercícios já criados nesta transação
+        exercise_cache = {}
+        
+        for idx, ex_data in enumerate(resistance_exercises):
+            if not isinstance(ex_data, dict):
+                raise ValidationError(f"Exercício de resistência {idx} deve ser um objeto")
+
+            if "name" not in ex_data or not ex_data["name"].strip():
+                raise ValidationError(f"Nome do exercício é obrigatório (exercício {idx})")
+
+            # Usar cache para evitar queries repetidas
+            exercise_name = ex_data["name"].lower().strip()
+            if exercise_name in exercise_cache:
+                exercise = exercise_cache[exercise_name]
+            else:
+                exercise = self._get_or_create_exercise_batch(
+                    session=session,
+                    name=ex_data["name"],
+                    type=ExerciseType.RESISTENCIA,
+                )
+                exercise_cache[exercise_name] = exercise
+
+            # Validar e processar pesos
+            weights_kg = self._validate_and_process_weights(ex_data, idx)
+
+            # Validar repetições
+            reps = ex_data.get("reps")
+            if reps and not isinstance(reps, list):
+                raise ValidationError(f"Repetições devem ser uma lista (exercício {idx})")
+
+            # Criar registro do exercício
+            workout_exercise = WorkoutExercise(
+                session_id=session_id,
+                exercise_id=exercise.exercise_id,
+                order_in_workout=existing_resistance + idx + 1,
+                sets=ex_data.get("sets"),
+                reps=reps,
+                weights_kg=weights_kg,
+                rest_seconds=ex_data.get("rest_seconds"),
+                perceived_difficulty=ex_data.get("perceived_difficulty"),
+                notes=ex_data.get("notes"),
+            )
+            session.add(workout_exercise)
+
+    def _process_aerobic_exercises_batch(
+        self, 
+        session: Session, 
+        session_id: int, 
+        aerobic_exercises: List[Dict[str, Any]]
+    ) -> None:
+        """Processa exercícios aeróbicos em batch"""
+        exercise_cache = {}
+        
+        for idx, ex_data in enumerate(aerobic_exercises):
+            if not isinstance(ex_data, dict):
+                raise ValidationError(f"Exercício aeróbico {idx} deve ser um objeto")
+
+            if "name" not in ex_data or not ex_data["name"].strip():
+                raise ValidationError(f"Nome do exercício aeróbico é obrigatório (exercício {idx})")
+
+            # Usar cache para evitar queries repetidas
+            exercise_name = ex_data["name"].lower().strip()
+            if exercise_name in exercise_cache:
+                exercise = exercise_cache[exercise_name]
+            else:
+                exercise = self._get_or_create_exercise_batch(
+                    session=session,
+                    name=ex_data["name"],
+                    type=ExerciseType.AEROBICO,
+                )
+                exercise_cache[exercise_name] = exercise
+
+            aerobic_exercise = AerobicExercise(
+                session_id=session_id,
+                exercise_id=exercise.exercise_id,
+                duration_minutes=ex_data.get("duration_minutes"),
+                distance_km=ex_data.get("distance_km"),
+                intensity_level=ex_data.get("intensity_level"),
+                notes=ex_data.get("notes"),
+            )
+            session.add(aerobic_exercise)
+
+    def _get_or_create_exercise_batch(
+        self,
+        session: Session,
+        name: str,
+        type: ExerciseType,
+    ) -> Exercise:
+        """Versão otimizada para batch - reutiliza a sessão existente"""
+        name_lower = name.lower().strip()
+
+        # Buscar se já existe na sessão atual
+        exercise = session.query(Exercise).filter_by(name=name_lower).first()
+
+        if not exercise:
+            # Inferir muscle_group e equipment automaticamente
+            muscle_group = infer_muscle_group(name_lower)
+            equipment = infer_equipment(name_lower)
+
+            exercise = Exercise(
+                name=name_lower,
+                type=type,
+                muscle_group=muscle_group,
+                equipment=equipment,
+            )
+            session.add(exercise)
+            session.flush()  # Para obter o ID sem commit
+
+            logger.debug(f"BATCH: Novo exercício: {name_lower} (Músculo: {muscle_group}, Equipamento: {equipment})")
+
+        return exercise
 
     def _get_or_create_exercise(
         self,

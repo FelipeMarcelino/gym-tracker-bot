@@ -25,6 +25,10 @@ class DatabaseConnection:
                 settings.DATABASE_URL,
                 echo=False,  # True para debug SQL
                 pool_pre_ping=True,
+                pool_size=10,           # Connection pool size
+                max_overflow=20,        # Additional connections beyond pool_size
+                pool_recycle=3600,      # Recycle connections after 1 hour
+                pool_timeout=30,        # Timeout for getting connection from pool
             )
             self._session_factory = sessionmaker(
                 bind=self._engine,

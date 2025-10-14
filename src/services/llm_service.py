@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Any, Dict
 
-from groq import Groq
+from groq import AsyncGroq
 
 from config.settings import settings
 from services.exceptions import LLMParsingError, ServiceUnavailableError, ValidationError
@@ -21,16 +21,16 @@ class LLMParsingService:
             )
 
         try:
-            self.client = Groq(api_key=settings.GROQ_API_KEY)
+            self.client = AsyncGroq(api_key=settings.GROQ_API_KEY)
             self.model = settings.LLM_MODEL
-            logger.info(f"LLM Service inicializado: {self.model} (Groq API)")
+            logger.info(f"LLM Service inicializado: {self.model} (Async Groq API)")
         except Exception as e:
             raise ServiceUnavailableError(
                 "Falha ao inicializar cliente Groq LLM",
                 f"Erro: {e!s}",
             )
 
-    def parse_workout(self, transcription: str) -> Dict[str, Any]:
+    async def parse_workout(self, transcription: str) -> Dict[str, Any]:
         """Parse uma transcrição de treino usando Groq API
         
         Args:
@@ -56,7 +56,7 @@ class LLMParsingService:
         logger.info(f"Enviando transcrição para Groq API ({self.model})...")
 
         try:
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[{
                     "role": "user",

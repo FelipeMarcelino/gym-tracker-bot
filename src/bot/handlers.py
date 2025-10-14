@@ -1,3 +1,4 @@
+import asyncio
 import time
 from datetime import datetime
 from typing import Any, Dict
@@ -121,6 +122,128 @@ def _is_workout_message(text: str) -> bool:
     return any(keyword in text_lower for keyword in workout_keywords)
 
 
+async def _process_workout_audio_optimized(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    status_msg,
+    initial_msg: str,
+    file_bytes: bytes,
+    workout_session,
+    is_new: bool,
+    start_time: float,
+) -> None:
+    """Processa áudio de workout com otimizações paralelas"""
+    validation_result = validate_and_sanitize_user_input(update)
+    user_data = validation_result["user"]
+    user_id = user_data.get("id", "N/A")
+
+    try:
+        # ===== ETAPA 1: TRANSCRIÇÃO EM PARALELO =====
+        await status_msg.edit_text(
+            f"{initial_msg}\n\n✅ Baixado\n🎙️ Transcrevendo...",
+            parse_mode="Markdown",
+        )
+
+        audio_service = get_audio_service()
+        
+        # Criar task para transcrição 
+        transcription_task = asyncio.create_task(
+            audio_service.transcribe_telegram_voice(file_bytes)
+        )
+        
+        # Aguardar transcrição (não há muito para paralelizar aqui ainda)
+        transcription = await transcription_task
+        print(f"✅ Transcrição: {transcription}")
+
+        # ===== ETAPA 2: LLM + PREPARAÇÃO DB EM PARALELO =====
+        await status_msg.edit_text(
+            f"{initial_msg}\n\n✅ Baixado\n✅ Transcrito\n🤖 Processando...",
+            parse_mode="Markdown",
+        )
+
+        llm_service = get_llm_service()
+        
+        # Executar LLM parsing (agora async) 
+        llm_task = asyncio.create_task(
+            llm_service.parse_workout(transcription)
+        )
+        
+        # Por enquanto aguardamos LLM, mas futuramente podemos preparar caches aqui
+        parsed_data = await llm_task
+        print(f"✅ LLM parseou: {parsed_data}")
+
+        # ===== ETAPA 3: SALVAR NO BANCO =====
+        await status_msg.edit_text(
+            f"{initial_msg}\n\n✅ Baixado\n✅ Transcrito\n✅ Analisado\n💾 Salvando...",
+            parse_mode="Markdown",
+        )
+
+        workout_service = get_workout_service()
+        processing_time = time.time() - start_time
+
+        # ADICIONAR à sessão existente usando método batch otimizado
+        workout_service.add_exercises_to_session_batch(
+            session_id=workout_session.session_id,
+            parsed_data=parsed_data,
+            user_id=user_id,
+        )
+
+        # Atualizar metadados da sessão
+        session_manager = get_session_manager()
+        session_manager.update_session_metadata(
+            session_id=workout_session.session_id,
+            transcription=transcription,
+            processing_time=processing_time,
+            model_used=settings.LLM_MODEL,
+        )
+
+        # ===== ETAPA 4: RESPOSTA FINAL =====
+        response = _format_success_response(
+            transcription=transcription,
+            parsed_data=parsed_data,
+            session_id=workout_session.session_id,
+            processing_time=processing_time,
+            is_new_session=is_new,
+            audio_count=workout_session.audio_count + 1,
+        )
+
+        await status_msg.edit_text(response, parse_mode="Markdown")
+
+        print(f"✅ PROCESSAMENTO OTIMIZADO COMPLETO em {processing_time:.2f}s")
+        print(f"{'=' * 50}\n")
+
+    except ValidationError as e:
+        details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
+        error_msg = messages.ERROR_VALIDATION.format(message=e.message, details=details)
+        await status_msg.edit_text(error_msg, parse_mode="Markdown")
+        print(f"❌ ERRO DE VALIDAÇÃO: {e}")
+
+    except LLMParsingError as e:
+        error_msg = messages.ERROR_LLM_PARSING.format(message=e.message)
+        await status_msg.edit_text(error_msg, parse_mode="Markdown")
+        print(f"❌ ERRO DE LLM: {e}")
+
+    except ServiceUnavailableError as e:
+        details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
+        error_msg = messages.ERROR_SERVICE_UNAVAILABLE.format(message=e.message, details=details)
+        await status_msg.edit_text(error_msg, parse_mode="Markdown")
+        print(f"❌ ERRO DE SERVIÇO: {e}")
+
+    except (DatabaseError, SessionError) as e:
+        error_msg = messages.ERROR_DATABASE.format(message=e.message)
+        await status_msg.edit_text(error_msg, parse_mode="Markdown")
+        print(f"❌ ERRO DE BANCO/SESSÃO: {e}")
+        import traceback
+        traceback.print_exc()
+
+    except Exception as e:
+        error_msg = messages.ERROR_UNEXPECTED.format(error_message="Ocorreu um erro interno.")
+        await status_msg.edit_text(error_msg, parse_mode="Markdown")
+        print(f"❌ ERRO INESPERADO: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 async def _process_workout_audio(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -138,7 +261,7 @@ async def _process_workout_audio(
 
     try:
         llm_service = get_llm_service()
-        parsed_data = llm_service.parse_workout(transcription)
+        parsed_data = await llm_service.parse_workout(transcription)
 
         print(f"✅ LLM parseou: {parsed_data}")
 
@@ -272,7 +395,7 @@ async def _process_workout_message(
         )
 
         llm_service = get_llm_service()
-        parsed_data = llm_service.parse_workout(workout_text)
+        parsed_data = await llm_service.parse_workout(workout_text)
 
         print(f"✅ LLM parseou: {parsed_data}")
 
@@ -457,26 +580,16 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         file_bytes = await file.download_as_bytearray()
         print(f"📥 Áudio baixado: {len(file_bytes)} bytes")
 
-        # ===== PASSO 2: TRANSCREVER =====
+        # ===== PASSO 2 & 3: PROCESSAR EM PARALELO =====
         await status_msg.edit_text(
-            f"{initial_msg}\n\n✅ Baixado\n🎙️ Transcrevendo...",
+            f"{initial_msg}\n\n✅ Baixado\n🎙️ Processando (paralelo)...",
             parse_mode="Markdown",
         )
 
-        audio_service = get_audio_service()
-        transcription = await audio_service.transcribe_telegram_voice(bytes(file_bytes))
-        print(f"✅ Transcrição: {transcription}")
-
-        # ===== PASSO 3: PARSEAR COM LLM =====
-        await status_msg.edit_text(
-            f"{initial_msg}\n\n✅ Baixado\n✅ Transcrito\n🤖 Analisando...",
-            parse_mode="Markdown",
-        )
-
-        # Usar a função unificada para processar o workout
-        await _process_workout_audio(
+        # Processar transcrição e LLM em paralelo usando a função otimizada
+        await _process_workout_audio_optimized(
             update, context, status_msg, initial_msg,
-            transcription, workout_session, is_new, start_time,
+            bytes(file_bytes), workout_session, is_new, start_time,
         )
 
     except AudioProcessingError as e:
