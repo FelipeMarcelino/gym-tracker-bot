@@ -255,6 +255,8 @@ class WorkoutService:
                     exercise_id=exercise.exercise_id,
                     duration_minutes=ex_data.get("duration_minutes"),
                     distance_km=ex_data.get("distance_km"),
+                    average_heart_rate=ex_data.get("average_heart_rate"),
+                    calories_burned=ex_data.get("calories_burned"),
                     intensity_level=ex_data.get("intensity_level"),
                     notes=ex_data.get("notes"),
                 )
@@ -699,6 +701,8 @@ class WorkoutService:
                 exercise_id=exercise.exercise_id,
                 duration_minutes=ex_data.get("duration_minutes"),
                 distance_km=ex_data.get("distance_km"),
+                average_heart_rate=ex_data.get("average_heart_rate"),
+                calories_burned=ex_data.get("calories_burned"),
                 intensity_level=ex_data.get("intensity_level"),
                 notes=ex_data.get("notes"),
             )
@@ -718,8 +722,9 @@ class WorkoutService:
 
         if not exercise:
             # Inferir muscle_group e equipment automaticamente
-            muscle_group = infer_muscle_group(name_lower)
-            equipment = infer_equipment(name_lower)
+            exercise_type_str = "aerobico" if type == ExerciseType.AEROBICO else "resistencia"
+            muscle_group = infer_muscle_group(name_lower, exercise_type_str)
+            equipment = infer_equipment(name_lower, exercise_type_str)
 
             exercise = Exercise(
                 name=name_lower,
@@ -759,8 +764,9 @@ class WorkoutService:
 
         if not exercise:
             # Inferir muscle_group e equipment automaticamente
-            muscle_group = infer_muscle_group(name_lower)
-            equipment = infer_equipment(name_lower)
+            exercise_type_str = "aerobico" if type == ExerciseType.AEROBICO else "resistencia"
+            muscle_group = infer_muscle_group(name_lower, exercise_type_str)
+            equipment = infer_equipment(name_lower, exercise_type_str)
 
             exercise = Exercise(
                 name=name_lower,

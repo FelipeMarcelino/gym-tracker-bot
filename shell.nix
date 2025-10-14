@@ -21,6 +21,7 @@ pkgs-unfree.mkShell {
     pythonPackages.sqlalchemy
     pythonPackages.pydub
     pkgs.ffmpeg
+    pkgs.sqlite
 
   ];
   venvDir = "./.venv";

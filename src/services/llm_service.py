@@ -317,6 +317,8 @@ Saída: {{
       "name": "nome do exercício em minúsculas",
       "duration_minutes": duração,
       "distance_km": distância ou null,
+      "average_heart_rate": frequência cardíaca média ou null,
+      "calories_burned": calorias queimadas ou null,
       "intensity_level": "low|moderate|high|hiit",
       "notes": null
     }}
@@ -338,6 +340,31 @@ Saída: {{"name": "leg press 45 graus", "sets": 4, "reps": [15,15,15,15], "weigh
 
 Entrada: "Tríceps na polia 3x15"
 Saída: {{"name": "tríceps na polia com corda", "sets": 3, "reps": [15,15,15]}}
+
+EXEMPLOS DE EXERCÍCIOS AERÓBICOS:
+
+Entrada: "Corri 30 minutos na esteira"
+Saída: {{"name": "corrida na esteira", "duration_minutes": 30, "distance_km": null, "average_heart_rate": null, "calories_burned": null, "intensity_level": "moderate"}}
+
+Entrada: "Fiz 45 minutos de bicicleta, queimei 350 calorias"
+Saída: {{"name": "bicicleta ergométrica", "duration_minutes": 45, "distance_km": null, "average_heart_rate": null, "calories_burned": 350, "intensity_level": "moderate"}}
+
+Entrada: "Caminhei 5km em 1 hora, frequência cardíaca média de 140 bpm"
+Saída: {{"name": "caminhada", "duration_minutes": 60, "distance_km": 5, "average_heart_rate": 140, "calories_burned": null, "intensity_level": "moderate"}}
+
+Entrada: "Spinning 30 minutos, FC média 165, queimei 280 calorias"
+Saída: {{"name": "spinning", "duration_minutes": 30, "distance_km": null, "average_heart_rate": 165, "calories_burned": 280, "intensity_level": "high"}}
+
+Entrada: "Natação 20 minutos intenso"
+Saída: {{"name": "natação", "duration_minutes": 20, "distance_km": null, "average_heart_rate": null, "calories_burned": null, "intensity_level": "high"}}
+
+IMPORTANTE sobre EXERCÍCIOS AERÓBICOS:
+- Se mencionou "calorias", "kcal", "cal" → extrair para "calories_burned"
+- Se mencionou "frequência cardíaca", "FC", "bpm", "batimentos" → extrair para "average_heart_rate"
+- Se mencionou distância em "km", "quilômetros", "metros" → converter para km e usar "distance_km"
+- Intensidade: "leve/fácil" = low, "moderado/normal" = moderate, "intenso/pesado/difícil" = high, "intervalado/HIIT" = hiit
+- Sempre transforme "corrida na rua" em "corrida de rua", mesmo coisa para corrida livre em corrida de rua, corrida ao
+  ar livre em corrida de rua. Serve também para caminha 
 
  SEMPRE use "weights_kg" como array (nunca "weight_kg" singular)
 - O array weights_kg DEVE ter o mesmo tamanho que o número de séries

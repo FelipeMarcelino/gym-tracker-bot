@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, Time
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, Time
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -17,6 +17,26 @@ class SessionStatus(enum.Enum):
     ATIVA = "ativa"
     FINALIZADA = "finalizada"
     ABANDONADA = "abandonada"  # Passou 3h sem finalizar
+
+
+class User(Base):
+    """Usuários autorizados do sistema"""
+    
+    __tablename__ = "users"
+    
+    user_id = Column(String(50), primary_key=True)  # Telegram user ID
+    username = Column(String(100))  # Telegram username (optional)
+    first_name = Column(String(100))  # Telegram first name
+    last_name = Column(String(100))  # Telegram last name (optional)
+    is_admin = Column(Boolean, default=False)  # Admin flag
+    is_active = Column(Boolean, default=True)  # Active/inactive user
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    created_by = Column(String(50))  # User ID of who created this user
+    
+    def __repr__(self):
+        return f"<User(user_id='{self.user_id}', username='{self.username}', is_admin={self.is_admin})>"
+
 
 class WorkoutSession(Base):
     """Sessão de treino"""

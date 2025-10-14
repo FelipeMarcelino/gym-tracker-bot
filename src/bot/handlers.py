@@ -6,7 +6,7 @@ from typing import Any, Dict
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from bot.middleware import authorized_only, log_access
+from bot.middleware import authorized_only, admin_only, log_access
 from bot.rate_limiter import rate_limit_commands, rate_limit_voice
 from bot.validation import validate_and_sanitize_user_input
 from config.messages import messages
@@ -18,6 +18,7 @@ from services.container import (
     get_export_service,
     get_llm_service,
     get_session_manager,
+    get_user_service,
     get_workout_service,
 )
 from services.exceptions import (
@@ -1260,6 +1261,237 @@ def _format_progress_message(progress: Dict[str, Any]) -> str:
                 message += f"• {date}: {session['sets']} séries\n"
 
     return message
+
+
+@admin_only
+@rate_limit_commands
+async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Comando /adduser - Adiciona usuário autorizado (ADMIN ONLY)"""
+    await log_access(update, context)
+
+    validation_result = validate_and_sanitize_user_input(update)
+    if not validation_result["is_valid"]:
+        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
+        await update.message.reply_text(error_msg, parse_mode="Markdown")
+        return
+
+    admin_user_id = str(validation_result["user"].get("id"))
+    admin_name = validation_result["user"].get("first_name", "Admin")
+
+    # Parse user ID from command args
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "👥 **Como usar:**\n\n"
+            "/adduser <user_id> [admin]\n\n"
+            "**Exemplos:**\n"
+            "• `/adduser 123456789` - Adiciona usuário normal\n"
+            "• `/adduser 123456789 admin` - Adiciona admin\n\n"
+            "💡 _Use /myid para ver o ID de um usuário_",
+            parse_mode="Markdown",
+        )
+        return
+
+    try:
+        target_user_id = args[0].strip()
+        is_admin = len(args) > 1 and args[1].lower() == "admin"
+
+        user_service = get_user_service()
+
+        # Verificar se usuário já existe
+        existing_user = user_service.get_user(target_user_id)
+        if existing_user:
+            if existing_user.is_active:
+                await update.message.reply_text(
+                    f"❌ **Usuário já existe**\n\n"
+                    f"👤 ID: `{target_user_id}`\n"
+                    f"📝 Nome: {existing_user.first_name or 'N/A'}\n"
+                    f"👑 Admin: {'Sim' if existing_user.is_admin else 'Não'}",
+                    parse_mode="Markdown"
+                )
+                return
+            else:
+                # Reativar usuário inativo
+                existing_user.is_active = True
+                existing_user.is_admin = is_admin
+                await update.message.reply_text(
+                    f"✅ **Usuário reativado**\n\n"
+                    f"👤 ID: `{target_user_id}`\n"
+                    f"👑 Admin: {'Sim' if is_admin else 'Não'}\n"
+                    f"👨‍💼 Reativado por: {admin_name}",
+                    parse_mode="Markdown"
+                )
+                return
+
+        # Adicionar novo usuário
+        user = user_service.add_user(
+            user_id=target_user_id,
+            is_admin=is_admin,
+            created_by=admin_user_id
+        )
+
+        await update.message.reply_text(
+            f"✅ **Usuário adicionado com sucesso!**\n\n"
+            f"👤 ID: `{target_user_id}`\n"
+            f"👑 Admin: {'Sim' if is_admin else 'Não'}\n"
+            f"👨‍💼 Adicionado por: {admin_name}\n\n"
+            f"🎉 Usuário agora pode usar o bot!",
+            parse_mode="Markdown"
+        )
+
+        print(f"✅ Admin {admin_name} ({admin_user_id}) adicionou usuário {target_user_id} (admin: {is_admin})")
+
+    except (ValidationError, DatabaseError) as e:
+        await update.message.reply_text(
+            f"❌ **Erro ao adicionar usuário**\n\n{e.message}",
+            parse_mode="Markdown"
+        )
+        print(f"❌ ERRO ADDUSER: {e}")
+
+    except Exception as e:
+        await update.message.reply_text(
+            "❌ **Erro inesperado**\n\nFalha ao adicionar usuário.",
+            parse_mode="Markdown"
+        )
+        print(f"❌ ERRO INESPERADO ADDUSER: {e}")
+
+
+@admin_only
+@rate_limit_commands
+async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Comando /removeuser - Remove usuário autorizado (ADMIN ONLY)"""
+    await log_access(update, context)
+
+    validation_result = validate_and_sanitize_user_input(update)
+    if not validation_result["is_valid"]:
+        error_msg = messages.ERROR_INVALID_DATA.format(errors="\n".join(validation_result["errors"]))
+        await update.message.reply_text(error_msg, parse_mode="Markdown")
+        return
+
+    admin_user_id = str(validation_result["user"].get("id"))
+    admin_name = validation_result["user"].get("first_name", "Admin")
+
+    # Parse user ID from command args
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "👥 **Como usar:**\n\n"
+            "/removeuser <user_id>\n\n"
+            "**Exemplo:**\n"
+            "• `/removeuser 123456789`\n\n"
+            "⚠️ _Isso remove o acesso do usuário ao bot_",
+            parse_mode="Markdown",
+        )
+        return
+
+    try:
+        target_user_id = args[0].strip()
+
+        # Não permitir que admin se remova
+        if target_user_id == admin_user_id:
+            await update.message.reply_text(
+                "❌ **Erro**\n\nVocê não pode remover a si mesmo.",
+                parse_mode="Markdown"
+            )
+            return
+
+        user_service = get_user_service()
+
+        # Verificar se usuário existe
+        existing_user = user_service.get_user(target_user_id)
+        if not existing_user or not existing_user.is_active:
+            await update.message.reply_text(
+                f"❌ **Usuário não encontrado**\n\n"
+                f"ID: `{target_user_id}`",
+                parse_mode="Markdown"
+            )
+            return
+
+        # Remover usuário
+        user_service.remove_user(target_user_id)
+
+        await update.message.reply_text(
+            f"✅ **Usuário removido com sucesso!**\n\n"
+            f"👤 ID: `{target_user_id}`\n"
+            f"📝 Nome: {existing_user.first_name or 'N/A'}\n"
+            f"👨‍💼 Removido por: {admin_name}\n\n"
+            f"🚫 Usuário não pode mais usar o bot.",
+            parse_mode="Markdown"
+        )
+
+        print(f"✅ Admin {admin_name} ({admin_user_id}) removeu usuário {target_user_id}")
+
+    except (ValidationError, DatabaseError) as e:
+        await update.message.reply_text(
+            f"❌ **Erro ao remover usuário**\n\n{e.message}",
+            parse_mode="Markdown"
+        )
+        print(f"❌ ERRO REMOVEUSER: {e}")
+
+    except Exception as e:
+        await update.message.reply_text(
+            "❌ **Erro inesperado**\n\nFalha ao remover usuário.",
+            parse_mode="Markdown"
+        )
+        print(f"❌ ERRO INESPERADO REMOVEUSER: {e}")
+
+
+@admin_only
+@rate_limit_commands
+async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Comando /listusers - Lista usuários autorizados (ADMIN ONLY)"""
+    await log_access(update, context)
+
+    try:
+        user_service = get_user_service()
+        users = user_service.list_users(include_inactive=False)
+
+        if not users:
+            await update.message.reply_text(
+                "👥 **Lista de Usuários**\n\n"
+                "❌ Nenhum usuário encontrado.",
+                parse_mode="Markdown"
+            )
+            return
+
+        # Separar admins e usuários normais
+        admins = [u for u in users if u.is_admin]
+        regular_users = [u for u in users if not u.is_admin]
+
+        message = "👥 **Lista de Usuários Autorizados**\n\n"
+
+        if admins:
+            message += f"👑 **Administradores ({len(admins)}):**\n"
+            for user in admins:
+                name = user.first_name or "N/A"
+                username = f"@{user.username}" if user.username else ""
+                message += f"• `{user.user_id}` - {name} {username}\n"
+            message += "\n"
+
+        if regular_users:
+            message += f"👤 **Usuários ({len(regular_users)}):**\n"
+            for user in regular_users:
+                name = user.first_name or "N/A"
+                username = f"@{user.username}" if user.username else ""
+                message += f"• `{user.user_id}` - {name} {username}\n"
+
+        message += f"\n📊 **Total:** {len(users)} usuários"
+
+        await update.message.reply_text(message, parse_mode="Markdown")
+
+    except (DatabaseError) as e:
+        await update.message.reply_text(
+            f"❌ **Erro ao listar usuários**\n\n{e.message}",
+            parse_mode="Markdown"
+        )
+        print(f"❌ ERRO LISTUSERS: {e}")
+
+    except Exception as e:
+        await update.message.reply_text(
+            "❌ **Erro inesperado**\n\nFalha ao listar usuários.",
+            parse_mode="Markdown"
+        )
+        print(f"❌ ERRO INESPERADO LISTUSERS: {e}")
 
 
 @rate_limit_commands

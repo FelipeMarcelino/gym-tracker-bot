@@ -63,7 +63,66 @@ EXERCISE_TO_MUSCLE = {
     "press": "peitoral",
 }
 
-# Palavras-chave que indicam equipamento
+# Mapeamento: Exercício Aeróbico → Grupo Muscular Primário
+AEROBIC_TO_MUSCLE = {
+    # CARDIO GERAL (corpo todo)
+    "corrida de rua": "cardiorespiratorio",
+    "caminhada de rua": "cardiorespiratorio",
+    "corrida": "cardiorespiratorio",
+    "caminhada": "cardiorespiratorio",
+    "trote": "cardiorespiratorio",
+    "maratona": "cardiorespiratorio",
+    "running": "cardiorespiratorio",
+
+    # CICLISMO
+    "bicicleta": "quadriceps",
+    "bike": "quadriceps",
+    "ciclismo": "quadriceps",
+    "spinning": "quadriceps",
+    "ergometrica": "quadriceps",
+
+    # NATAÇÃO
+    "natacao": "corpo_todo",
+    "piscina": "corpo_todo",
+    "crawl": "corpo_todo",
+    "costas": "dorsais",
+    "peito": "peitoral",
+    "borboleta": "corpo_todo",
+
+    # REMO
+    "remo": "dorsais",
+    "ergometro": "dorsais",
+
+    # ELÍPTICO/STEP
+    "eliptico": "cardiorespiratorio",
+    "step": "quadriceps",
+    "stepper": "quadriceps",
+
+    # ESTEIRA/EQUIPAMENTOS
+    "esteira": "cardiorespiratorio",
+    "transport": "cardiorespiratorio",
+
+    # DANÇA/AERÓBICA
+    "zumba": "cardiorespiratorio",
+    "aerobica": "cardiorespiratorio",
+    "danca": "cardiorespiratorio",
+    "jump": "quadriceps",
+
+    # ESPORTES
+    "futebol": "cardiorespiratorio",
+    "basquete": "cardiorespiratorio",
+    "tenis": "cardiorespiratorio",
+    "volei": "cardiorespiratorio",
+    "handball": "cardiorespiratorio",
+
+    # OUTROS
+    "caminhada": "cardiorespiratorio",
+    "subida": "quadriceps",
+    "escada": "quadriceps",
+    "hiit": "cardiorespiratorio",
+}
+
+# Palavras-chave que indicam equipamento (RESISTÊNCIA)
 EQUIPMENT_KEYWORDS = {
     "barra": ["barra", "livre"],
     "halteres": ["halteres", "halter", "dumbbell"],
@@ -74,25 +133,111 @@ EQUIPMENT_KEYWORDS = {
     "elastico": ["elastico", "band"],
 }
 
-def infer_muscle_group(exercise_name: str) -> str:
+# Mapeamento: Exercício Aeróbico → Equipamento
+AEROBIC_TO_EQUIPMENT = {
+    # ESTEIRA
+    "corrida de rua": "ambiente externo",
+    "caminhada de rua": "ambiente externo",
+    "corrida": "esteira",
+    "caminhada": "esteira",
+    "trote": "esteira",
+    "running": "esteira",
+
+    # BICICLETA ERGOMÉTRICA
+    "bicicleta": "bike_ergometrica",
+    "bike": "bike_ergometrica",
+    "ciclismo": "bike_ergometrica",
+    "spinning": "bike_ergometrica",
+    "ergometrica": "bike_ergometrica",
+
+    # PISCINA
+    "natacao": "piscina",
+    "piscina": "piscina",
+    "crawl": "piscina",
+    "costas": "piscina",
+    "peito": "piscina",
+    "borboleta": "piscina",
+
+    # REMO ERGÔMETRO
+    "remo": "remo_ergometro",
+    "ergometro": "remo_ergometro",
+
+    # ELÍPTICO
+    "eliptico": "eliptico",
+
+    # STEP
+    "step": "step",
+    "stepper": "step",
+
+    # TRANSPORT/ESTEIRA
+    "esteira": "esteira",
+    "transport": "esteira",
+
+    # ATIVIDADES LIVRES
+    "zumba": "atividade_livre",
+    "aerobica": "atividade_livre",
+    "danca": "atividade_livre",
+    "jump": "atividade_livre",
+
+    # ESPORTES
+    "futebol": "quadra_campo",
+    "basquete": "quadra_campo",
+    "tenis": "quadra_campo",
+    "volei": "quadra_campo",
+    "handball": "quadra_campo",
+
+    # OUTROS
+    "subida": "ambiente_externo",
+    "escada": "ambiente_externo",
+    "hiit": "atividade_livre",
+    "maratona": "ambiente_externo",
+}
+
+def infer_muscle_group(exercise_name: str, exercise_type: str = "resistencia") -> str:
     """Infere o grupo muscular baseado no nome do exercício
+    
+    Args:
+        exercise_name: Nome do exercício
+        exercise_type: Tipo do exercício ("resistencia" ou "aerobico")
+
     """
     exercise_lower = exercise_name.lower()
-    logger.info(f"Exercício a ser inferido o musculo: {exercise_lower}")
+    logger.info(f"Exercício a ser inferido o musculo: {exercise_lower} (tipo: {exercise_type})")
 
+    # Para exercícios aeróbicos, usar mapeamento específico
+    if exercise_type.lower() == "aerobico":
+        for keyword, muscle in AEROBIC_TO_MUSCLE.items():
+            if keyword in exercise_lower:
+                return muscle
+        return "cardiorespiratorio"  # Fallback para aeróbicos
+
+    # Para exercícios de resistência, usar mapeamento original
     for keyword, muscle in EXERCISE_TO_MUSCLE.items():
         if keyword in exercise_lower:
             return muscle
 
-    return "geral"  # Fallback
+    return "geral"  # Fallback para resistência
 
-def infer_equipment(exercise_name: str) -> str:
+def infer_equipment(exercise_name: str, exercise_type: str = "resistencia") -> str:
     """Infere o equipamento baseado no nome do exercício
+    
+    Args:
+        exercise_name: Nome do exercício
+        exercise_type: Tipo do exercício ("resistencia" ou "aerobico")
+
     """
     exercise_lower = exercise_name.lower()
 
-    logger.info(f"Exercício a ser inferido o equipamento: {exercise_lower}")
+    logger.info(f"Exercício a ser inferido o equipamento: {exercise_lower} (tipo: {exercise_type})")
 
+    # Para exercícios aeróbicos, usar mapeamento específico
+    if exercise_type.lower() == "aerobico":
+        for keyword, equipment in AEROBIC_TO_EQUIPMENT.items():
+            if keyword in exercise_lower:
+                return equipment
+        return "atividade_livre"  # Fallback para aeróbicos
+
+    # Para exercícios de resistência, usar mapeamento original
     # Verificar palavras-chave explícitas
     for equipment, keywords in EQUIPMENT_KEYWORDS.items():
         for keyword in keywords:

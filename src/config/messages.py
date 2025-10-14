@@ -34,6 +34,7 @@ Exemplo: _"Fiz supino reto com barra, 3 séries de 12, 10 e 8 repetições com 4
 
 **📊 Comandos:**
 - `/start` - Inicia o bot
+- `/myid` - Ver seu ID do Telegram
 - `/status` - Ver sessão atual
 - `/finish` - Finalizar treino atual
 - `/stats [dias]` - Estatísticas e analytics
@@ -41,6 +42,11 @@ Exemplo: _"Fiz supino reto com barra, 3 séries de 12, 10 e 8 repetições com 4
 - `/exercises` - Listar todos os exercícios
 - `/export [json|csv]` - Exportar seus dados
 - `/help` - Mostra esta ajuda
+
+**👑 Comandos Admin:**
+- `/adduser <id> [admin]` - Adicionar usuário
+- `/removeuser <id>` - Remover usuário
+- `/listusers` - Listar usuários
 
 **⏰ Sistema de Sessões:**
 - Todos os áudios em 3 horas = mesma sessão
@@ -244,10 +250,7 @@ _Seu ID: `{user_id}`_"""
         if aerobic_exercises:
             response += "🏃 **Exercícios Aeróbicos:**\n"
             for ex in aerobic_exercises:
-                response += f"• {ex['name'].title()}: {ex.get('duration_minutes')}min"
-                if ex.get("distance_km"):
-                    response += f" - {ex.get('distance_km')}km"
-                response += "\n"
+                response += cls._format_single_aerobic_exercise(ex)
             response += "\n"
 
         return response
@@ -295,6 +298,51 @@ _Seu ID: `{user_id}`_"""
 
         response += "\n"
         return response
+
+    @classmethod
+    def _format_single_aerobic_exercise(cls, ex: Dict[str, Any]) -> str:
+        """Format a single aerobic exercise"""
+        response = f"• **{ex['name'].title()}**:\n"
+        
+        # Duration (always present)
+        duration = ex.get('duration_minutes')
+        if duration:
+            response += f"  └ ⏱️ Duração: {duration}min\n"
+        
+        # Distance
+        distance = ex.get('distance_km')
+        if distance:
+            response += f"  └ 📏 Distância: {distance}km\n"
+        
+        # Heart rate
+        heart_rate = ex.get('average_heart_rate')
+        if heart_rate:
+            response += f"  └ ❤️ FC média: {heart_rate} bpm\n"
+        
+        # Calories
+        calories = ex.get('calories_burned')
+        if calories:
+            response += f"  └ 🔥 Calorias: {calories} kcal\n"
+        
+        # Intensity
+        intensity = ex.get('intensity_level')
+        if intensity:
+            intensity_emoji, intensity_desc = cls._get_intensity_emoji_and_desc(intensity)
+            response += f"  └ {intensity_emoji} Intensidade: {intensity_desc}\n"
+        
+        response += "\n"
+        return response
+
+    @classmethod
+    def _get_intensity_emoji_and_desc(cls, intensity: str) -> tuple[str, str]:
+        """Get emoji and description for aerobic intensity level"""
+        intensity_map = {
+            "low": ("😊", "Leve"),
+            "moderate": ("😐", "Moderada"),
+            "high": ("😤", "Alta"),
+            "hiit": ("🔥", "HIIT")
+        }
+        return intensity_map.get(intensity.lower(), ("⚡", intensity.title()))
 
     @classmethod
     def _get_difficulty_emoji_and_desc(cls, difficulty: int) -> tuple[str, str]:

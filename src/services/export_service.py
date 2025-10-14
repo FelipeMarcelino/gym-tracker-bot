@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 from sqlalchemy.orm import joinedload
 
 from database.connection import db
-from database.models import WorkoutSession, SessionStatus
+from database.models import WorkoutSession, SessionStatus, WorkoutExercise, AerobicExercise, Exercise
 from services.exceptions import ValidationError, DatabaseError
 
 logger = logging.getLogger(__name__)
@@ -59,8 +59,8 @@ class ExportService:
             query = (
                 session.query(WorkoutSession)
                 .options(
-                    joinedload(WorkoutSession.exercises).joinedload("exercise"),
-                    joinedload(WorkoutSession.aerobics).joinedload("exercise")
+                    joinedload(WorkoutSession.exercises).joinedload(WorkoutExercise.exercise),
+                    joinedload(WorkoutSession.aerobics).joinedload(AerobicExercise.exercise)
                 )
                 .filter_by(user_id=user_id)
             )

@@ -9,6 +9,7 @@ from services.session_manager import SessionManager
 from services.workout_service import WorkoutService
 from services.export_service import ExportService
 from services.analytics_service import AnalyticsService
+from services.user_service import UserService
 
 
 T = TypeVar('T')
@@ -44,6 +45,8 @@ class ServiceContainer:
                     instance = ExportService()
                 elif service_type == AnalyticsService:
                     instance = AnalyticsService()
+                elif service_type == UserService:
+                    instance = UserService()
                 else:
                     raise ValueError(f"Unknown service type: {service_type}")
                 
@@ -69,6 +72,7 @@ class ServiceContainer:
             self.get_service(WorkoutService)
             self.get_service(ExportService)
             self.get_service(AnalyticsService)
+            self.get_service(UserService)
             self._initialized = True
 
 
@@ -113,6 +117,11 @@ def get_export_service() -> ExportService:
 def get_analytics_service() -> AnalyticsService:
     """Get analytics service"""
     return get_container().get_service(AnalyticsService)
+
+
+def get_user_service() -> UserService:
+    """Get user service"""
+    return get_container().get_service(UserService)
 
 
 def initialize_all_services() -> None:
