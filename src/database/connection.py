@@ -1,13 +1,13 @@
-import logging
 from typing import Optional
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from config.logging_config import get_logger
 from config.settings import settings
 from database.models import Base
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DatabaseConnection:

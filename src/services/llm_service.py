@@ -1,13 +1,13 @@
 import json
-import logging
 from typing import Any, Dict
 
 from groq import AsyncGroq
 
+from config.logging_config import get_logger
 from config.settings import settings
 from services.exceptions import LLMParsingError, ServiceUnavailableError, ValidationError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class LLMParsingService:

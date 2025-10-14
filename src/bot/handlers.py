@@ -1,11 +1,12 @@
 import asyncio
-import logging
 import time
 from datetime import datetime
 from typing import Any, Dict
 
 from telegram import Update
 from telegram.ext import ContextTypes
+
+from config.logging_config import get_logger
 
 from bot.middleware import authorized_only, admin_only, log_access
 from bot.rate_limiter import rate_limit_commands, rate_limit_voice
@@ -31,7 +32,7 @@ from services.exceptions import (
     ValidationError,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @rate_limit_commands
@@ -219,30 +220,30 @@ async def _process_workout_audio_optimized(
         details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
         error_msg = messages.ERROR_VALIDATION.format(message=e.message, details=details)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE VALIDAÇÃO: {e}")
+        logger.error(f"Erro de validação: {e}")
 
     except LLMParsingError as e:
         error_msg = messages.ERROR_LLM_PARSING.format(message=e.message)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE LLM: {e}")
+        logger.error(f"Erro de LLM: {e}")
 
     except ServiceUnavailableError as e:
         details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
         error_msg = messages.ERROR_SERVICE_UNAVAILABLE.format(message=e.message, details=details)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE SERVIÇO: {e}")
+        logger.error(f"Erro de serviço: {e}")
 
     except (DatabaseError, SessionError) as e:
         error_msg = messages.ERROR_DATABASE.format(message=e.message)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE BANCO/SESSÃO: {e}")
+        logger.error(f"Erro de banco/sessão: {e}")
         import traceback
         traceback.print_exc()
 
     except Exception as e:
         error_msg = messages.ERROR_UNEXPECTED.format(error_message="Ocorreu um erro interno.")
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO INESPERADO: {e}")
+        logger.error(f"Erro inesperado: {e}")
         import traceback
         traceback.print_exc()
 
@@ -266,7 +267,7 @@ async def _process_workout_audio(
         llm_service = get_llm_service()
         parsed_data = await llm_service.parse_workout(transcription)
 
-        print(f"✅ LLM parseou: {parsed_data}")
+        logger.info(f"LLM parsing completo: {len(parsed_data.get('resistance_exercises', []))} resistência, {len(parsed_data.get('aerobic_exercises', []))} aeróbico")
 
         # ===== PASSO 4: SALVAR NO BANCO =====
         await status_msg.edit_text(
@@ -305,37 +306,36 @@ async def _process_workout_audio(
 
         await status_msg.edit_text(response, parse_mode="Markdown")
 
-        print(f"✅ PROCESSAMENTO COMPLETO em {processing_time:.2f}s")
-        print(f"{'=' * 50}\n")
+        logger.info(f"Processamento completo em {processing_time:.2f}s para usuário {user_id}")
 
     except ValidationError as e:
         details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
         error_msg = messages.ERROR_VALIDATION.format(message=e.message, details=details)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE VALIDAÇÃO: {e}")
+        logger.error(f"Erro de validação: {e}")
 
     except LLMParsingError as e:
         error_msg = messages.ERROR_LLM_PARSING.format(message=e.message)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE LLM: {e}")
+        logger.error(f"Erro de LLM: {e}")
 
     except ServiceUnavailableError as e:
         details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
         error_msg = messages.ERROR_SERVICE_UNAVAILABLE.format(message=e.message, details=details)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE SERVIÇO: {e}")
+        logger.error(f"Erro de serviço: {e}")
 
     except (DatabaseError, SessionError) as e:
         error_msg = messages.ERROR_DATABASE.format(message=e.message)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE BANCO/SESSÃO: {e}")
+        logger.error(f"Erro de banco/sessão: {e}")
         import traceback
         traceback.print_exc()
 
     except Exception as e:
         error_msg = messages.ERROR_UNEXPECTED.format(error_message="Ocorreu um erro interno.")
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO INESPERADO: {e}")
+        logger.error(f"Erro inesperado: {e}")
         import traceback
         traceback.print_exc()
 
@@ -358,11 +358,7 @@ async def _process_workout_message(
     user_id = user_data.get("id", "N/A")
     user_name = user_data.get("first_name", "Usuário")
 
-    print(f"\n{'=' * 50}")
-    print(f"🎯 NOVO TREINO RECEBIDO ({source.upper()})")
-    print(f"{'=' * 50}")
-    print(f"👤 Usuário: {user_name} (ID: {user_id})")
-    print(f"📝 Texto: {workout_text[:100]}...")
+    logger.info(f"Novo treino recebido ({source.upper()}) de {user_name} (ID: {user_id}): {workout_text[:100]}...")
 
     start_time = time.time()
 
@@ -400,7 +396,7 @@ async def _process_workout_message(
         llm_service = get_llm_service()
         parsed_data = await llm_service.parse_workout(workout_text)
 
-        print(f"✅ LLM parseou: {parsed_data}")
+        logger.info(f"LLM parsing completo: {len(parsed_data.get('resistance_exercises', []))} resistência, {len(parsed_data.get('aerobic_exercises', []))} aeróbico")
 
         # ===== PASSO 2: SALVAR NO BANCO =====
         await status_msg.edit_text(
@@ -438,37 +434,36 @@ async def _process_workout_message(
 
         await status_msg.edit_text(response, parse_mode="Markdown")
 
-        print(f"✅ PROCESSAMENTO COMPLETO em {processing_time:.2f}s")
-        print(f"{'=' * 50}\n")
+        logger.info(f"Processamento completo em {processing_time:.2f}s para usuário {user_id}")
 
     except ValidationError as e:
         details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
         error_msg = messages.ERROR_VALIDATION.format(message=e.message, details=details)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE VALIDAÇÃO: {e}")
+        logger.error(f"Erro de validação: {e}")
 
     except LLMParsingError as e:
         error_msg = messages.ERROR_LLM_PARSING.format(message=e.message)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE LLM: {e}")
+        logger.error(f"Erro de LLM: {e}")
 
     except ServiceUnavailableError as e:
         details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
         error_msg = messages.ERROR_SERVICE_UNAVAILABLE.format(message=e.message, details=details)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE SERVIÇO: {e}")
+        logger.error(f"Erro de serviço: {e}")
 
     except (DatabaseError, SessionError) as e:
         error_msg = messages.ERROR_DATABASE.format(message=e.message)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE BANCO/SESSÃO: {e}")
+        logger.error(f"Erro de banco/sessão: {e}")
         import traceback
         traceback.print_exc()
 
     except Exception as e:
         error_msg = messages.ERROR_UNEXPECTED.format(error_message="Ocorreu um erro interno.")
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO INESPERADO: {e}")
+        logger.error(f"Erro inesperado: {e}")
         import traceback
         traceback.print_exc()
 
@@ -497,14 +492,11 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     timestamp = update.message.date
 
     # Printar no console (para debug)
-    print("\n📝 MENSAGEM DE TEXTO RECEBIDA:")
-    print(f"   Usuário: {user_name} (ID: {user_id})")
-    print(f"   Horário: {timestamp}")
-    print(f"   Texto: {message_text[:settings.LOG_TEXT_PREVIEW_LENGTH]}...")  # Limitar output para log
+    logger.info(f"Mensagem de texto recebida de {user_name} (ID: {user_id}) - {timestamp}: {message_text[:settings.LOG_TEXT_PREVIEW_LENGTH]}...")
 
     # Verificar se é mensagem de treino
     if _is_workout_message(message_text):
-        print("🎯 Detectado conteúdo de treino - processando como workout")
+        logger.info("Detectado conteúdo de treino - processando como workout")
         await _process_workout_message(update, context, message_text, "text")
     else:
         # Comportamento atual - apenas ecoar a mensagem
@@ -544,12 +536,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     duration = voice_info.get("duration", voice.duration)
     file_size = voice_info.get("file_size", voice.file_size)
 
-    print(f"\n{'=' * 50}")
-    print("🎤 NOVO ÁUDIO RECEBIDO")
-    print(f"{'=' * 50}")
-    print(f"👤 Usuário: {user_name} (ID: {user_id})")
-    print(f"⏱️  Duração: {duration}s")
-    print(f"📦 Tamanho: {file_size / 1024:.2f} KB")
+    logger.info(f"Novo áudio recebido de {user_name} (ID: {user_id}) - Duração: {duration}s, Tamanho: {file_size / 1024:.2f} KB")
 
     start_time = time.time()
 
@@ -581,7 +568,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
         file = await voice.get_file()
         file_bytes = await file.download_as_bytearray()
-        print(f"📥 Áudio baixado: {len(file_bytes)} bytes")
+        logger.info(f"Áudio baixado: {len(file_bytes)} bytes")
 
         # ===== PASSO 2 & 3: PROCESSAR EM PARALELO =====
         await status_msg.edit_text(
@@ -599,12 +586,12 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         rate_limit_note = "\n\n⏰ _Tente novamente em alguns segundos_" if "rate_limit" in e.message.lower() else ""
         error_msg = messages.ERROR_AUDIO_PROCESSING.format(message=e.message, rate_limit_note=rate_limit_note)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO DE ÁUDIO: {e}")
+        logger.error(f"Erro de áudio: {e}")
 
     except Exception as e:
         error_msg = messages.ERROR_UNEXPECTED.format(error_message="Ocorreu um erro interno.")
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        print(f"❌ ERRO INESPERADO: {e}")
+        logger.error(f"Erro inesperado: {e}")
         import traceback
         traceback.print_exc()
 
@@ -712,14 +699,14 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             messages.ERROR_STATUS_FETCH.format(error_message=e.message),
             parse_mode="Markdown",
         )
-        print(f"❌ ERRO NO STATUS: {e}")
+        logger.error(f"Erro no status: {e}")
 
     except Exception as e:
         await update.message.reply_text(
             messages.ERROR_UNEXPECTED.format(error_message="Não foi possível buscar o status."),
             parse_mode="Markdown",
         )
-        print(f"❌ ERRO INESPERADO NO STATUS: {e}")
+        logger.error(f"Erro inesperado no status: {e}")
         import traceback
         traceback.print_exc()
 
@@ -739,10 +726,7 @@ async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     user_id = user_data.get("id", "N/A")
     user_name = user_data.get("first_name", "Usuário")
 
-    print(f"\n{'='*50}")
-    print("📊 COMANDO /finish")
-    print(f"{'='*50}")
-    print(f"👤 Usuário: {user_name} (ID: {user_id})")
+    logger.info(f"Comando /finish executado por {user_name} (ID: {user_id})")
 
 
     workout_service = get_workout_service()
@@ -803,7 +787,7 @@ async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     await update.message.reply_text(response, parse_mode="Markdown")
 
-    print("✅ Sessão finalizada com sucesso")
+    logger.info("Sessão finalizada com sucesso")
 
 @authorized_only
 @rate_limit_commands
@@ -900,21 +884,21 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         await status_msg.delete()
 
-        print(f"✅ Export completo: {filename} para usuário {user_id}")
+        logger.info(f"Export completo: {filename} para usuário {user_id}")
 
     except (ValidationError, DatabaseError) as e:
         await update.message.reply_text(
             f"❌ **Erro na exportação**\n\n{e.message}\n\n🔄 _Tente novamente_",
             parse_mode="Markdown",
         )
-        print(f"❌ ERRO NO EXPORT: {e}")
+        logger.error(f"Erro no export: {e}")
 
     except Exception as e:
         await update.message.reply_text(
             "❌ **Erro inesperado**\n\nFalha ao exportar dados.\n\n🔄 _Tente novamente_",
             parse_mode="Markdown",
         )
-        print(f"❌ ERRO INESPERADO NO EXPORT: {e}")
+        logger.error(f"Erro inesperado no export: {e}")
         import traceback
         traceback.print_exc()
 
@@ -969,21 +953,21 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
         await status_msg.edit_text(stats_message, parse_mode="Markdown")
 
-        print(f"✅ Stats calculadas para usuário {user_id} ({days} dias)")
+        logger.info(f"Stats calculadas para usuário {user_id} ({days} dias)")
 
     except (ValidationError, DatabaseError) as e:
         await update.message.reply_text(
             f"❌ **Erro nas estatísticas**\n\n{e.message}\n\n🔄 _Tente novamente_",
             parse_mode="Markdown",
         )
-        print(f"❌ ERRO NAS STATS: {e}")
+        logger.error(f"Erro nas stats: {e}")
 
     except Exception as e:
         await update.message.reply_text(
             "❌ **Erro inesperado**\n\nFalha ao calcular estatísticas.\n\n🔄 _Tente novamente_",
             parse_mode="Markdown",
         )
-        print(f"❌ ERRO INESPERADO NAS STATS: {e}")
+        logger.error(f"Erro inesperado nas stats: {e}")
         import traceback
         traceback.print_exc()
 
@@ -1045,21 +1029,21 @@ async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         await status_msg.edit_text(progress_message, parse_mode="Markdown")
 
-        print(f"✅ Progresso calculado: {exercise_name} para usuário {user_id}")
+        logger.info(f"Progresso calculado: {exercise_name} para usuário {user_id}")
 
     except (ValidationError, DatabaseError) as e:
         await update.message.reply_text(
             f"❌ **Erro no progresso**\n\n{e.message}\n\n🔄 _Tente novamente_",
             parse_mode="Markdown",
         )
-        print(f"❌ ERRO NO PROGRESSO: {e}")
+        logger.error(f"Erro no progresso: {e}")
 
     except Exception as e:
         await update.message.reply_text(
             "❌ **Erro inesperado**\n\nFalha ao calcular progresso.\n\n🔄 _Tente novamente_",
             parse_mode="Markdown",
         )
-        print(f"❌ ERRO INESPERADO NO PROGRESSO: {e}")
+        logger.error(f"Erro inesperado no progresso: {e}")
         import traceback
         traceback.print_exc()
 
@@ -1131,7 +1115,7 @@ async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
             await update.message.reply_text(message, parse_mode="Markdown")
 
-            print(f"✅ Lista de exercícios enviada: {len(exercises)} exercícios")
+            logger.info(f"Lista de exercícios enviada: {len(exercises)} exercícios")
 
         finally:
             session.close()
@@ -1141,7 +1125,7 @@ async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "❌ **Erro inesperado**\n\nFalha ao buscar exercícios.\n\n🔄 _Tente novamente_",
             parse_mode="Markdown",
         )
-        print(f"❌ ERRO INESPERADO NO EXERCISES: {e}")
+        logger.error(f"Erro inesperado no exercises: {e}")
         import traceback
         traceback.print_exc()
 
@@ -1341,21 +1325,21 @@ async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             parse_mode="Markdown"
         )
 
-        print(f"✅ Admin {admin_name} ({admin_user_id}) adicionou usuário {target_user_id} (admin: {is_admin})")
+        logger.info(f"Admin {admin_name} ({admin_user_id}) adicionou usuário {target_user_id} (admin: {is_admin})")
 
     except (ValidationError, DatabaseError) as e:
         await update.message.reply_text(
             f"❌ **Erro ao adicionar usuário**\n\n{e.message}",
             parse_mode="Markdown"
         )
-        print(f"❌ ERRO ADDUSER: {e}")
+        logger.error(f"Erro adduser: {e}")
 
     except Exception as e:
         await update.message.reply_text(
             "❌ **Erro inesperado**\n\nFalha ao adicionar usuário.",
             parse_mode="Markdown"
         )
-        print(f"❌ ERRO INESPERADO ADDUSER: {e}")
+        logger.error(f"Erro inesperado adduser: {e}")
 
 
 @admin_only
@@ -1421,21 +1405,21 @@ async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             parse_mode="Markdown"
         )
 
-        print(f"✅ Admin {admin_name} ({admin_user_id}) removeu usuário {target_user_id}")
+        logger.info(f"Admin {admin_name} ({admin_user_id}) removeu usuário {target_user_id}")
 
     except (ValidationError, DatabaseError) as e:
         await update.message.reply_text(
             f"❌ **Erro ao remover usuário**\n\n{e.message}",
             parse_mode="Markdown"
         )
-        print(f"❌ ERRO REMOVEUSER: {e}")
+        logger.error(f"Erro removeuser: {e}")
 
     except Exception as e:
         await update.message.reply_text(
             "❌ **Erro inesperado**\n\nFalha ao remover usuário.",
             parse_mode="Markdown"
         )
-        print(f"❌ ERRO INESPERADO REMOVEUSER: {e}")
+        logger.error(f"Erro inesperado removeuser: {e}")
 
 
 @admin_only
@@ -1486,14 +1470,14 @@ async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
             f"❌ **Erro ao listar usuários**\n\n{e.message}",
             parse_mode="Markdown"
         )
-        print(f"❌ ERRO LISTUSERS: {e}")
+        logger.error(f"Erro listusers: {e}")
 
     except Exception as e:
         await update.message.reply_text(
             "❌ **Erro inesperado**\n\nFalha ao listar usuários.",
             parse_mode="Markdown"
         )
-        print(f"❌ ERRO INESPERADO LISTUSERS: {e}")
+        logger.error(f"Erro inesperado listusers: {e}")
 
 
 @rate_limit_commands

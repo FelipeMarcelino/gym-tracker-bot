@@ -1,8 +1,9 @@
 """Serviço para gerenciar sessões de treino e exercícios
 """
-import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+
+from config.logging_config import get_logger
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -14,7 +15,7 @@ from services.exceptions import DatabaseError, ValidationError
 from services.exercise_knowledge import infer_equipment, infer_muscle_group
 from services.stats_service import SessionStatsCalculator
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class WorkoutService:

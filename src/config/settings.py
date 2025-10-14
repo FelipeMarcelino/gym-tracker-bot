@@ -1,10 +1,7 @@
-import logging
 import os
 from typing import List, Optional
 
 from dotenv import load_dotenv
-
-logger = logging.getLogger(__name__)
 
 
 class Settings:
@@ -68,7 +65,8 @@ class Settings:
         Exemplo: "123,456,789" → [123, 456, 789]
         """
         if not os.getenv("AUTHORIZED_USER_IDS"):
-            logger.warning("Nenhum usuário autorizado configurado! Configure AUTHORIZED_USER_IDS no arquivo .env")
+            # Can't use logger here since settings are loaded before logging is configured
+            print("⚠️  AVISO: Nenhum usuário autorizado configurado! Configure AUTHORIZED_USER_IDS no arquivo .env")
             return []
 
         try:

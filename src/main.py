@@ -1,7 +1,9 @@
-import logging
 from typing import NoReturn
 
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
+
+# Import centralized logging FIRST
+from config.logging_config import get_logger, log_system_info
 
 from bot.handlers import (
     add_user_command,
@@ -24,22 +26,15 @@ from bot.handlers import (
 from config.settings import settings
 from services.container import initialize_all_services
 
-# Configurar logging para ver o que está acontecendo
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
-
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def main() -> NoReturn:
     """Função principal - inicializa e roda o bot"""
-    logger.info("=" * 50)
-    logger.info("🤖 GYM TRACKER BOT")
-    logger.info("=" * 50)
+    # Log system info for debugging
+    log_system_info()
+    
     logger.info("🚀 Iniciando bot...")
-    logger.info("=" * 50)
     
     # Initialize all services early to catch configuration errors
     logger.info("🔧 Inicializando serviços...")
