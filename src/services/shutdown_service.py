@@ -30,6 +30,11 @@ class ShutdownService:
             handler: Function to call during shutdown
             description: Optional description of what the handler does
         """
+        # Check for duplicate registration
+        if handler in self.shutdown_handlers:
+            logger.debug(f"Handler {description or handler.__name__} already registered, skipping")
+            return
+            
         if asyncio.iscoroutinefunction(handler):
             # Wrap async functions
             def wrapper():
@@ -128,6 +133,10 @@ class ShutdownService:
     
     def _create_emergency_backup(self):
         """Create emergency backup during shutdown"""
+        if not self.emergency_backup_on_shutdown:
+            logger.debug("Emergency backup disabled, skipping backup")
+            return
+            
         try:
             logger.info("📦 Creating emergency backup before shutdown...")
             backup_name = f"emergency_shutdown_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"

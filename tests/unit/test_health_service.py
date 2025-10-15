@@ -100,11 +100,15 @@ class TestHealthService:
         """Test simple health check"""
         with patch('psutil.cpu_percent') as mock_cpu, \
              patch('psutil.virtual_memory') as mock_memory, \
-             patch.object(test_health_service, '_check_database_simple') as mock_db:
+             patch('services.health_service.db.get_session') as mock_session:
             
             mock_cpu.return_value = 15.0
             mock_memory.return_value = Mock(percent=60.0)
-            mock_db.return_value = True
+            
+            # Mock database session and query
+            mock_session_instance = Mock()
+            mock_session_instance.execute.return_value.fetchone.return_value = (1,)
+            mock_session.return_value = mock_session_instance
             
             health = test_health_service.get_simple_health()
             

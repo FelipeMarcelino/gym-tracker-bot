@@ -90,6 +90,14 @@ class TextValidator(BaseValidator):
                 "error_code": ErrorCode.MISSING_REQUIRED_FIELD
             }
         
+        # If empty and allowed, skip length checks
+        if not text and self.allow_empty:
+            return {
+                "is_valid": True,
+                "value": text,
+                "error": None
+            }
+        
         # Check length
         if len(text) < self.min_length:
             return {
@@ -153,7 +161,7 @@ class NumberValidator(BaseValidator):
             return {
                 "is_valid": False,
                 "value": value,
-                "error": f"Must be a {'number' if not self.integer_only else 'whole number'}",
+                "error": f"Must be a valid {'number' if not self.integer_only else 'whole number'}",
                 "error_code": ErrorCode.INVALID_FORMAT
             }
         
@@ -171,7 +179,7 @@ class NumberValidator(BaseValidator):
             return {
                 "is_valid": False,
                 "value": num,
-                "error": f"Must be at least {self.min_value}",
+                "error": f"Number is below minimum value of {self.min_value}",
                 "error_code": ErrorCode.VALUE_OUT_OF_RANGE
             }
         
@@ -179,7 +187,7 @@ class NumberValidator(BaseValidator):
             return {
                 "is_valid": False,
                 "value": num,
-                "error": f"Must be at most {self.max_value}",
+                "error": f"Number is above maximum value of {self.max_value}",
                 "error_code": ErrorCode.VALUE_OUT_OF_RANGE
             }
         
@@ -330,6 +338,71 @@ class ValidationSchema:
     command_args_validator: Optional[CommandArgsValidator] = None
     custom_validators: Optional[Dict[str, BaseValidator]] = None
     level: ValidationLevel = ValidationLevel.STRICT
+    
+    def __post_init__(self):
+        """Initialize fields dict for dynamic validation"""
+        if not hasattr(self, 'fields'):
+            self.fields = {}
+        if self.custom_validators is None:
+            self.custom_validators = {}
+    
+    def add_field(self, name: str, validator: BaseValidator):
+        """Add a field validator to the schema"""
+        self.fields[name] = validator
+        self.custom_validators[name] = validator
+    
+    def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate data against the schema"""
+        result = {}
+        errors = {}
+        
+        # If we have defined fields, validate them
+        if hasattr(self, 'fields') and self.fields:
+            for field_name, validator in self.fields.items():
+                if field_name in data:
+                    validation_result = validator.validate(data[field_name])
+                    if validation_result["is_valid"]:
+                        result[field_name] = validation_result["value"]
+                    else:
+                        errors[field_name] = validation_result["error"]
+                else:
+                    # Check if field is required based on validator properties
+                    if (hasattr(validator, 'allow_empty') and not getattr(validator, 'allow_empty', True)) or \
+                       (not hasattr(validator, 'allow_empty') and hasattr(validator, 'min_length') and getattr(validator, 'min_length', 0) > 0):
+                        errors[field_name] = f"{field_name} is required"
+            
+            # Copy non-validated fields
+            for key, value in data.items():
+                if key not in self.fields:
+                    result[key] = value
+        else:
+            # For pre-defined schemas, validate according to the original schema design
+            # This handles text_message, admin_command, etc. schemas from CommonSchemas
+            if self.text_validator and 'text' in data:
+                validation_result = self.text_validator.validate(data['text'])
+                if validation_result["is_valid"]:
+                    result['text'] = validation_result["value"]
+                else:
+                    errors['text'] = validation_result["error"]
+            
+            if self.audio_validator and 'audio' in data:
+                validation_result = self.audio_validator.validate(data['audio'])
+                if validation_result["is_valid"]:
+                    result['audio'] = validation_result["value"]
+                else:
+                    errors['audio'] = validation_result["error"]
+            
+            # Copy remaining fields
+            for key, value in data.items():
+                if key not in ['text', 'audio'] or key not in result:
+                    result[key] = value
+        
+        if errors:
+            from services.exceptions import ValidationError
+            error_message = f"Validation failed: {', '.join(f'{field}: {error}' for field, error in errors.items())}"
+            raise ValidationError(error_message, details=errors)
+        
+        return result
 
 
 class ValidationMiddleware:
@@ -523,9 +596,12 @@ def validate_input(schema: ValidationSchema):
                 
                 return await func(update, context, *args, **kwargs)
                 
-            except ValidationError:
-                # Re-raise validation errors
-                raise
+            except ValidationError as e:
+                # Send user-friendly error message
+                if update.message:
+                    await update.message.reply_text(e.user_message)
+                logger.warning(f"Validation error: {e}")
+                return None
             except Exception as e:
                 # Log unexpected errors
                 logger.exception(f"Unexpected error in validation decorator: {e}")
@@ -586,4 +662,14 @@ class CommonSchemas:
             text_validator=TextValidator(allow_empty=True),
             audio_validator=AudioValidator(),
             level=ValidationLevel.PERMISSIVE
+        )
+    
+    @staticmethod
+    def audio_message(max_duration: Optional[int] = None) -> ValidationSchema:
+        """Schema for audio message handlers"""
+        return ValidationSchema(
+            text_validator=None,
+            audio_validator=AudioValidator(
+                max_duration=max_duration or settings.MAX_AUDIO_DURATION_SECONDS
+            )
         )

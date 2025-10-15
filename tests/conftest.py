@@ -1,16 +1,17 @@
 """Pytest configuration and shared fixtures"""
 
-import pytest
 import asyncio
-import tempfile
-import shutil
 import os
-from pathlib import Path
-from unittest.mock import Mock, AsyncMock
+import shutil
 
 # Add src to path for tests
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+import tempfile
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from config.logging_config import get_logger
 from database.connection import DatabaseConnection
@@ -47,9 +48,9 @@ def test_backup_dir(temp_dir):
 def test_database(test_db_path):
     """Create a test database instance"""
     # Mock settings for testing
-    original_db_url = os.environ.get('DATABASE_URL')
-    os.environ['DATABASE_URL'] = f'sqlite:///{test_db_path}'
-    
+    original_db_url = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = f"sqlite:///{test_db_path}"
+
     try:
         db = DatabaseConnection()
         db.initialize()
@@ -57,9 +58,9 @@ def test_database(test_db_path):
     finally:
         # Restore original settings
         if original_db_url:
-            os.environ['DATABASE_URL'] = original_db_url
+            os.environ["DATABASE_URL"] = original_db_url
         else:
-            os.environ.pop('DATABASE_URL', None)
+            os.environ.pop("DATABASE_URL", None)
 
 
 @pytest.fixture
@@ -68,7 +69,7 @@ def test_backup_service(test_backup_dir, test_db_path):
     service = BackupService(
         backup_dir=test_backup_dir,
         max_backups=5,
-        backup_frequency_hours=1
+        backup_frequency_hours=1,
     )
     service.database_path = test_db_path
     return service
@@ -113,8 +114,8 @@ def mock_audio_file(temp_dir):
     """Create a mock audio file for testing"""
     audio_path = os.path.join(temp_dir, "test_audio.ogg")
     # Create a dummy file
-    with open(audio_path, 'wb') as f:
-        f.write(b'fake audio data')
+    with open(audio_path, "wb") as f:
+        f.write(b"fake audio data")
     return audio_path
 
 
@@ -131,12 +132,12 @@ def sample_workout_data():
                 "weights_kg": [40, 50, 60],
                 "rest_seconds": 90,
                 "perceived_difficulty": 7,
-                "muscle_groups": ["chest", "triceps", "shoulders"]
-            }
+                "muscle_groups": ["chest", "triceps", "shoulders"],
+            },
         ],
         "session_notes": "Treino pesado, boa execução",
         "energy_level": 8,
-        "body_weight_kg": 75.5
+        "body_weight_kg": 75.5,
     }
 
 
@@ -148,7 +149,7 @@ def sample_user_data():
         "first_name": "Test User",
         "username": "testuser",
         "is_admin": False,
-        "is_active": True
+        "is_active": True,
     }
 
 
@@ -163,16 +164,17 @@ def event_loop():
 # Helper functions for tests
 def create_test_database_with_data(db_path):
     """Create a test database with sample data"""
-    from database.models import Base, User, WorkoutSession, Exercise
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
-    
-    engine = create_engine(f'sqlite:///{db_path}')
+
+    from database.models import Base, Exercise, User
+
+    engine = create_engine(f"sqlite:///{db_path}")
     Base.metadata.create_all(engine)
-    
+
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     try:
         # Add test user
         user = User(
@@ -180,19 +182,19 @@ def create_test_database_with_data(db_path):
             first_name="Test User",
             username="testuser",
             is_admin=False,
-            is_active=True
+            is_active=True,
         )
         session.add(user)
-        
+
         # Add test exercises
         from database.models import ExerciseType
         exercises = [
-            Exercise(name="supino reto", type=ExerciseType.FORCA, muscle_group="chest"),
-            Exercise(name="agachamento", type=ExerciseType.FORCA, muscle_group="legs"),
-            Exercise(name="deadlift", type=ExerciseType.FORCA, muscle_group="back")
+            Exercise(name="supino reto", type=ExerciseType.RESISTENCIA, muscle_group="chest"),
+            Exercise(name="agachamento", type=ExerciseType.RESISTENCIA, muscle_group="legs"),
+            Exercise(name="deadlift", type=ExerciseType.RESISTENCIA, muscle_group="back"),
         ]
         session.add_all(exercises)
-        
+
         session.commit()
         return session
     except Exception as e:
@@ -228,3 +230,4 @@ Test categories:
 - Integration tests: Test component interactions
 - Fixtures: Reusable test data and mocks
 """
+

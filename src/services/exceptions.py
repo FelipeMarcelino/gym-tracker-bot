@@ -104,7 +104,7 @@ class GymTrackerError(Exception):
         cause: Optional[Exception] = None
     ):
         self.message = message
-        self.details = details or ""
+        self.details = details
         self.error_code = error_code or ErrorCode.UNKNOWN_ERROR
         self.user_message = user_message or message
         self.context = context or {}
@@ -130,7 +130,15 @@ class GymTrackerError(Exception):
     
     def __str__(self) -> str:
         """String representation for logging"""
-        return f"[{self.error_code.value}] {self.message}"
+        base_msg = f"[{self.error_code.value}] {self.message}"
+        if self.details:
+            if isinstance(self.details, dict):
+                # Format dict details nicely
+                details_str = ", ".join(f"{k}: {v}" for k, v in self.details.items())
+                return f"{base_msg} ({details_str})"
+            else:
+                return f"{base_msg} ({self.details})"
+        return base_msg
 
 
 # =============================================================================

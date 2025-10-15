@@ -16,82 +16,108 @@ class TestValidators:
     
     def test_text_validator_valid(self):
         """Test text validator with valid input"""
-        validator = TextValidator(min_length=5, max_length=20, required=True)
+        validator = TextValidator(min_length=5, max_length=20)
         
         # Valid text
         result = validator.validate("Hello world")
-        assert result == "Hello world"
+        assert result["is_valid"] is True
+        assert result["value"] == "Hello world"
+        assert result["error"] is None
         
         # Edge cases
-        assert validator.validate("12345") == "12345"  # Exactly min length
-        assert validator.validate("A" * 20) == "A" * 20  # Exactly max length
+        result = validator.validate("12345")  # Exactly min length
+        assert result["is_valid"] is True
+        assert result["value"] == "12345"
+        
+        result = validator.validate("A" * 20)  # Exactly max length
+        assert result["is_valid"] is True
+        assert result["value"] == "A" * 20
     
     def test_text_validator_invalid(self):
         """Test text validator with invalid input"""
-        validator = TextValidator(min_length=5, max_length=20, required=True)
+        validator = TextValidator(min_length=5, max_length=20)
         
         # Too short
-        with pytest.raises(ValidationError) as exc_info:
-            validator.validate("Hi")
-        assert "too short" in str(exc_info.value)
+        result = validator.validate("Hi")
+        assert result["is_valid"] is False
+        assert "too short" in result["error"]
         
         # Too long
-        with pytest.raises(ValidationError) as exc_info:
-            validator.validate("A" * 25)
-        assert "too long" in str(exc_info.value)
+        result = validator.validate("A" * 25)
+        assert result["is_valid"] is False
+        assert "too long" in result["error"]
         
-        # Empty when required
-        with pytest.raises(ValidationError) as exc_info:
-            validator.validate("")
-        assert "required" in str(exc_info.value)
+        # Empty when not allowing empty
+        validator_no_empty = TextValidator(min_length=5, max_length=20, allow_empty=False)
+        result = validator_no_empty.validate("")
+        assert result["is_valid"] is False
+        assert "empty" in result["error"]
     
     def test_text_validator_optional(self):
         """Test text validator with optional field"""
-        validator = TextValidator(min_length=5, max_length=20, required=False)
+        validator = TextValidator(min_length=5, max_length=20, allow_empty=True)
         
         # Empty should be allowed
         result = validator.validate("")
-        assert result == ""
+        assert result["is_valid"] is True
+        assert result["value"] == ""
         
-        # None should be allowed
+        # None should be converted to empty string
         result = validator.validate(None)
-        assert result is None
+        assert result["is_valid"] is True
+        assert result["value"] == ""
     
     def test_number_validator_valid(self):
         """Test number validator with valid input"""
-        validator = NumberValidator(min_value=0, max_value=100, required=True)
+        validator = NumberValidator(min_value=0, max_value=100)
         
         # Valid numbers
-        assert validator.validate(50) == 50
-        assert validator.validate(0) == 0  # Min boundary
-        assert validator.validate(100) == 100  # Max boundary
-        assert validator.validate(50.5) == 50.5  # Float
+        result = validator.validate(50)
+        assert result["is_valid"] is True
+        assert result["value"] == 50
+        
+        result = validator.validate(0)  # Min boundary
+        assert result["is_valid"] is True
+        assert result["value"] == 0
+        
+        result = validator.validate(100)  # Max boundary
+        assert result["is_valid"] is True
+        assert result["value"] == 100
+        
+        result = validator.validate(50.5)  # Float
+        assert result["is_valid"] is True
+        assert result["value"] == 50.5
         
         # String numbers
-        assert validator.validate("50") == 50
-        assert validator.validate("50.5") == 50.5
+        result = validator.validate("50")
+        assert result["is_valid"] is True
+        assert result["value"] == 50
+        
+        result = validator.validate("50.5")
+        assert result["is_valid"] is True
+        assert result["value"] == 50.5
     
     def test_number_validator_invalid(self):
         """Test number validator with invalid input"""
-        validator = NumberValidator(min_value=0, max_value=100, required=True)
+        validator = NumberValidator(min_value=0, max_value=100)
         
         # Out of range
-        with pytest.raises(ValidationError) as exc_info:
-            validator.validate(-1)
-        assert "below minimum" in str(exc_info.value)
+        result = validator.validate(-1)
+        assert result["is_valid"] is False
+        assert "below minimum" in result["error"]
         
-        with pytest.raises(ValidationError) as exc_info:
-            validator.validate(101)
-        assert "above maximum" in str(exc_info.value)
+        result = validator.validate(101)
+        assert result["is_valid"] is False
+        assert "above maximum" in result["error"]
         
         # Invalid string
-        with pytest.raises(ValidationError) as exc_info:
-            validator.validate("not a number")
-        assert "valid number" in str(exc_info.value)
+        result = validator.validate("not a number")
+        assert result["is_valid"] is False
+        assert "number" in result["error"]
     
-    def test_audio_validator_valid(self, mock_audio_file):
+    def test_audio_validator_valid(self):
         """Test audio validator with valid input"""
-        validator = AudioValidator(max_duration=300, required=True)
+        validator = AudioValidator(max_duration=300)
         
         # Mock valid audio
         mock_audio = Mock()
@@ -99,34 +125,35 @@ class TestValidators:
         mock_audio.duration = 120  # 2 minutes
         
         result = validator.validate(mock_audio)
-        assert result == mock_audio
+        assert result["is_valid"] is True
+        assert result["value"] == mock_audio
     
     def test_audio_validator_invalid(self):
         """Test audio validator with invalid input"""
-        validator = AudioValidator(max_duration=300, required=True)
+        validator = AudioValidator(max_duration=300, max_size_mb=10)  # Set 10MB limit
         
         # Missing when required
-        with pytest.raises(ValidationError) as exc_info:
-            validator.validate(None)
-        assert "required" in str(exc_info.value)
+        result = validator.validate(None)
+        assert result["is_valid"] is False
+        assert "required" in result["error"]
         
         # Too large
         mock_large_audio = Mock()
-        mock_large_audio.file_size = 25 * 1024 * 1024  # 25MB
+        mock_large_audio.file_size = 25 * 1024 * 1024  # 25MB (over 10MB limit)
         mock_large_audio.duration = 120
         
-        with pytest.raises(ValidationError) as exc_info:
-            validator.validate(mock_large_audio)
-        assert "too large" in str(exc_info.value)
+        result = validator.validate(mock_large_audio)
+        assert result["is_valid"] is False
+        assert "large" in result["error"]
         
         # Too long
         mock_long_audio = Mock()
         mock_long_audio.file_size = 1024 * 1024  # 1MB
         mock_long_audio.duration = 400  # Too long
         
-        with pytest.raises(ValidationError) as exc_info:
-            validator.validate(mock_long_audio)
-        assert "too long" in str(exc_info.value)
+        result = validator.validate(mock_long_audio)
+        assert result["is_valid"] is False
+        assert "long" in result["error"]
 
 
 class TestValidationSchema:
@@ -173,8 +200,8 @@ class TestValidationSchema:
     def test_schema_with_missing_fields(self):
         """Test schema validation with missing fields"""
         schema = ValidationSchema()
-        schema.add_field("required_field", TextValidator(required=True))
-        schema.add_field("optional_field", TextValidator(required=False))
+        schema.add_field("required_field", TextValidator(min_length=1, allow_empty=False))
+        schema.add_field("optional_field", TextValidator(allow_empty=True))
         
         # Missing required field
         data = {"optional_field": "present"}
@@ -245,7 +272,7 @@ class TestValidationDecorator:
         result = await test_handler(mock_telegram_update, mock_telegram_context)
         
         assert result is not None
-        assert result["text"] == "Valid message"
+        assert result["message"]["text"] == "Valid message"
         assert result["user"]["id"] == 12345
     
     @pytest.mark.asyncio
@@ -285,7 +312,7 @@ class TestValidationDecorator:
             extra_arg="test_value"
         )
         
-        assert result["validated"]["text"] == "Valid message"
+        assert result["validated"]["message"]["text"] == "Valid message"
         assert result["extra"] == "test_value"
 
 
@@ -335,45 +362,57 @@ class TestValidationEdgeCases:
     
     def test_validator_with_none_values(self):
         """Test validators handling None values"""
-        # Required validator
-        required_validator = TextValidator(required=True)
-        with pytest.raises(ValidationError):
-            required_validator.validate(None)
+        # Required validator (empty not allowed)
+        required_validator = TextValidator(allow_empty=False)
+        result = required_validator.validate(None)
+        assert result["is_valid"] is False
         
         # Optional validator
-        optional_validator = TextValidator(required=False)
+        optional_validator = TextValidator(allow_empty=True)
         result = optional_validator.validate(None)
-        assert result is None
+        assert result["is_valid"] is True
+        assert result["value"] == ""
     
     def test_validator_with_empty_string(self):
         """Test validators handling empty strings"""
-        validator = TextValidator(min_length=5, required=False)
+        validator = TextValidator(min_length=5, allow_empty=True)
         
-        # Empty string should be allowed if not required
+        # Empty string should be allowed
         result = validator.validate("")
-        assert result == ""
+        assert result["is_valid"] is True
+        assert result["value"] == ""
         
         # But should fail min_length if not empty
-        with pytest.raises(ValidationError):
-            validator.validate("Hi")  # Too short
+        result = validator.validate("Hi")  # Too short
+        assert result["is_valid"] is False
     
     def test_number_validator_edge_values(self):
         """Test number validator with edge values"""
         validator = NumberValidator(min_value=0, max_value=100)
         
         # Boundary values
-        assert validator.validate(0) == 0
-        assert validator.validate(100) == 100
+        result = validator.validate(0)
+        assert result["is_valid"] is True
+        assert result["value"] == 0
+        
+        result = validator.validate(100)
+        assert result["is_valid"] is True
+        assert result["value"] == 100
         
         # Float precision
-        assert validator.validate(99.999) == 99.999
-        assert validator.validate(0.001) == 0.001
+        result = validator.validate(99.999)
+        assert result["is_valid"] is True
+        assert result["value"] == 99.999
+        
+        result = validator.validate(0.001)
+        assert result["is_valid"] is True
+        assert result["value"] == 0.001
     
     def test_schema_with_nested_data(self):
         """Test schema validation with nested data structures"""
         schema = ValidationSchema()
         # This is a simple test - real nested validation would be more complex
-        schema.add_field("user_id", NumberValidator(min_value=1, required=True))
+        schema.add_field("user_id", NumberValidator(min_value=1))
         
         data = {"user_id": 12345, "extra": {"nested": "data"}}
         result = schema.validate(data)

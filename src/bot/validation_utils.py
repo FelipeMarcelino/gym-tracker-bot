@@ -69,7 +69,7 @@ class ValidationUtils:
             
             return {
                 "is_valid": True,
-                "validated_id": str(int_id),
+                "validated_id": int_id,
                 "error_message": None
             }
             

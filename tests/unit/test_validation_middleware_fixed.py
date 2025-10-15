@@ -112,7 +112,7 @@ class TestValidators:
     
     def test_audio_validator_invalid(self):
         """Test audio validator with invalid input"""
-        validator = AudioValidator(max_duration=300)
+        validator = AudioValidator(max_duration=300, max_size_mb=10)  # Set smaller max size for test
         
         # Too large
         mock_large_audio = Mock()
@@ -155,7 +155,7 @@ class TestValidationSchema:
         result = await ValidationMiddleware.validate_update(mock_telegram_update, schema)
         
         assert result["is_valid"] is True
-        assert "text" in result["data"]
+        assert "text" in result["data"]["message"]
         assert "user" in result["data"]
     
     @pytest.mark.asyncio
@@ -194,7 +194,7 @@ class TestValidationMiddleware:
         result = await ValidationMiddleware.validate_update(mock_telegram_update, schema)
         
         assert result["is_valid"] is True
-        assert result["data"]["text"] == "Test message"
+        assert result["data"]["message"]["text"] == "Test message"
         assert result["data"]["user"]["id"] == 12345
     
     @pytest.mark.asyncio
@@ -232,8 +232,8 @@ class TestValidationDecorator:
         
         # Result should contain validated data
         assert result is not None
-        assert "text" in result
-        assert result["text"] == "Valid message"
+        assert "message" in result
+        assert result["message"]["text"] == "Valid message"
     
     @pytest.mark.asyncio
     async def test_validation_decorator_failure(self, mock_telegram_update, mock_telegram_context):
@@ -349,7 +349,7 @@ class TestValidationIntegration:
         result = await ValidationMiddleware.validate_update(update, schema)
         
         assert result["is_valid"] is True
-        assert result["data"]["text"] == "This is a valid message"
+        assert result["data"]["message"]["text"] == "This is a valid message"
         assert result["data"]["user"]["id"] == 12345
         assert result["data"]["user"]["first_name"] == "John"
     
