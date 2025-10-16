@@ -271,28 +271,28 @@ _Seu ID: `{user_id}`_"""
         return response
 
     @classmethod
-    def _format_single_exercise(cls, ex: Dict[str, Any]) -> str:
+    def _format_single_exercise(cls, exercises: Dict[str, Any]) -> str:
         """Format a single resistance exercise"""
-        weights = ex.get("weights_kg", [])
-        if not weights and ex.get("weight_kg"):
-            weights = [ex.get("weight_kg")] * ex.get("sets", 1)
+        weights = exercises.get("weights_kg", [])
+        if not weights and exercises.get("weight_kg"):
+            weights = [exercises.get("weight_kg")] * ex.get("sets", 1)
 
-        reps = ex.get("reps", [])
-        rest_seconds = ex.get("rest_seconds")
-        difficulty = ex.get("perceived_difficulty")
+        reps = exercises.get("reps", [])
+        rest_seconds = exercises.get("rest_seconds")
+        difficulty = exercises.get("perceived_difficulty")
 
-        response = f"• **{ex['name'].title()}**:\n"
+        response = f"• **{exercises['name'].title()}**:\n"
 
         # Show series details
         if len(set(weights)) > 1:  # Different weights
-            for i in range(ex.get("sets", 0)):
+            for i in range(exercises.get("sets", 0)):
                 rep = reps[i] if i < len(reps) else "?"
                 weight = weights[i] if i < len(weights) else "?"
                 response += f"  └ Série {i+1}: {rep} reps × {weight}kg\n"
         else:  # Same weight for all sets
             reps_str = ", ".join(map(str, reps))
             weight = weights[0] if weights else "?"
-            response += f"  └ {ex.get('sets')}× ({reps_str}) com {weight}kg\n"
+            response += f"  └ {exercises.get('sets')}× ({reps_str}) com {weight}kg\n"
 
         # Rest time
         if rest_seconds:
@@ -315,32 +315,32 @@ _Seu ID: `{user_id}`_"""
         return response
 
     @classmethod
-    def _format_single_aerobic_exercise(cls, ex: Dict[str, Any]) -> str:
+    def _format_single_aerobic_exercise(cls, exercises: Dict[str, Any]) -> str:
         """Format a single aerobic exercise"""
-        response = f"• **{ex['name'].title()}**:\n"
+        response = f"• **{exercises['name'].title()}**:\n"
 
         # Duration (always present)
-        duration = ex.get("duration_minutes")
+        duration = exercises.get("duration_minutes")
         if duration:
             response += f"  └ ⏱️ Duração: {duration}min\n"
 
         # Distance
-        distance = ex.get("distance_km")
+        distance = exercises.get("distance_km")
         if distance:
             response += f"  └ 📏 Distância: {distance}km\n"
 
         # Heart rate
-        heart_rate = ex.get("average_heart_rate")
+        heart_rate = exercises.get("average_heart_rate")
         if heart_rate:
             response += f"  └ ❤️ FC média: {heart_rate} bpm\n"
 
         # Calories
-        calories = ex.get("calories_burned")
+        calories = exercises.get("calories_burned")
         if calories:
             response += f"  └ 🔥 Calorias: {calories} kcal\n"
 
         # Intensity
-        intensity = ex.get("intensity_level")
+        intensity = exercises.get("intensity_level")
         if intensity:
             intensity_emoji, intensity_desc = cls._get_intensity_emoji_and_desc(intensity)
             response += f"  └ {intensity_emoji} Intensidade: {intensity_desc}\n"
