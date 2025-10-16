@@ -18,10 +18,10 @@ async def backup_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Create a manual database backup"""
     try:
         # Create backup
-        backup_path = backup_service.create_backup()
+        backup_path = await backup_service.create_backup()
         
         # Get backup info
-        backups = backup_service.list_backups()
+        backups = await backup_service.list_backups()
         latest_backup = backups[0] if backups else None
         
         if latest_backup:
@@ -52,7 +52,7 @@ async def backup_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def backup_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """List all available backups"""
     try:
-        backups = backup_service.list_backups()
+        backups = await backup_service.list_backups()
         
         if not backups:
             await update.message.reply_text("📁 No backups found")
@@ -74,7 +74,7 @@ async def backup_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message += f"... and {len(backups) - 10} more backups\n\n"
         
         # Add summary
-        stats = backup_service.get_backup_stats()
+        stats = await backup_service.get_backup_stats()
         message += (
             f"📈 **Summary**\n"
             f"Total: {stats['total_backups']} backups\n"
@@ -93,7 +93,7 @@ async def backup_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def backup_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show backup statistics"""
     try:
-        stats = backup_service.get_backup_stats()
+        stats = await backup_service.get_backup_stats()
         
         if "error" in stats:
             await update.message.reply_text(f"❌ Error getting backup stats: {stats['error']}")
@@ -162,7 +162,7 @@ async def backup_restore(update: Update, context: ContextTypes.DEFAULT_TYPE, val
             return
         
         # Find backup file
-        backups = backup_service.list_backups()
+        backups = await backup_service.list_backups()
         backup_path = None
         
         for backup in backups:
@@ -180,7 +180,7 @@ async def backup_restore(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         # Perform restore
         await update.message.reply_text("🔄 Starting database restore...")
         
-        success = backup_service.restore_backup(backup_path, confirm=True)
+        success = await backup_service.restore_backup(backup_path, confirm=True)
         
         if success:
             await update.message.reply_text(
@@ -207,11 +207,11 @@ async def backup_cleanup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Clean up old backups"""
     try:
         # Get current backup count
-        stats = backup_service.get_backup_stats()
+        stats = await backup_service.get_backup_stats()
         old_count = stats["total_backups"]
         
         # Perform cleanup
-        backup_service.cleanup_old_backups()
+        await backup_service.cleanup_old_backups()
         
         # Get new count
         new_stats = backup_service.get_backup_stats()

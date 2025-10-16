@@ -202,12 +202,12 @@ class TestShutdownService:
 class TestShutdownServiceHelperFunctions:
     """Test the helper functions provided with shutdown service"""
     
-    def test_close_database_connections(self):
+    async def test_close_database_connections(self):
         """Test database connection closing"""
         from services.shutdown_service import close_database_connections
         
         # Should not raise exception
-        close_database_connections()
+        await close_database_connections()
     
     def test_flush_logs(self):
         """Test log buffer flushing"""

@@ -130,11 +130,11 @@ class TestHealthServiceCore:
         assert metrics.memory_percent >= 0
         assert metrics.disk_percent >= 0
     
-    def test_simple_health_check(self):
+    async def test_simple_health_check(self):
         """Test simple health check"""
         service = HealthService()
         
-        health = service.get_simple_health()
+        health = await service.get_simple_health()
         
         assert isinstance(health, dict)
         assert "status" in health
@@ -262,7 +262,7 @@ class TestShutdownServiceCore:
 class TestServiceIntegrationBasic:
     """Basic integration tests between services"""
     
-    def test_health_and_backup_basic_integration(self):
+    async def test_health_and_backup_basic_integration(self):
         """Test basic integration between health and backup services"""
         with tempfile.TemporaryDirectory() as temp_dir:
             backup_service = BackupService(backup_dir=temp_dir)
@@ -270,7 +270,7 @@ class TestServiceIntegrationBasic:
             
             # Both services should work independently
             backup_stats = backup_service.get_backup_stats()
-            health_status = health_service.get_simple_health()
+            health_status = await health_service.get_simple_health()
             
             assert backup_stats["total_backups"] == 0
             assert "status" in health_status

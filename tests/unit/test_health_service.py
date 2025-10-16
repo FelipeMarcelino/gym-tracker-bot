@@ -96,21 +96,22 @@ class TestHealthService:
             assert "health_check_error" in health_status.checks
             assert "Test error" in health_status.checks["health_check_error"]
     
-    def test_get_simple_health(self, test_health_service):
+    async def test_get_simple_health(self, test_health_service):
         """Test simple health check"""
         with patch('psutil.cpu_percent') as mock_cpu, \
              patch('psutil.virtual_memory') as mock_memory, \
-             patch('services.health_service.db.get_session') as mock_session:
+             patch('database.async_connection.get_async_session_context') as mock_session:
             
             mock_cpu.return_value = 15.0
             mock_memory.return_value = Mock(percent=60.0)
             
-            # Mock database session and query
+            # Mock async database session and query
             mock_session_instance = Mock()
-            mock_session_instance.execute.return_value.fetchone.return_value = (1,)
-            mock_session.return_value = mock_session_instance
+            mock_session_instance.execute = AsyncMock(return_value=Mock(scalar=Mock(return_value=1)))
+            mock_session.return_value.__aenter__ = AsyncMock(return_value=mock_session_instance)
+            mock_session.return_value.__aexit__ = AsyncMock(return_value=None)
             
-            health = test_health_service.get_simple_health()
+            health = await test_health_service.get_simple_health()
             
             assert health["status"] == "healthy"
             assert health["uptime_seconds"] >= 0
@@ -118,15 +119,22 @@ class TestHealthService:
             assert health["checks"]["cpu_ok"] is True
             assert health["checks"]["memory_ok"] is True
     
-    def test_get_simple_health_degraded(self, test_health_service):
+    async def test_get_simple_health_degraded(self, test_health_service):
         """Test simple health check with degraded status"""
         with patch('psutil.cpu_percent') as mock_cpu, \
-             patch('psutil.virtual_memory') as mock_memory:
+             patch('psutil.virtual_memory') as mock_memory, \
+             patch('database.async_connection.get_async_session_context') as mock_session:
             
             mock_cpu.return_value = 85.0  # High CPU
             mock_memory.return_value = Mock(percent=85.0)  # High memory
             
-            health = test_health_service.get_simple_health()
+            # Mock async database session 
+            mock_session_instance = Mock()
+            mock_session_instance.execute = AsyncMock(return_value=Mock(scalar=Mock(return_value=1)))
+            mock_session.return_value.__aenter__ = AsyncMock(return_value=mock_session_instance)
+            mock_session.return_value.__aexit__ = AsyncMock(return_value=None)
+            
+            health = await test_health_service.get_simple_health()
             
             assert health["status"] == "degraded"
             assert health["checks"]["cpu_ok"] is False

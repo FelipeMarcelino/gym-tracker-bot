@@ -184,7 +184,7 @@ def test_configuration_loading():
 class TestBasicIntegration:
     """Basic integration tests between components"""
     
-    def test_health_service_with_backup_service(self):
+    async def test_health_service_with_backup_service(self):
         """Test health service can work with backup service"""
         from services.health_service import HealthService
         from services.backup_service import BackupService
@@ -197,7 +197,7 @@ class TestBasicIntegration:
             backup_stats = backup_service.get_backup_stats()
             assert backup_stats["total_backups"] == 0
             
-            simple_health = health_service.get_simple_health()
+            simple_health = await health_service.get_simple_health()
             assert "status" in simple_health
     
     def test_shutdown_service_with_health_service(self):

@@ -195,7 +195,7 @@ class TestValidationMiddleware:
         
         assert result["is_valid"] is True
         assert result["data"]["message"]["text"] == "Test message"
-        assert result["data"]["user"]["id"] == 12345
+        assert result["data"]["user"]["id"] == "12345"
     
     @pytest.mark.asyncio
     async def test_validate_update_missing_user(self, mock_telegram_update):
@@ -350,7 +350,7 @@ class TestValidationIntegration:
         
         assert result["is_valid"] is True
         assert result["data"]["message"]["text"] == "This is a valid message"
-        assert result["data"]["user"]["id"] == 12345
+        assert result["data"]["user"]["id"] == "12345"
         assert result["data"]["user"]["first_name"] == "John"
     
     def test_validation_performance(self):

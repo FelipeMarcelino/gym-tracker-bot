@@ -69,7 +69,7 @@ class ShutdownService:
             # Windows doesn't have SIGHUP
             logger.info("Signal handlers registered: SIGINT, SIGTERM")
     
-    def initiate_shutdown(self):
+    async def initiate_shutdown(self):
         """Initiate graceful shutdown process"""
         if self.is_shutting_down:
             logger.warning("Shutdown already in progress, ignoring duplicate signal")
@@ -86,7 +86,7 @@ class ShutdownService:
             
             # Create emergency backup if enabled
             if self.emergency_backup_on_shutdown:
-                self._create_emergency_backup()
+                await self._create_emergency_backup()
             
             # Stop background services
             self._stop_background_services()
@@ -131,7 +131,7 @@ class ShutdownService:
             except Exception as e:
                 logger.exception(f"❌ Error in shutdown handler {i}: {e}")
     
-    def _create_emergency_backup(self):
+    async def _create_emergency_backup(self):
         """Create emergency backup during shutdown"""
         if not self.emergency_backup_on_shutdown:
             logger.debug("Emergency backup disabled, skipping backup")
@@ -140,7 +140,7 @@ class ShutdownService:
         try:
             logger.info("📦 Creating emergency backup before shutdown...")
             backup_name = f"emergency_shutdown_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
-            backup_path = backup_service.create_backup(backup_name)
+            backup_path = await backup_service.create_backup(backup_name)
             logger.info(f"✅ Emergency backup created: {backup_path}")
             
         except Exception as e:

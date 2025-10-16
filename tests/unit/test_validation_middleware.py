@@ -273,7 +273,7 @@ class TestValidationDecorator:
         
         assert result is not None
         assert result["message"]["text"] == "Valid message"
-        assert result["user"]["id"] == 12345
+        assert result["user"]["id"] == "12345"
     
     @pytest.mark.asyncio
     async def test_validation_decorator_failure(self, mock_telegram_update, mock_telegram_context):

@@ -132,11 +132,11 @@ class TestHealthService:
         assert metrics.disk_percent >= 0
         # Note: not testing uptime_seconds as it might not exist
     
-    def test_simple_health_check(self):
+    async def test_simple_health_check(self):
         """Test simple health check"""
         service = HealthService()
         
-        health = service.get_simple_health()
+        health = await service.get_simple_health()
         
         assert isinstance(health, dict)
         assert "status" in health
@@ -249,7 +249,7 @@ class TestShutdownService:
 class TestServiceIntegration:
     """Integration tests between services"""
     
-    def test_health_and_backup_integration(self):
+    async def test_health_and_backup_integration(self):
         """Test basic integration between health and backup services"""
         with tempfile.TemporaryDirectory() as temp_dir:
             backup_service = BackupService(backup_dir=temp_dir)
@@ -257,7 +257,7 @@ class TestServiceIntegration:
             
             # Both services should work independently
             backup_stats = backup_service.get_backup_stats()
-            health_status = health_service.get_simple_health()
+            health_status = await health_service.get_simple_health()
             
             assert backup_stats["total_backups"] == 0
             assert "status" in health_status
@@ -411,7 +411,7 @@ class TestServiceConfiguration:
 class TestCompleteWorkflow:
     """Test complete service lifecycle"""
     
-    def test_startup_operational_shutdown_workflow(self):
+    async def test_startup_operational_shutdown_workflow(self):
         """Test complete workflow: startup -> operational -> shutdown"""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Initialize all services
@@ -435,7 +435,7 @@ class TestCompleteWorkflow:
             health_service.record_command(150, True)  # One error
             
             # Check health
-            health_status = health_service.get_simple_health()
+            health_status = await health_service.get_simple_health()
             assert health_status["status"] in ["healthy", "degraded", "unhealthy"]
             
             # Check metrics
