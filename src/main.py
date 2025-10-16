@@ -1,3 +1,4 @@
+import asyncio
 from typing import NoReturn
 
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
@@ -30,6 +31,7 @@ from bot.backup_commands import (
 )
 from config.settings import settings
 from services.container import initialize_all_services
+from services.async_container import initialize_async_services, shutdown_async_services
 from services.shutdown_service import shutdown_service
 from services.backup_service import backup_service
 
@@ -43,10 +45,15 @@ def main() -> NoReturn:
     
     logger.info("🚀 Iniciando bot...")
     
-    # Initialize all services early to catch configuration errors
+    # Initialize services early to catch configuration errors
     logger.info("🔧 Inicializando serviços...")
     try:
+        # Initialize remaining sync services (audio, llm, export, analytics)
         initialize_all_services()
+        
+        # Initialize async services (user, workout, session)
+        asyncio.get_event_loop().run_until_complete(initialize_async_services())
+        
         logger.info("✅ Todos os serviços inicializados com sucesso")
     except Exception as e:
         logger.error(f"❌ Erro ao inicializar serviços: {e}")
@@ -129,8 +136,18 @@ def main() -> NoReturn:
         except Exception as e:
             logger.exception(f"Error starting automated backups: {e}")
     
+    def shutdown_async_services_handler():
+        """Shutdown async services gracefully"""
+        try:
+            logger.info("Shutting down async services...")
+            asyncio.get_event_loop().run_until_complete(shutdown_async_services())
+            logger.info("✅ Async services shutdown")
+        except Exception as e:
+            logger.exception(f"Error shutting down async services: {e}")
+    
     # Register shutdown handlers
     shutdown_service.register_shutdown_handler(stop_telegram_bot, "Stop Telegram bot")
+    shutdown_service.register_shutdown_handler(shutdown_async_services_handler, "Shutdown async services")
     
     # Start automated backups
     start_automated_backups()

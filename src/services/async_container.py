@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 from services.async_user_service import AsyncUserService
 from services.async_workout_service import AsyncWorkoutService
 from services.async_session_manager import AsyncSessionManager
+from services.async_analytics_service import AsyncAnalyticsService
+from services.async_export_service import AsyncExportService
 from database.async_connection import async_db
 
 T = TypeVar('T')
@@ -36,6 +38,10 @@ class AsyncServiceContainer:
                     instance = AsyncWorkoutService()
                 elif service_type == AsyncSessionManager:
                     instance = AsyncSessionManager()
+                elif service_type == AsyncAnalyticsService:
+                    instance = AsyncAnalyticsService()
+                elif service_type == AsyncExportService:
+                    instance = AsyncExportService()
                 else:
                     raise ValueError(f"Unknown async service type: {service_type}")
                 
@@ -61,6 +67,8 @@ class AsyncServiceContainer:
             await self.get_service(AsyncUserService)
             await self.get_service(AsyncWorkoutService)
             await self.get_service(AsyncSessionManager)
+            await self.get_service(AsyncAnalyticsService)
+            await self.get_service(AsyncExportService)
             
             self._initialized = True
 
@@ -105,6 +113,18 @@ async def get_async_session_manager() -> AsyncSessionManager:
     """Get async session manager service"""
     container = await get_async_container()
     return await container.get_service(AsyncSessionManager)
+
+
+async def get_async_analytics_service() -> AsyncAnalyticsService:
+    """Get async analytics service"""
+    container = await get_async_container()
+    return await container.get_service(AsyncAnalyticsService)
+
+
+async def get_async_export_service() -> AsyncExportService:
+    """Get async export service"""
+    container = await get_async_container()
+    return await container.get_service(AsyncExportService)
 
 
 async def initialize_async_services() -> None:

@@ -13,7 +13,8 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config.settings import settings
-from services.user_service import UserService
+import asyncio
+from services.async_user_service import AsyncUserService
 from services.exceptions import ValidationError, DatabaseError
 
 
@@ -46,7 +47,7 @@ def get_admin_user_id() -> str:
         print("❌ ID inválido. Digite apenas números.")
 
 
-def create_first_admin():
+async def create_first_admin():
     """Cria o primeiro usuário administrador"""
     
     print("=" * 60)
@@ -54,13 +55,13 @@ def create_first_admin():
     print("=" * 60)
     
     try:
-        user_service = UserService()
+        user_service = AsyncUserService()
         
         # Obter ID do admin
         admin_id = get_admin_user_id()
         
         # Verificar se usuário já existe
-        existing_user = user_service.get_user(admin_id)
+        existing_user = await user_service.get_user(admin_id)
         if existing_user:
             if existing_user.is_admin:
                 print(f"✅ Usuário {admin_id} já é administrador!")
@@ -70,7 +71,7 @@ def create_first_admin():
                 return
             else:
                 # Promover usuário existente a admin
-                user_service.make_admin(admin_id)
+                await user_service.make_admin(admin_id)
                 print(f"✅ Usuário {admin_id} promovido a administrador!")
                 print(f"   Nome: {existing_user.first_name or 'N/A'}")
                 return
@@ -78,7 +79,7 @@ def create_first_admin():
         # Criar novo usuário admin
         print(f"🔧 Criando novo usuário administrador: {admin_id}")
         
-        user = user_service.add_user(
+        user = await user_service.add_user(
             user_id=admin_id,
             is_admin=True,
             created_by="system"  # Criado pelo sistema de migração
@@ -106,7 +107,7 @@ def create_first_admin():
 def main():
     """Função principal"""
     try:
-        create_first_admin()
+        asyncio.run(create_first_admin())
     except KeyboardInterrupt:
         print("\n\n👋 Operação cancelada pelo usuário")
         sys.exit(0)

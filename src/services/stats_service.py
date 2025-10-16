@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass
 from typing import Dict, List
 
-from services.workout_service import WorkoutSession
+from database.models import WorkoutSession
 
 logger = logging.getLogger(__name__)
 

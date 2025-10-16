@@ -14,13 +14,15 @@ from config.messages import messages
 from config.settings import settings
 from database.models import SessionStatus
 from services.container import (
-    get_analytics_service,
     get_audio_service,
-    get_export_service,
     get_llm_service,
-    get_session_manager,
-    get_user_service,
-    get_workout_service,
+)
+from services.async_container import (
+    get_async_user_service,
+    get_async_workout_service,
+    get_async_session_manager,
+    get_async_analytics_service,
+    get_async_export_service,
 )
 from services.exceptions import (
     AudioProcessingError,
@@ -172,19 +174,20 @@ async def _process_workout_audio_optimized(
             parse_mode="Markdown",
         )
 
-        workout_service = get_workout_service()
+        # Use async services for better performance
+        workout_service = await get_async_workout_service()
         processing_time = time.time() - start_time
 
-        # ADICIONAR à sessão existente usando método batch otimizado
-        workout_service.add_exercises_to_session_batch(
+        # ADICIONAR à sessão existente usando método batch otimizado (async)
+        await workout_service.add_exercises_to_session_batch(
             session_id=workout_session.session_id,
             parsed_data=parsed_data,
             user_id=user_id,
         )
 
-        # Atualizar metadados da sessão
-        session_manager = get_session_manager()
-        session_manager.update_session_metadata(
+        # Atualizar metadados da sessão (async)
+        session_manager = await get_async_session_manager()
+        await session_manager.update_session_metadata(
             session_id=workout_session.session_id,
             transcription=transcription,
             processing_time=processing_time,
@@ -262,19 +265,20 @@ async def _process_workout_audio(
             parse_mode="Markdown",
         )
 
-        workout_service = get_workout_service()
+        # Use async services for better performance
+        workout_service = await get_async_workout_service()
         processing_time = time.time() - start_time
 
-        # ADICIONAR à sessão existente (não criar nova!)
-        workout_service.add_exercises_to_session(
+        # ADICIONAR à sessão existente (não criar nova!) (async)
+        await workout_service.add_exercises_to_session(
             session_id=workout_session.session_id,
             parsed_data=parsed_data,
             user_id=user_id,
         )
 
-        # Atualizar metadados da sessão
-        session_manager = get_session_manager()
-        session_manager.update_session_metadata(
+        # Atualizar metadados da sessão (async)
+        session_manager = await get_async_session_manager()
+        await session_manager.update_session_metadata(
             session_id=workout_session.session_id,
             transcription=transcription,
             processing_time=processing_time,
@@ -341,9 +345,9 @@ async def _process_workout_message(
 
     start_time = time.time()
 
-    # ===== ETAPA 0: GERENCIAR SESSÃO =====
-    session_manager = get_session_manager()
-    workout_session, is_new = session_manager.get_or_create_session(user_id)
+    # ===== ETAPA 0: GERENCIAR SESSÃO (ASYNC) =====
+    session_manager = await get_async_session_manager()
+    workout_session, is_new = await session_manager.get_or_create_session(user_id)
 
     # Mensagem inicial diferente se for nova ou continuação
     if is_new:
@@ -383,18 +387,19 @@ async def _process_workout_message(
             parse_mode="Markdown",
         )
 
-        workout_service = get_workout_service()
+        # Use async services for better performance
+        workout_service = await get_async_workout_service()
         processing_time = time.time() - start_time
 
-        # ADICIONAR à sessão existente (não criar nova!)
-        workout_service.add_exercises_to_session(
+        # ADICIONAR à sessão existente (não criar nova!) (async)
+        await workout_service.add_exercises_to_session(
             session_id=workout_session.session_id,
             parsed_data=parsed_data,
             user_id=user_id,
         )
 
-        # Atualizar metadados da sessão
-        session_manager.update_session_metadata(
+        # Atualizar metadados da sessão (async)
+        await session_manager.update_session_metadata(
             session_id=workout_session.session_id,
             transcription=workout_text,  # Para texto, é o próprio texto
             processing_time=processing_time,
@@ -503,9 +508,9 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE, valid
 
     start_time = time.time()
 
-    # ===== ETAPA 0: GERENCIAR SESSÃO =====
-    session_manager = get_session_manager()
-    workout_session, is_new = session_manager.get_or_create_session(user_id)
+    # ===== ETAPA 0: GERENCIAR SESSÃO (ASYNC) =====
+    session_manager = await get_async_session_manager()
+    workout_session, is_new = await session_manager.get_or_create_session(user_id)
 
     # Mensagem inicial diferente se for nova ou continuação
     if is_new:
@@ -603,10 +608,10 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
     user_id = validated_data["user"].get("id", "N/A")
 
     try:
-        workout_service = get_workout_service()
+        workout_service = await get_async_workout_service()
 
-        # Buscar status usando método otimizado do service
-        status_data = workout_service.get_user_session_status(user_id)
+        # Buscar status usando método otimizado do service (async)
+        status_data = await workout_service.get_user_session_status(user_id)
 
         if not status_data["has_session"]:
             await update.message.reply_text(
@@ -676,10 +681,10 @@ async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
     logger.info(f"Comando /finish executado por {user_name} (ID: {user_id})")
 
 
-    workout_service = get_workout_service()
+    workout_service = await get_async_workout_service()
 
-    # Buscar sessão ativa
-    last_session = workout_service.get_last_session(user_id)
+    # Buscar sessão ativa (async)
+    last_session = await workout_service.get_last_session(user_id)
 
     if not last_session:
         await update.message.reply_text(messages.ERROR_SESSION_NOT_FOUND)
@@ -695,8 +700,8 @@ async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         )
         return
 
-    # Finalizar sessão
-    result = workout_service.finish_session(last_session.session_id, user_id)
+    # Finalizar sessão (async)
+    result = await workout_service.finish_session(last_session.session_id, user_id)
 
     if not result["success"]:
         await update.message.reply_text(messages.ERROR_FINISH_SESSION.format(error=result["error"]))
@@ -750,10 +755,10 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
     format_type = args[0].lower() if args and args[0].lower() in ["json", "csv"] else "json"
 
     try:
-        export_service = get_export_service()
+        export_service = await get_async_export_service()
 
-        # First get summary
-        summary = export_service.get_export_summary(user_id)
+        # First get summary (async)
+        summary = await export_service.get_export_summary(user_id)
 
         if summary["total_sessions"] == 0:
             await update.message.reply_text(
@@ -782,8 +787,8 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
 
         status_msg = await update.message.reply_text(summary_text, parse_mode="Markdown")
 
-        # Export data
-        result = export_service.export_user_data(user_id, format=format_type)
+        # Export data (async)
+        result = await export_service.export_user_data(user_id, format=format_type)
 
         if not result["success"] or not result["data"]:
             await status_msg.edit_text(
@@ -859,15 +864,15 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE, vali
         days = 30
 
     try:
-        analytics_service = get_analytics_service()
+        analytics_service = await get_async_analytics_service()
 
         status_msg = await update.message.reply_text(
             f"📊 **Calculando estatísticas...**\n\nAnalisando últimos {days} dias...",
             parse_mode="Markdown",
         )
 
-        # Get analytics
-        analytics = analytics_service.get_workout_analytics(user_id, days=days)
+        # Get analytics (async)
+        analytics = await analytics_service.get_workout_analytics(user_id, days=days)
 
         if "message" in analytics:  # No data found
             await status_msg.edit_text(
@@ -926,17 +931,17 @@ async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE, v
     exercise_name = " ".join(args)
 
     try:
-        analytics_service = get_analytics_service()
+        analytics_service = await get_async_analytics_service()
 
         status_msg = await update.message.reply_text(
             f"📈 **Analisando progresso...**\n\nExercício: {exercise_name}",
             parse_mode="Markdown",
         )
 
-        # Get exercise progress
-        progress = analytics_service.get_exercise_progress(user_id, exercise_name)
+        # Get exercise progress (async)
+        progress = await analytics_service.get_exercise_progress(user_id, exercise_name)
 
-        if not progress["found"]:
+        if "message" in progress:  # No data found
             await status_msg.edit_text(
                 f"📈 **Progresso do Exercício**\n\n"
                 f"❌ {progress['message']}\n\n"

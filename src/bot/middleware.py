@@ -8,7 +8,7 @@ from telegram.ext import ContextTypes
 
 from config.settings import settings
 from config.messages import messages
-from services.container import get_user_service
+from services.async_container import get_async_user_service
 
 logger = logging.getLogger(__name__)
 
@@ -26,20 +26,20 @@ def authorized_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitabl
         user = update.effective_user
         user_id = user.id
 
-        # Verificar se o usuário está autorizado usando banco de dados
-        user_service = get_user_service()
+        # Verificar se o usuário está autorizado usando banco de dados (async)
+        user_service = await get_async_user_service()
         
-        # Atualizar informações do usuário se já existe
-        existing_user = user_service.get_user(str(user_id))
+        # Atualizar informações do usuário se já existe (async)
+        existing_user = await user_service.get_user(str(user_id))
         if existing_user:
-            user_service.update_user_info(
+            await user_service.update_user_info(
                 str(user_id),
                 username=user.username,
                 first_name=user.first_name,
                 last_name=user.last_name
             )
         
-        if not user_service.is_user_authorized(str(user_id)):
+        if not await user_service.is_user_authorized(str(user_id)):
             # Log da tentativa de acesso não autorizado
             logger.warning(f"Acesso negado para usuário {user_id} ({user.first_name} {user.last_name or ''}, @{user.username or 'não definido'})")
 
@@ -69,10 +69,10 @@ def admin_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any
         user = update.effective_user
         user_id = str(user.id)
 
-        user_service = get_user_service()
+        user_service = await get_async_user_service()
         
-        # Verificar se é admin
-        if not user_service.is_user_admin(user_id):
+        # Verificar se é admin (async)
+        if not await user_service.is_user_admin(user_id):
             logger.warning(f"Acesso admin negado para usuário {user_id} ({user.first_name} {user.last_name or ''})")
 
             await update.message.reply_text(

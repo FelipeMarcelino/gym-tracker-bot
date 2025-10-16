@@ -5,11 +5,6 @@ import threading
 
 from services.audio_service import AudioTranscriptionService
 from services.llm_service import LLMParsingService
-from services.session_manager import SessionManager
-from services.workout_service import WorkoutService
-from services.export_service import ExportService
-from services.analytics_service import AnalyticsService
-from services.user_service import UserService
 
 
 T = TypeVar('T')
@@ -37,18 +32,8 @@ class ServiceContainer:
                     instance = AudioTranscriptionService()
                 elif service_type == LLMParsingService:
                     instance = LLMParsingService()
-                elif service_type == SessionManager:
-                    instance = SessionManager()
-                elif service_type == WorkoutService:
-                    instance = WorkoutService()
-                elif service_type == ExportService:
-                    instance = ExportService()
-                elif service_type == AnalyticsService:
-                    instance = AnalyticsService()
-                elif service_type == UserService:
-                    instance = UserService()
                 else:
-                    raise ValueError(f"Unknown service type: {service_type}")
+                    raise ValueError(f"Unknown service type: {service_type} - Note: Database services have been migrated to async versions")
                 
                 self._services[service_type] = instance
             
@@ -65,14 +50,9 @@ class ServiceContainer:
             return
             
         with self._lock:
-            # Pre-initialize all services to catch configuration errors early
+            # Pre-initialize remaining sync services to catch configuration errors early
             self.get_service(AudioTranscriptionService)
             self.get_service(LLMParsingService) 
-            self.get_service(SessionManager)
-            self.get_service(WorkoutService)
-            self.get_service(ExportService)
-            self.get_service(AnalyticsService)
-            self.get_service(UserService)
             self._initialized = True
 
 
@@ -99,29 +79,8 @@ def get_llm_service() -> LLMParsingService:
     return get_container().get_service(LLMParsingService)
 
 
-def get_session_manager() -> SessionManager:
-    """Get session manager service"""
-    return get_container().get_service(SessionManager)
-
-
-def get_workout_service() -> WorkoutService:
-    """Get workout service"""
-    return get_container().get_service(WorkoutService)
-
-
-def get_export_service() -> ExportService:
-    """Get export service"""
-    return get_container().get_service(ExportService)
-
-
-def get_analytics_service() -> AnalyticsService:
-    """Get analytics service"""
-    return get_container().get_service(AnalyticsService)
-
-
-def get_user_service() -> UserService:
-    """Get user service"""
-    return get_container().get_service(UserService)
+# Note: Export and Analytics services have been migrated to async versions
+# Use get_async_export_service() and get_async_analytics_service() instead
 
 
 def initialize_all_services() -> None:
