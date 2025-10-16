@@ -1,19 +1,17 @@
 """Async workout service for improved database performance"""
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
-from sqlalchemy import select, update, func, and_, or_
+from typing import Any, Dict, List
+
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from config.logging_config import get_logger
 from config.settings import settings
 from database.async_connection import get_async_session_context
-from database.models import (
-    WorkoutSession, WorkoutExercise, AerobicExercise, Exercise,
-    ExerciseType, SessionStatus
-)
-from services.exceptions import DatabaseError, ValidationError, ErrorCode
+from database.models import AerobicExercise, Exercise, ExerciseType, SessionStatus, WorkoutExercise, WorkoutSession
+from services.exceptions import DatabaseError, ErrorCode, ValidationError
 from services.exercise_knowledge import infer_equipment, infer_muscle_group
 
 logger = get_logger(__name__)
@@ -41,6 +39,7 @@ class AsyncWorkoutService:
         Raises:
             ValidationError: If data is invalid
             DatabaseError: If database operation fails
+
         """
         if not session_id or session_id <= 0:
             raise ValidationError(
@@ -48,16 +47,16 @@ class AsyncWorkoutService:
                 field="session_id",
                 value=session_id,
                 error_code=ErrorCode.MISSING_REQUIRED_FIELD,
-                user_message="Invalid session ID"
+                user_message="Invalid session ID",
             )
 
         if not user_id or not user_id.strip():
             raise ValidationError(
                 message="User ID is required",
-                field="user_id", 
+                field="user_id",
                 value=user_id,
                 error_code=ErrorCode.MISSING_REQUIRED_FIELD,
-                user_message="User ID is required"
+                user_message="User ID is required",
             )
 
         if not parsed_data or not isinstance(parsed_data, dict):
@@ -66,7 +65,7 @@ class AsyncWorkoutService:
                 field="parsed_data",
                 value=str(parsed_data),
                 error_code=ErrorCode.INVALID_INPUT,
-                user_message="Invalid workout data"
+                user_message="Invalid workout data",
             )
 
         try:
@@ -87,7 +86,7 @@ class AsyncWorkoutService:
                             field="session_id",
                             value=session_id,
                             error_code=ErrorCode.NOT_FOUND,
-                            user_message="Session not found"
+                            user_message="Session not found",
                         )
 
                     if workout_session.user_id != user_id:
@@ -96,7 +95,7 @@ class AsyncWorkoutService:
                             field="user_id",
                             value=user_id,
                             error_code=ErrorCode.ACCESS_DENIED,
-                            user_message="Not authorized for this session"
+                            user_message="Not authorized for this session",
                         )
 
                     # 2. Update session data
@@ -109,24 +108,24 @@ class AsyncWorkoutService:
                     resistance_exercises = parsed_data.get("resistance_exercises", [])
                     if resistance_exercises:
                         await self._process_resistance_exercises_async(
-                            session, session_id, resistance_exercises, existing_resistance
+                            session, session_id, resistance_exercises, existing_resistance,
                         )
 
                     # 5. Process aerobic exercises in batch
                     aerobic_exercises = parsed_data.get("aerobic_exercises", [])
                     if aerobic_exercises:
                         await self._process_aerobic_exercises_async(
-                            session, session_id, aerobic_exercises
+                            session, session_id, aerobic_exercises,
                         )
 
                     # Commit is automatic with begin() context manager
 
                 resistance_count = len(resistance_exercises)
                 aerobic_count = len(aerobic_exercises)
-                
+
                 logger.info(
                     f"Successfully added {resistance_count} resistance + {aerobic_count} aerobic exercises "
-                    f"to session {session_id}"
+                    f"to session {session_id}",
                 )
                 return True
 
@@ -139,18 +138,18 @@ class AsyncWorkoutService:
                 operation="add_exercises_to_session_batch",
                 error_code=ErrorCode.DATABASE_TRANSACTION_FAILED,
                 user_message="Failed to save workout data",
-                cause=e
+                cause=e,
             )
 
     async def _update_session_data_async(
-        self, 
-        session, 
-        workout_session: WorkoutSession, 
-        parsed_data: Dict[str, Any]
+        self,
+        session,
+        workout_session: WorkoutSession,
+        parsed_data: Dict[str, Any],
     ) -> None:
         """Update session metadata (async)"""
         workout_session.audio_count += 1
-        
+
         # Update optional metadata
         if "energy_level" in parsed_data:
             workout_session.energy_level = parsed_data["energy_level"]
@@ -168,15 +167,15 @@ class AsyncWorkoutService:
         session,
         session_id: int,
         resistance_exercises: List[Dict[str, Any]],
-        existing_count: int
+        existing_count: int,
     ) -> None:
         """Process resistance exercises in batch (async)"""
         exercise_objects = []
         workout_exercise_objects = []
-        
+
         # Get all unique exercise names for batch lookup
         exercise_names = {ex.get("name", "").lower().strip() for ex in resistance_exercises if ex.get("name")}
-        
+
         # Batch lookup existing exercises
         if exercise_names:
             stmt = select(Exercise).where(Exercise.name.in_(exercise_names))
@@ -191,7 +190,7 @@ class AsyncWorkoutService:
                 continue
 
             exercise_name_lower = exercise_name.lower()
-            
+
             # Get or create exercise
             if exercise_name_lower in existing_exercises:
                 exercise = existing_exercises[exercise_name_lower]
@@ -201,7 +200,7 @@ class AsyncWorkoutService:
                     name=exercise_name_lower,
                     type=ExerciseType.RESISTENCIA,
                     muscle_group=infer_muscle_group(exercise_name),
-                    equipment=infer_equipment(exercise_name)
+                    equipment=infer_equipment(exercise_name),
                 )
                 exercise_objects.append(exercise)
                 existing_exercises[exercise_name_lower] = exercise
@@ -210,12 +209,12 @@ class AsyncWorkoutService:
             workout_exercise = WorkoutExercise(
                 session_id=session_id,
                 exercise=exercise,
-                order=existing_count + i + 1,
+                order_in_workout=existing_count + i + 1,
                 sets=exercise_data.get("sets", 1),
                 reps=exercise_data.get("reps", []),
                 weights_kg=exercise_data.get("weights_kg", []),
                 rest_seconds=exercise_data.get("rest_seconds"),
-                notes=exercise_data.get("notes")
+                notes=exercise_data.get("notes"),
             )
             workout_exercise_objects.append(workout_exercise)
 
@@ -232,20 +231,20 @@ class AsyncWorkoutService:
         self,
         session,
         session_id: int,
-        aerobic_exercises: List[Dict[str, Any]]
+        aerobic_exercises: List[Dict[str, Any]],
     ) -> None:
         """Process aerobic exercises in batch (async)"""
         exercise_objects = []
         aerobic_objects = []
-        
+
         # Get all unique exercise names for batch lookup
         exercise_names = {ex.get("name", "").lower().strip() for ex in aerobic_exercises if ex.get("name")}
-        
+
         # Batch lookup existing exercises
         if exercise_names:
             stmt = select(Exercise).where(
                 Exercise.name.in_(exercise_names),
-                Exercise.type == ExerciseType.AEROBICO
+                Exercise.type == ExerciseType.AEROBICO,
             )
             result = await session.execute(stmt)
             existing_exercises = {ex.name.lower(): ex for ex in result.scalars().all()}
@@ -258,7 +257,7 @@ class AsyncWorkoutService:
                 continue
 
             exercise_name_lower = exercise_name.lower()
-            
+
             # Get or create exercise
             if exercise_name_lower in existing_exercises:
                 exercise = existing_exercises[exercise_name_lower]
@@ -268,7 +267,7 @@ class AsyncWorkoutService:
                     name=exercise_name_lower,
                     type=ExerciseType.AEROBICO,
                     muscle_group=infer_muscle_group(exercise_name),
-                    equipment=infer_equipment(exercise_name)
+                    equipment=infer_equipment(exercise_name),
                 )
                 exercise_objects.append(exercise)
                 existing_exercises[exercise_name_lower] = exercise
@@ -281,7 +280,7 @@ class AsyncWorkoutService:
                 distance_km=exercise_data.get("distance_km"),
                 calories_burned=exercise_data.get("calories_burned"),
                 intensity=exercise_data.get("intensity"),
-                notes=exercise_data.get("notes")
+                notes=exercise_data.get("notes"),
             )
             aerobic_objects.append(aerobic_exercise)
 
@@ -302,6 +301,7 @@ class AsyncWorkoutService:
             
         Returns:
             Dict with session status information
+
         """
         try:
             async with get_async_session_context() as session:
@@ -310,7 +310,7 @@ class AsyncWorkoutService:
                     select(WorkoutSession)
                     .options(
                         selectinload(WorkoutSession.exercises),
-                        selectinload(WorkoutSession.aerobic_exercises)
+                        selectinload(WorkoutSession.aerobic_exercises),
                     )
                     .where(WorkoutSession.user_id == user_id)
                     .order_by(WorkoutSession.date.desc(), WorkoutSession.start_time.desc())
@@ -322,7 +322,7 @@ class AsyncWorkoutService:
                 if not last_session:
                     return {
                         "has_session": False,
-                        "message": "Nenhuma sessão encontrada. Envie um áudio para começar!"
+                        "message": "Nenhuma sessão encontrada. Envie um áudio para começar!",
                     }
 
                 # Calculate session stats
@@ -347,7 +347,7 @@ class AsyncWorkoutService:
                     "hours_passed": hours_passed,
                     "resistance_count": resistance_count,
                     "aerobic_count": aerobic_count,
-                    "timeout_hours": timeout_hours
+                    "timeout_hours": timeout_hours,
                 }
 
         except SQLAlchemyError as e:
@@ -357,7 +357,7 @@ class AsyncWorkoutService:
                 operation="get_user_session_status",
                 error_code=ErrorCode.DATABASE_QUERY_FAILED,
                 user_message="Failed to get session status",
-                cause=e
+                cause=e,
             )
 
     async def finish_session(self, session_id: int, user_id: str) -> Dict[str, Any]:
@@ -369,6 +369,7 @@ class AsyncWorkoutService:
             
         Returns:
             Dict with session finish results and stats
+
         """
         try:
             async with get_async_session_context() as session:
@@ -378,11 +379,11 @@ class AsyncWorkoutService:
                         select(WorkoutSession)
                         .options(
                             selectinload(WorkoutSession.exercises),
-                            selectinload(WorkoutSession.aerobic_exercises)
+                            selectinload(WorkoutSession.aerobic_exercises),
                         )
                         .where(
                             WorkoutSession.session_id == session_id,
-                            WorkoutSession.user_id == user_id
+                            WorkoutSession.user_id == user_id,
                         )
                     )
                     result = await session.execute(stmt)
@@ -391,13 +392,13 @@ class AsyncWorkoutService:
                     if not workout_session:
                         return {
                             "success": False,
-                            "error": "Session not found or access denied"
+                            "error": "Session not found or access denied",
                         }
 
                     if workout_session.status == SessionStatus.FINALIZADA:
                         return {
                             "success": False,
-                            "error": "Session already finished"
+                            "error": "Session already finished",
                         }
 
                     # Calculate session duration and stats
@@ -423,7 +424,7 @@ class AsyncWorkoutService:
                         "success": True,
                         "session_id": session_id,
                         "duration_minutes": duration_minutes,
-                        "stats": stats
+                        "stats": stats,
                     }
 
         except SQLAlchemyError as e:
@@ -433,27 +434,27 @@ class AsyncWorkoutService:
                 operation="finish_session",
                 error_code=ErrorCode.DATABASE_TRANSACTION_FAILED,
                 user_message="Failed to finish session",
-                cause=e
+                cause=e,
             )
 
     async def _calculate_session_stats_async(self, workout_session: WorkoutSession) -> Dict[str, Any]:
         """Calculate session statistics (async)"""
         resistance_exercises = len(workout_session.exercises)
         aerobic_exercises = len(workout_session.aerobic_exercises)
-        
+
         # Calculate resistance stats
         total_sets = sum(ex.sets for ex in workout_session.exercises)
         total_volume_kg = sum(
-            sum(weights) for ex in workout_session.exercises 
+            sum(weights) for ex in workout_session.exercises
             if ex.weights_kg for weights in [ex.weights_kg]
         )
-        
+
         # Calculate aerobic stats
         cardio_minutes = sum(
             ex.duration_minutes for ex in workout_session.aerobic_exercises
             if ex.duration_minutes
         )
-        
+
         # Get muscle groups
         muscle_groups = list(set(
             ex.exercise.muscle_group for ex in workout_session.exercises
@@ -467,13 +468,13 @@ class AsyncWorkoutService:
             "total_sets": total_sets,
             "total_volume_kg": total_volume_kg,
             "cardio_minutes": cardio_minutes,
-            "muscle_groups": muscle_groups
+            "muscle_groups": muscle_groups,
         }
 
     async def get_user_workout_analytics(
-        self, 
-        user_id: str, 
-        days: int = 30
+        self,
+        user_id: str,
+        days: int = 30,
     ) -> Dict[str, Any]:
         """Get comprehensive workout analytics for a user (async)
         
@@ -483,24 +484,25 @@ class AsyncWorkoutService:
             
         Returns:
             Dict with analytics data
+
         """
         try:
             async with get_async_session_context() as session:
                 # Calculate date range
                 end_date = datetime.now().date()
                 start_date = end_date - timedelta(days=days)
-                
+
                 # Get sessions with exercises in optimized query
                 stmt = (
                     select(WorkoutSession)
                     .options(
                         selectinload(WorkoutSession.exercises),
-                        selectinload(WorkoutSession.aerobic_exercises)
+                        selectinload(WorkoutSession.aerobic_exercises),
                     )
                     .where(
                         WorkoutSession.user_id == user_id,
                         WorkoutSession.date >= start_date,
-                        WorkoutSession.date <= end_date
+                        WorkoutSession.date <= end_date,
                     )
                     .order_by(WorkoutSession.date.desc())
                 )
@@ -520,13 +522,13 @@ class AsyncWorkoutService:
                 operation="get_user_workout_analytics",
                 error_code=ErrorCode.DATABASE_QUERY_FAILED,
                 user_message="Failed to calculate workout analytics",
-                cause=e
+                cause=e,
             )
 
     async def _calculate_comprehensive_analytics_async(
-        self, 
-        sessions: List[WorkoutSession], 
-        days: int
+        self,
+        sessions: List[WorkoutSession],
+        days: int,
     ) -> Dict[str, Any]:
         """Calculate comprehensive analytics from sessions (async)"""
         # Basic stats
@@ -538,7 +540,7 @@ class AsyncWorkoutService:
         durations = [s.duration_minutes for s in sessions if s.duration_minutes]
         avg_duration = sum(durations) / len(durations) if durations else 0
         avg_audios = sum(s.audio_count for s in sessions) / total_sessions if total_sessions > 0 else 0
-        
+
         # Energy levels
         energy_levels = [s.energy_level for s in sessions if s.energy_level]
         avg_energy = sum(energy_levels) / len(energy_levels) if energy_levels else 0
@@ -546,22 +548,22 @@ class AsyncWorkoutService:
         # Exercise stats
         all_resistance = [ex for s in sessions for ex in s.exercises]
         all_aerobic = [ex for s in sessions for ex in s.aerobic_exercises]
-        
+
         total_resistance_exercises = len(all_resistance)
         total_sets = sum(ex.sets for ex in all_resistance)
         total_volume = sum(
-            sum(weights) for ex in all_resistance 
+            sum(weights) for ex in all_resistance
             if ex.weights_kg for weights in [ex.weights_kg]
         )
-        
+
         # Difficulty levels
-        difficulties = [ex.difficulty for s in sessions for ex in s.exercises if hasattr(ex, 'difficulty') and ex.difficulty]
+        difficulties = [ex.difficulty for s in sessions for ex in s.exercises if hasattr(ex, "difficulty") and ex.difficulty]
         avg_difficulty = sum(difficulties) / len(difficulties) if difficulties else 0
 
         # Frequency calculation
         unique_dates = set(s.date for s in sessions)
         unique_workout_days = len(unique_dates)
-        
+
         if days >= 7:
             frequency_per_week = unique_workout_days * 7 / days
             is_extrapolated = True
@@ -579,7 +581,7 @@ class AsyncWorkoutService:
         muscle_distribution = {
             muscle: {
                 "count": count,
-                "percentage": count / total_muscle_exercises * 100 if total_muscle_exercises > 0 else 0
+                "percentage": count / total_muscle_exercises * 100 if total_muscle_exercises > 0 else 0,
             }
             for muscle, count in muscle_groups.items()
         }
@@ -587,17 +589,17 @@ class AsyncWorkoutService:
         # Progress trends (simplified)
         recent_sessions = sessions[:5]  # Last 5 sessions
         older_sessions = sessions[5:10] if len(sessions) > 5 else []
-        
+
         if recent_sessions and older_sessions:
             recent_volume = sum(
-                sum(weights) for s in recent_sessions for ex in s.exercises 
+                sum(weights) for s in recent_sessions for ex in s.exercises
                 if ex.weights_kg for weights in [ex.weights_kg]
             )
             older_volume = sum(
-                sum(weights) for s in older_sessions for ex in s.exercises 
+                sum(weights) for s in older_sessions for ex in s.exercises
                 if ex.weights_kg for weights in [ex.weights_kg]
             )
-            
+
             if older_volume > 0:
                 volume_change_percent = (recent_volume - older_volume) / older_volume * 100
                 if volume_change_percent > 10:
@@ -616,24 +618,24 @@ class AsyncWorkoutService:
         return {
             "period": {
                 "days": days,
-                "total_sessions": total_sessions
+                "total_sessions": total_sessions,
             },
             "session_stats": {
                 "completion_rate": completion_rate,
                 "average_duration_minutes": avg_duration,
                 "average_audios_per_session": avg_audios,
-                "average_energy_level": avg_energy
+                "average_energy_level": avg_energy,
             },
             "exercise_stats": {
                 "resistance": {
                     "total_exercises": total_resistance_exercises,
                     "total_sets": total_sets,
                     "total_volume_kg": total_volume,
-                    "average_difficulty": avg_difficulty
+                    "average_difficulty": avg_difficulty,
                 },
                 "aerobic": {
-                    "total_exercises": len(all_aerobic)
-                }
+                    "total_exercises": len(all_aerobic),
+                },
             },
             "workout_frequency": {
                 "unique_workout_days": unique_workout_days,
@@ -641,13 +643,14 @@ class AsyncWorkoutService:
                 "is_extrapolated": is_extrapolated,
                 "analysis_period_days": days,
                 "consistency_score": unique_workout_days / days * 100 if days > 0 else 0,
-                "longest_streak_days": 1  # Simplified for now
+                "longest_streak_days": 1,  # Simplified for now
             },
             "muscle_group_distribution": {
-                "distribution": muscle_distribution
+                "distribution": muscle_distribution,
             },
             "progress_trends": {
                 "trend": trend,
-                "volume_change_percent": volume_change_percent
-            }
+                "volume_change_percent": volume_change_percent,
+            },
         }
+

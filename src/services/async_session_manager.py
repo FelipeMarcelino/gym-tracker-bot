@@ -1,15 +1,16 @@
 """Async session manager for workout sessions"""
 
 from datetime import datetime, timedelta
-from typing import Tuple, Optional
+from typing import Optional, Tuple
+
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from config.logging_config import get_logger
 from config.settings import settings
 from database.async_connection import get_async_session_context
-from database.models import WorkoutSession, SessionStatus
-from services.exceptions import DatabaseError, ValidationError, ErrorCode
+from database.models import SessionStatus, WorkoutSession
+from services.exceptions import DatabaseError, ErrorCode, ValidationError
 
 logger = get_logger(__name__)
 
@@ -17,7 +18,7 @@ logger = get_logger(__name__)
 class AsyncSessionManager:
     """Async manager for workout sessions with optimized database operations"""
 
-    async def get_or_create_session(self, user_id: str) -> Tuple[WorkoutSession, bool]:
+    async def get_or_create_session(self, user_id: int) -> Tuple[WorkoutSession, bool]:
         """Get existing active session or create a new one (async)
         
         Args:
@@ -29,68 +30,58 @@ class AsyncSessionManager:
         Raises:
             ValidationError: If user_id is invalid
             DatabaseError: If database operation fails
+
         """
-        if not user_id or not user_id.strip():
+        if not user_id:
             raise ValidationError(
                 message="User ID is required",
                 field="user_id",
                 value=user_id,
                 error_code=ErrorCode.MISSING_REQUIRED_FIELD,
-                user_message="User ID cannot be empty"
+                user_message="User ID cannot be empty",
             )
 
-        try:
-            async with get_async_session_context() as session:
-                # Look for active session
-                now = datetime.now()
-                timeout_threshold = now - timedelta(hours=settings.SESSION_TIMEOUT_HOURS)
-                
-                # Find the most recent session for this user
-                stmt = (
-                    select(WorkoutSession)
-                    .where(WorkoutSession.user_id == user_id)
-                    .order_by(WorkoutSession.date.desc(), WorkoutSession.start_time.desc())
-                    .limit(1)
-                )
-                result = await session.execute(stmt)
-                last_session = result.scalar_one_or_none()
+        async with get_async_session_context() as session:
+            # Look for active session
+            now = datetime.now()
+            timeout_threshold = now - timedelta(hours=settings.SESSION_TIMEOUT_HOURS)
 
-                # Check if we can reuse the last session
-                if last_session and self._is_session_active(last_session, timeout_threshold):
-                    logger.info(f"Reusing active session {last_session.session_id} for user {user_id}")
-                    return last_session, False
-
-                # Create new session
-                async with session.begin():
-                    new_session = WorkoutSession(
-                        user_id=user_id,
-                        date=now.date(),
-                        start_time=now.time(),
-                        status=SessionStatus.ATIVA,
-                        audio_count=0
-                    )
-                    
-                    session.add(new_session)
-                    await session.flush()  # Get the session_id
-                    
-                    logger.info(f"Created new session {new_session.session_id} for user {user_id}")
-                    return new_session, True
-
-        except SQLAlchemyError as e:
-            logger.exception(f"Error managing session for user {user_id}")
-            raise DatabaseError(
-                message=f"Failed to get or create session for user {user_id}",
-                operation="get_or_create_session",
-                error_code=ErrorCode.DATABASE_TRANSACTION_FAILED,
-                user_message="Failed to manage workout session",
-                cause=e
+            # Find the most recent session for this user
+            stmt = (
+                select(WorkoutSession)
+                .where(WorkoutSession.user_id == user_id)
+                .order_by(WorkoutSession.date.desc(), WorkoutSession.start_time.desc())
+                .limit(1)
             )
+            result = await session.execute(stmt)
+            last_session = result.scalar_one_or_none()
+
+            # Check if we can reuse the last session
+            if last_session and self._is_session_active(last_session, timeout_threshold):
+                logger.info(f"Reusing active session {last_session.session_id} for user {user_id}")
+                return last_session, False
+
+            # Create new session
+            new_session = WorkoutSession(
+                user_id=user_id,
+                date=now.date(),
+                start_time=now.time(),
+                status=SessionStatus.ATIVA,
+                audio_count=0,
+            )
+
+            session.add(new_session)
+            await session.commit()
+            await session.refresh(new_session)
+
+            logger.info(f"Created new session {new_session.session_id} for user {user_id}")
+            return new_session, True
 
     def _is_session_active(self, session: WorkoutSession, timeout_threshold: datetime) -> bool:
         """Check if a session is still active based on timeout"""
         if session.status == SessionStatus.FINALIZADA:
             return False
-            
+
         session_datetime = datetime.combine(session.date, session.start_time)
         return session_datetime > timeout_threshold
 
@@ -100,7 +91,7 @@ class AsyncSessionManager:
         transcription: str = None,
         processing_time: float = None,
         model_used: str = None,
-        **kwargs
+        **kwargs,
     ) -> bool:
         """Update session metadata efficiently (async)
         
@@ -116,6 +107,7 @@ class AsyncSessionManager:
             
         Raises:
             DatabaseError: If database operation fails
+
         """
         if not session_id or session_id <= 0:
             return False
@@ -124,18 +116,16 @@ class AsyncSessionManager:
             async with get_async_session_context() as session:
                 # Build update values
                 update_values = {}
-                
+
                 if transcription:
-                    # In a real implementation, you might want to store transcriptions separately
-                    # or concatenate them. For now, we'll just store the latest.
-                    update_values["last_transcription"] = transcription
-                
+                    update_values["original_transcription"] = transcription
+
                 if processing_time is not None:
-                    update_values["last_processing_time"] = processing_time
-                
+                    update_values["processing_time_seconds"] = processing_time
+
                 if model_used:
-                    update_values["model_used"] = model_used
-                
+                    update_values["llm_model_used"] = model_used
+
                 # Add any additional fields
                 for key, value in kwargs.items():
                     if hasattr(WorkoutSession, key):
@@ -152,11 +142,11 @@ class AsyncSessionManager:
                 )
                 result = await session.execute(stmt)
                 await session.commit()
-                
+
                 success = result.rowcount > 0
                 if success:
                     logger.debug(f"Updated metadata for session {session_id}")
-                
+
                 return success
 
         except SQLAlchemyError as e:
@@ -166,7 +156,7 @@ class AsyncSessionManager:
                 operation="update_session_metadata",
                 error_code=ErrorCode.DATABASE_QUERY_FAILED,
                 user_message="Failed to update session information",
-                cause=e
+                cause=e,
             )
 
     async def get_active_sessions_count(self) -> int:
@@ -174,26 +164,27 @@ class AsyncSessionManager:
         
         Returns:
             Number of active sessions
+
         """
         try:
             async with get_async_session_context() as session:
                 from sqlalchemy import func
-                
+
                 now = datetime.now()
                 timeout_threshold = now - timedelta(hours=settings.SESSION_TIMEOUT_HOURS)
-                
+
                 # Count sessions that are either:
                 # 1. Explicitly marked as ATIVA, OR
                 # 2. Not explicitly finished AND within timeout window
                 stmt = select(func.count(WorkoutSession.session_id)).where(
                     (WorkoutSession.status == SessionStatus.ATIVA) &
-                    (func.datetime(WorkoutSession.date, WorkoutSession.start_time) > timeout_threshold)
+                    (func.datetime(WorkoutSession.date, WorkoutSession.start_time) > timeout_threshold),
                 )
-                
+
                 result = await session.execute(stmt)
                 return result.scalar() or 0
 
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             logger.exception("Error counting active sessions")
             return 0  # Return 0 on error rather than raising
 
@@ -202,32 +193,33 @@ class AsyncSessionManager:
         
         Returns:
             Number of sessions cleaned up
+
         """
         try:
             async with get_async_session_context() as session:
                 now = datetime.now()
                 timeout_threshold = now - timedelta(hours=settings.SESSION_TIMEOUT_HOURS)
-                
+
                 # Find stale sessions
                 stmt = (
                     update(WorkoutSession)
                     .where(
                         (WorkoutSession.status == SessionStatus.ATIVA) &
-                        (func.datetime(WorkoutSession.date, WorkoutSession.start_time) <= timeout_threshold)
+                        (func.datetime(WorkoutSession.date, WorkoutSession.start_time) <= timeout_threshold),
                     )
                     .values(
                         status=SessionStatus.FINALIZADA,
-                        end_time=now.time()
+                        end_time=now.time(),
                     )
                 )
-                
+
                 result = await session.execute(stmt)
                 await session.commit()
-                
+
                 cleaned_count = result.rowcount
                 if cleaned_count > 0:
                     logger.info(f"Cleaned up {cleaned_count} stale sessions")
-                
+
                 return cleaned_count
 
         except SQLAlchemyError as e:
@@ -237,7 +229,7 @@ class AsyncSessionManager:
                 operation="cleanup_stale_sessions",
                 error_code=ErrorCode.DATABASE_QUERY_FAILED,
                 user_message="Failed to cleanup old sessions",
-                cause=e
+                cause=e,
             )
 
     async def get_session_by_id(self, session_id: int, user_id: str = None) -> Optional[WorkoutSession]:
@@ -249,14 +241,15 @@ class AsyncSessionManager:
             
         Returns:
             WorkoutSession if found, None otherwise
+
         """
         try:
             async with get_async_session_context() as session:
                 stmt = select(WorkoutSession).where(WorkoutSession.session_id == session_id)
-                
+
                 if user_id:
                     stmt = stmt.where(WorkoutSession.user_id == user_id)
-                
+
                 result = await session.execute(stmt)
                 return result.scalar_one_or_none()
 
@@ -267,14 +260,14 @@ class AsyncSessionManager:
                 operation="get_session_by_id",
                 error_code=ErrorCode.DATABASE_QUERY_FAILED,
                 user_message="Failed to retrieve session",
-                cause=e
+                cause=e,
             )
 
     async def get_user_session_history(
-        self, 
-        user_id: str, 
+        self,
+        user_id: str,
         limit: int = 10,
-        include_active: bool = True
+        include_active: bool = True,
     ) -> list[WorkoutSession]:
         """Get user's session history (async)
         
@@ -285,6 +278,7 @@ class AsyncSessionManager:
             
         Returns:
             List of WorkoutSession objects
+
         """
         try:
             async with get_async_session_context() as session:
@@ -294,10 +288,10 @@ class AsyncSessionManager:
                     .order_by(WorkoutSession.date.desc(), WorkoutSession.start_time.desc())
                     .limit(limit)
                 )
-                
+
                 if not include_active:
                     stmt = stmt.where(WorkoutSession.status == SessionStatus.FINALIZADA)
-                
+
                 result = await session.execute(stmt)
                 return list(result.scalars().all())
 
@@ -308,7 +302,7 @@ class AsyncSessionManager:
                 operation="get_user_session_history",
                 error_code=ErrorCode.DATABASE_QUERY_FAILED,
                 user_message="Failed to retrieve session history",
-                cause=e
+                cause=e,
             )
 
     async def batch_finish_sessions(self, session_ids: list[int]) -> int:
@@ -319,6 +313,7 @@ class AsyncSessionManager:
             
         Returns:
             Number of sessions successfully finished
+
         """
         if not session_ids:
             return 0
@@ -326,26 +321,26 @@ class AsyncSessionManager:
         try:
             async with get_async_session_context() as session:
                 end_time = datetime.now().time()
-                
+
                 stmt = (
                     update(WorkoutSession)
                     .where(
                         WorkoutSession.session_id.in_(session_ids),
-                        WorkoutSession.status == SessionStatus.ATIVA
+                        WorkoutSession.status == SessionStatus.ATIVA,
                     )
                     .values(
                         status=SessionStatus.FINALIZADA,
-                        end_time=end_time
+                        end_time=end_time,
                     )
                 )
-                
+
                 result = await session.execute(stmt)
                 await session.commit()
-                
+
                 finished_count = result.rowcount
                 if finished_count > 0:
                     logger.info(f"Batch finished {finished_count} sessions")
-                
+
                 return finished_count
 
         except SQLAlchemyError as e:
@@ -353,7 +348,8 @@ class AsyncSessionManager:
             raise DatabaseError(
                 message="Failed to batch finish sessions",
                 operation="batch_finish_sessions",
-                error_code=ErrorCode.DATABASE_TRANSACTION_FAILED,
+                error_code=ErrorCode.TRANSACTION_FAILED,
                 user_message="Failed to finish sessions",
-                cause=e
+                cause=e,
             )
+

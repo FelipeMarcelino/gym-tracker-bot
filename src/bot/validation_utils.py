@@ -47,38 +47,30 @@ class ValidationUtils:
         Returns:
             Dict with is_valid, validated_id, and error_message
         """
-        try:
-            # Convert to int for validation
-            int_id = int(user_id)
-            
-            # Telegram IDs are positive
-            if int_id <= 0:
-                return {
-                    "is_valid": False,
-                    "validated_id": None,
-                    "error_message": "User ID must be positive"
-                }
-            
-            # Telegram IDs are less than 2^53
-            if int_id >= 2**53:
-                return {
-                    "is_valid": False,
-                    "validated_id": None,
-                    "error_message": "User ID too large"
-                }
-            
-            return {
-                "is_valid": True,
-                "validated_id": int_id,
-                "error_message": None
-            }
-            
-        except (ValueError, TypeError):
+        # Ensure user_id is a string
+        str_id = str(user_id)
+
+        # Check if it's a valid number
+        if not str_id.isdigit():
             return {
                 "is_valid": False,
                 "validated_id": None,
-                "error_message": "User ID must be a number"
+                "error_message": "User ID must be a sequence of digits"
             }
+
+        # Additional checks (e.g., length) can be added here if needed
+        if len(str_id) > 20:  # Arbitrary length limit
+            return {
+                "is_valid": False,
+                "validated_id": None,
+                "error_message": "User ID is too long"
+            }
+
+        return {
+            "is_valid": True,
+            "validated_id": str_id,
+            "error_message": None
+        }
     
     @staticmethod
     def validate_audio_file(voice) -> Dict[str, Any]:

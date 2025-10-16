@@ -204,10 +204,12 @@ class UserIdValidator(BaseValidator):
     def validate(self, value: Any, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Validate Telegram user ID"""
         result = ValidationUtils.validate_user_id(value)
-        # Convert to standard format
+        # Ensure the validated ID is a string
+        validated_id = str(result.get("validated_id")) if result.get("validated_id") is not None else None
+
         return {
             "is_valid": result["is_valid"],
-            "value": result.get("validated_id"),
+            "value": validated_id,
             "error": result.get("error_message"),
             "error_code": ErrorCode.INVALID_INPUT if not result["is_valid"] else None
         }

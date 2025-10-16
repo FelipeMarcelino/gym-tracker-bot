@@ -8,22 +8,19 @@ from telegram.ext import ContextTypes
 
 from bot.middleware import admin_only, authorized_only, log_access
 from bot.rate_limiter import rate_limit_commands, rate_limit_voice
-from bot.validation_middleware import validate_input, CommonSchemas
+from bot.validation_middleware import CommonSchemas, validate_input
 from config.logging_config import get_logger
 from config.messages import messages
 from config.settings import settings
 from database.models import SessionStatus
-from services.container import (
-    get_audio_service,
-    get_llm_service,
-)
 from services.async_container import (
-    get_async_user_service,
-    get_async_workout_service,
-    get_async_session_manager,
     get_async_analytics_service,
     get_async_export_service,
+    get_async_session_manager,
+    get_async_workout_service,
 )
+from services.container import get_audio_service, get_llm_service
+from services.error_handler import error_handler
 from services.exceptions import (
     AudioProcessingError,
     DatabaseError,
@@ -31,14 +28,6 @@ from services.exceptions import (
     ServiceUnavailableError,
     SessionError,
     ValidationError,
-    GymTrackerError,
-    ErrorCode
-)
-from services.error_handler import ErrorHandler, error_handler, ErrorContext
-from bot.health_endpoints import health_command, health_full_command, metrics_command, performance_command
-from bot.backup_commands import (
-    backup_create, backup_list, backup_stats, backup_restore, 
-    backup_cleanup, backup_auto_start, backup_auto_stop
 )
 
 logger = get_logger(__name__)
@@ -132,7 +121,6 @@ async def _process_workout_audio_optimized(
     user_id: str,
 ) -> None:
     """Processa áudio de workout com otimizações paralelas"""
-
     try:
         # ===== ETAPA 1: TRANSCRIÇÃO EM PARALELO =====
         await status_msg.edit_text(
@@ -252,7 +240,6 @@ async def _process_workout_audio(
     user_id: str,
 ) -> None:
     """Processa workout de áudio após transcrição"""
-
     try:
         llm_service = get_llm_service()
         parsed_data = await llm_service.parse_workout(transcription)
@@ -340,7 +327,6 @@ async def _process_workout_message(
     source: str = "text",
 ) -> None:
     """Processa mensagem de treino (texto ou áudio transcrito)"""
-
     logger.info(f"Novo treino recebido ({source.upper()}) de {user_name} (ID: {user_id}): {workout_text[:100]}...")
 
     start_time = time.time()
@@ -392,7 +378,7 @@ async def _process_workout_message(
         processing_time = time.time() - start_time
 
         # ADICIONAR à sessão existente (não criar nova!) (async)
-        await workout_service.add_exercises_to_session(
+        await workout_service.add_exercises_to_session_batch(
             session_id=workout_session.session_id,
             parsed_data=parsed_data,
             user_id=user_id,
@@ -501,8 +487,8 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE, valid
     voice = update.message.voice
     voice_info = message_data.get("voice", {})
 
-    duration = voice_info.get("duration", voice.duration)
-    file_size = voice_info.get("file_size", voice.file_size)
+    duration = voice.duration
+    file_size = voice.file_size
 
     logger.info(f"Novo áudio recebido de {user_name} (ID: {user_id}) - Duração: {duration}s, Tamanho: {file_size / 1024:.2f} KB")
 
@@ -588,7 +574,7 @@ def _format_success_response(
 
     # Informações da sessão
     response += f"🆔 Session ID: `{session_id}`\n"
-    response += f"📊 Áudios nesta sessão: {audio_count}\n"
+    response += f"📊 Áudios/Textos nesta sessão: {audio_count}\n"
     response += f"⏱️ Processado em: {processing_time:.1f}s\n\n"
 
     # Dica
@@ -979,7 +965,6 @@ async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE, v
 @validate_input(CommonSchemas.admin_command())
 async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /exercises - Lista todos os exercícios registrados no banco"""
-
     try:
         from database.connection import db
         from database.models import Exercise, ExerciseType

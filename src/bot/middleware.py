@@ -1,13 +1,14 @@
 import logging
+from collections.abc import Awaitable
 from datetime import datetime
 from functools import wraps
-from typing import Callable, Any, Awaitable
+from typing import Any, Callable
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from config.settings import settings
 from config.messages import messages
+from config.settings import settings
 from services.async_container import get_async_user_service
 
 logger = logging.getLogger(__name__)
@@ -28,17 +29,17 @@ def authorized_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitabl
 
         # Verificar se o usuário está autorizado usando banco de dados (async)
         user_service = await get_async_user_service()
-        
+
         # Atualizar informações do usuário se já existe (async)
         existing_user = await user_service.get_user(str(user_id))
         if existing_user:
-            await user_service.update_user_info(
+            await user_service.update_user(
                 str(user_id),
                 username=user.username,
                 first_name=user.first_name,
-                last_name=user.last_name
+                last_name=user.last_name,
             )
-        
+
         if not await user_service.is_user_authorized(str(user_id)):
             # Log da tentativa de acesso não autorizado
             logger.warning(f"Acesso negado para usuário {user_id} ({user.first_name} {user.last_name or ''}, @{user.username or 'não definido'})")
@@ -70,7 +71,7 @@ def admin_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any
         user_id = str(user.id)
 
         user_service = await get_async_user_service()
-        
+
         # Verificar se é admin (async)
         if not await user_service.is_user_admin(user_id):
             logger.warning(f"Acesso admin negado para usuário {user_id} ({user.first_name} {user.last_name or ''})")
