@@ -71,7 +71,7 @@ class BackupService:
             # Check if source database exists
             if not os.path.exists(self.database_path):
                 raise BackupError(
-                    f"Source database not found: {self.database_path}",
+                    f"Source database does not exist: {self.database_path}",
                     error_code=ErrorCode.FILE_NOT_FOUND
                 )
             
@@ -286,6 +286,10 @@ class BackupService:
             Dictionary with backup statistics
         """
         try:
+            # Check if backup directory exists
+            if not self.backup_dir.exists():
+                return {"error": f"Backup directory does not exist: {self.backup_dir}"}
+            
             backups = self.list_backups()
             
             if not backups:

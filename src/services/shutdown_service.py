@@ -16,11 +16,11 @@ logger = get_logger(__name__)
 class ShutdownService:
     """Service for handling graceful application shutdown"""
     
-    def __init__(self):
+    def __init__(self, shutdown_timeout: int = 30, emergency_backup_on_shutdown: bool = True, **kwargs):
         self.shutdown_handlers: List[Callable] = []
         self.is_shutting_down = False
-        self.shutdown_timeout = 30  # seconds
-        self.emergency_backup_on_shutdown = True
+        self.shutdown_timeout = shutdown_timeout  # seconds
+        self.emergency_backup_on_shutdown = emergency_backup_on_shutdown
         
     def register_shutdown_handler(self, handler: Callable, description: str = None):
         """

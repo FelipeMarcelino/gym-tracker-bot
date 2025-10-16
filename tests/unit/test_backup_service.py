@@ -34,7 +34,7 @@ class TestBackupService:
         with pytest.raises(BackupError) as exc_info:
             test_backup_service.create_backup("test_backup.db")
         
-        assert "Source database not found" in str(exc_info.value)
+        assert "Source database does not exist" in str(exc_info.value)
     
     def test_create_backup_success(self, test_backup_service, populated_test_database):
         """Test successful backup creation"""

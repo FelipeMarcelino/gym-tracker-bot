@@ -88,8 +88,7 @@ class TestServiceIntegration:
         health_service.record_audio_processing(1500, False)
         
         # Get comprehensive health status
-        with patch('services.health_service.backup_service', test_backup_service):
-            health_status = await health_service.get_health_status()
+        health_status = await health_service.get_health_status()
         
         # Verify comprehensive results
         assert health_status.status in ["healthy", "degraded"]
@@ -305,7 +304,7 @@ class TestServiceErrorPropagation:
         health_service = HealthService()
         
         # Break database connection
-        with patch('database.connection.db') as mock_db:
+        with patch('services.health_service.db') as mock_db:
             mock_db.get_session.side_effect = Exception("Database connection failed")
             
             # Health service should handle the error gracefully
@@ -313,4 +312,4 @@ class TestServiceErrorPropagation:
             
             # Should report unhealthy but not crash
             assert health_status.status == "unhealthy"
-            assert "health_check_error" in health_status.checks
+            assert health_status.checks["database"]["status"] == "unhealthy"

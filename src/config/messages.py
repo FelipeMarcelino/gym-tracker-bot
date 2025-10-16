@@ -10,7 +10,7 @@ class Messages:
     WELCOME = """👋 Olá, {user_name}! Bem-vindo ao Gym Tracker Bot!
 
 🎤 **Como usar:**
-- Envie um áudio descrevendo seu treino
+- Envie um áudio ou um texto descrevendo seu treino
 - Envie uma mensagem de texto com informações
 - Use /help para ver os comandos disponíveis
 
@@ -19,7 +19,7 @@ Estou pronto para receber seus dados! 💪"""
     HELP = """🤖 **GYM TRACKER BOT - Comandos Disponíveis**
 
 **📝 Registrar Treino:**
-🎤 Envie um áudio descrevendo seu treino!
+🎤 Envie um áudio ou um texto descrevendo seu treino!
 
 Exemplo: _"Fiz supino reto com barra, 3 séries de 12, 10 e 8 repetições com 40, 50 e 60 kg, 1 minuto de descanso, estava bem pesado"_
 
@@ -134,7 +134,7 @@ _Em breve vou processar essa informação com IA!_ 🤖"""
 
 🔄 Processando..."""
 
-    AUDIO_SUCCESS_NEW_SESSION = "✅ **Nova sessão criada e áudio processado!**\n\n"
+    AUDIO_SUCCESS_NEW_SESSION = "✅ **Nova sessão criada e áudio/texto processado!**\n\n"
     AUDIO_SUCCESS_EXISTING_SESSION = "✅ **Áudio/Texto #{audio_count} adicionado à sessão!**\n\n"
 
     AUDIO_SUCCESS_FOOTER_NEW = "💡 _Envie mais áudios ou texto para adicionar exercícios a esta sessão_"
