@@ -614,6 +614,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         resistance_count = status_data["resistance_count"]
         aerobic_count = status_data["aerobic_count"]
         timeout_hours = status_data["timeout_hours"]
+        expired_minutes = status_data["expired_minutes"]
 
         if is_active == SessionStatus.ATIVA:
             status_text = messages.STATUS_ACTIVE_SESSION.format(
@@ -625,7 +626,6 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
                 aerobic_count=aerobic_count,
             )
         else:
-            expired_minutes = minutes_passed
             status_text = messages.STATUS_FINISHED_SESSION.format(
                 session_id=session.session_id,
                 date=session.date.strftime("%d/%m/%Y"),
@@ -966,17 +966,19 @@ async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE, v
 async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /exercises - Lista todos os exercícios registrados no banco"""
     try:
-        from database.connection import db
+        from sqlalchemy import select
+
+        from database.async_connection import get_async_session_context
         from database.models import Exercise, ExerciseType
 
-        session = db.get_session()
-
-        try:
+        async with get_async_session_context() as session:
             # Buscar todos os exercícios ordenados por tipo e nome
-            exercises = session.query(Exercise).order_by(
+            stmt = select(Exercise).order_by(
                 Exercise.type,
                 Exercise.name,
-            ).all()
+            )
+            result = await session.execute(stmt)
+            exercises = result.scalars().all()
 
             if not exercises:
                 await update.message.reply_text(
@@ -1016,12 +1018,9 @@ async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
             message += f"📊 **Total:** {len(exercises)} exercícios"
 
-            await update.message.reply_text(message, parse_mode="Markdown")
+        await update.message.reply_text(message, parse_mode="Markdown")
 
-            logger.info(f"Lista de exercícios enviada: {len(exercises)} exercícios")
-
-        finally:
-            session.close()
+        logger.info(f"Lista de exercícios enviada: {len(exercises)} exercícios")
 
     except Exception as e:
         await update.message.reply_text(
@@ -1178,10 +1177,10 @@ async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE, v
         target_user_id = args[0].strip()
         is_admin = len(args) > 1 and args[1].lower() == "admin"
 
-        user_service = get_user_service()
+        user_service = await get_async_user_service()
 
         # Verificar se usuário já existe
-        existing_user = user_service.get_user(target_user_id)
+        existing_user = await user_service.get_user(target_user_id)
         if existing_user:
             if existing_user.is_active:
                 await update.message.reply_text(
@@ -1205,7 +1204,7 @@ async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE, v
             return
 
         # Adicionar novo usuário
-        user = user_service.add_user(
+        user = await user_service.add_user(
             user_id=target_user_id,
             is_admin=is_admin,
             created_by=admin_user_id,
@@ -1269,10 +1268,10 @@ async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
             return
 
-        user_service = get_user_service()
+        user_service = await get_async_user_service()
 
         # Verificar se usuário existe
-        existing_user = user_service.get_user(target_user_id)
+        existing_user = await user_service.get_user(target_user_id)
         if not existing_user or not existing_user.is_active:
             await update.message.reply_text(
                 f"❌ **Usuário não encontrado**\n\n"
@@ -1282,7 +1281,7 @@ async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         # Remover usuário
-        user_service.remove_user(target_user_id)
+        await user_service.remove_user(target_user_id)
 
         await update.message.reply_text(
             f"✅ **Usuário removido com sucesso!**\n\n"
@@ -1315,8 +1314,8 @@ async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /listusers - Lista usuários autorizados (ADMIN ONLY)"""
     try:
-        user_service = get_user_service()
-        users = user_service.list_users(include_inactive=False)
+        user_service = await get_async_user_service()
+        users = await user_service.list_users(include_inactive=False)
 
         if not users:
             await update.message.reply_text(

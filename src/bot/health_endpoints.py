@@ -24,7 +24,7 @@ async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
     
     try:
         # Get simple health status
-        health_status = health_service.get_simple_health()
+        health_status = await health_service.get_simple_health()
         
         status_emoji = {
             "healthy": "✅",

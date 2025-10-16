@@ -78,10 +78,10 @@ class SessionStatsCalculator:
     def _get_aerobic_exercises(session: WorkoutSession) -> List:
         """Extrai exercícios aeróbicos de forma segura"""
         try:
-            exercises = session.aerobic_exercises
+            exercises = session.aerobics
             return exercises if exercises is not None else []
         except AttributeError:
-            logger.warning("session.aerobic_exercises não existe")
+            logger.warning("session.aerobics não existe")
             return []
 
     @staticmethod

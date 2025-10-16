@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.exc import SQLAlchemyError
 
 from config.logging_config import get_logger
@@ -40,6 +40,9 @@ class AsyncSessionManager:
                 error_code=ErrorCode.MISSING_REQUIRED_FIELD,
                 user_message="User ID cannot be empty",
             )
+
+        # Clean up stale sessions before checking for active ones
+        await self.cleanup_stale_sessions()
 
         async with get_async_session_context() as session:
             # Look for active session
@@ -83,7 +86,7 @@ class AsyncSessionManager:
             return False
 
         session_datetime = datetime.combine(session.date, session.start_time)
-        return session_datetime > timeout_threshold
+        return session_datetime >= timeout_threshold
 
     async def update_session_metadata(
         self,
@@ -205,7 +208,7 @@ class AsyncSessionManager:
                     update(WorkoutSession)
                     .where(
                         (WorkoutSession.status == SessionStatus.ATIVA) &
-                        (func.datetime(WorkoutSession.date, WorkoutSession.start_time) <= timeout_threshold),
+                        (func.datetime(WorkoutSession.date, WorkoutSession.start_time) < timeout_threshold),
                     )
                     .values(
                         status=SessionStatus.FINALIZADA,

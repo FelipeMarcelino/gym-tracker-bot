@@ -59,8 +59,8 @@ class AsyncAnalyticsService:
                     WorkoutSession.date <= end_date,
                     WorkoutSession.status.in_(allowed_statuses)
                 ).options(
-                    joinedload(WorkoutSession.workout_exercises).joinedload(WorkoutExercise.exercise),
-                    joinedload(WorkoutSession.aerobic_exercises)
+                    joinedload(WorkoutSession.exercises).joinedload(WorkoutExercise.exercise),
+                    joinedload(WorkoutSession.aerobics)
                 ).order_by(desc(WorkoutSession.date))
 
                 result = await session.execute(sessions_stmt)
@@ -181,7 +181,7 @@ class AsyncAnalyticsService:
 
         # Process resistance exercises
         for session in sessions:
-            for we in session.workout_exercises:
+            for we in session.exercises:
                 total_resistance += 1
                 total_sets += we.sets
                 if we.weight and we.reps:
@@ -191,7 +191,7 @@ class AsyncAnalyticsService:
 
         # Process aerobic exercises
         for session in sessions:
-            for ae in session.aerobic_exercises:
+            for ae in session.aerobics:
                 total_aerobic += 1
                 if ae.duration_minutes:
                     cardio_minutes += ae.duration_minutes
@@ -315,7 +315,7 @@ class AsyncAnalyticsService:
         total_exercises = 0
         
         for session in sessions:
-            for we in session.workout_exercises:
+            for we in session.exercises:
                 if we.weight and we.reps:
                     total_volume += we.weight * we.reps * we.sets
                     total_exercises += 1

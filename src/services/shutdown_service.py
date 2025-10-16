@@ -194,14 +194,13 @@ class ShutdownService:
 
 
 # Example shutdown handlers for common cleanup tasks
-def close_database_connections():
+async def close_database_connections():
     """Close database connections"""
     try:
         logger.info("Closing database connections...")
-        from database.connection import db
-        # Note: SQLite connections are typically closed automatically
-        # but we can log the action
-        logger.info("✅ Database connections closed")
+        from database.async_connection import async_db
+        await async_db.close()
+        logger.info("✅ Async database connections closed")
     except Exception as e:
         logger.exception(f"Error closing database connections: {e}")
 

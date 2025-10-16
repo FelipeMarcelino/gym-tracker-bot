@@ -310,7 +310,7 @@ class AsyncWorkoutService:
                     select(WorkoutSession)
                     .options(
                         selectinload(WorkoutSession.exercises),
-                        selectinload(WorkoutSession.aerobic_exercises),
+                        selectinload(WorkoutSession.aerobics),
                     )
                     .where(WorkoutSession.user_id == user_id)
                     .order_by(WorkoutSession.date.desc(), WorkoutSession.start_time.desc())
@@ -335,9 +335,12 @@ class AsyncWorkoutService:
                 # Determine session status
                 is_active = SessionStatus.ATIVA if minutes_passed < (timeout_hours * 60) else SessionStatus.FINALIZADA
 
+                expired_minutes = minutes_passed - (timeout_hours * 60)
+
+
                 # Count exercises
                 resistance_count = len(last_session.exercises)
-                aerobic_count = len(last_session.aerobic_exercises)
+                aerobic_count = len(last_session.aerobics)
 
                 return {
                     "has_session": True,
@@ -348,6 +351,7 @@ class AsyncWorkoutService:
                     "resistance_count": resistance_count,
                     "aerobic_count": aerobic_count,
                     "timeout_hours": timeout_hours,
+                    "expired_minutes": expired_minutes,
                 }
 
         except SQLAlchemyError as e:
@@ -391,7 +395,7 @@ class AsyncWorkoutService:
                         select(WorkoutSession)
                         .options(
                             selectinload(WorkoutSession.exercises),
-                            selectinload(WorkoutSession.aerobic_exercises),
+                            selectinload(WorkoutSession.aerobics),
                         )
                         .where(
                             WorkoutSession.session_id == session_id,
@@ -452,7 +456,7 @@ class AsyncWorkoutService:
     async def _calculate_session_stats_async(self, workout_session: WorkoutSession) -> Dict[str, Any]:
         """Calculate session statistics (async)"""
         resistance_exercises = len(workout_session.exercises)
-        aerobic_exercises = len(workout_session.aerobic_exercises)
+        aerobic_exercises = len(workout_session.aerobics)
 
         # Calculate resistance stats
         total_sets = sum(ex.sets for ex in workout_session.exercises)
@@ -463,7 +467,7 @@ class AsyncWorkoutService:
 
         # Calculate aerobic stats
         cardio_minutes = sum(
-            ex.duration_minutes for ex in workout_session.aerobic_exercises
+            ex.duration_minutes for ex in workout_session.aerobics
             if ex.duration_minutes
         )
 
@@ -509,7 +513,7 @@ class AsyncWorkoutService:
                     select(WorkoutSession)
                     .options(
                         selectinload(WorkoutSession.exercises),
-                        selectinload(WorkoutSession.aerobic_exercises),
+                        selectinload(WorkoutSession.aerobics),
                     )
                     .where(
                         WorkoutSession.user_id == user_id,
@@ -559,7 +563,7 @@ class AsyncWorkoutService:
 
         # Exercise stats
         all_resistance = [ex for s in sessions for ex in s.exercises]
-        all_aerobic = [ex for s in sessions for ex in s.aerobic_exercises]
+        all_aerobic = [ex for s in sessions for ex in s.aerobics]
 
         total_resistance_exercises = len(all_resistance)
         total_sets = sum(ex.sets for ex in all_resistance)

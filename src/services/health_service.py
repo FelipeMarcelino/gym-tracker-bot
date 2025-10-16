@@ -9,7 +9,7 @@ from dataclasses import dataclass, asdict
 
 from config.logging_config import get_logger
 from config.settings import settings
-from database.connection import db
+# Removed: from database.connection import db - now using async connections
 from database.async_connection import async_db
 from services.exceptions import DatabaseError, ErrorCode
 
@@ -161,21 +161,21 @@ class HealthService:
             start_time = time.time()
             
             # Test database connection
-            session = db.get_session()
-            try:
+            from database.async_connection import get_async_session_context
+            from sqlalchemy import text
+            
+            async with get_async_session_context() as session:
                 # Simple query to test connectivity
-                from sqlalchemy import text
-                result = session.execute(text("SELECT 1")).fetchone()
+                result = await session.execute(text("SELECT 1"))
+                value = result.scalar()
                 
                 response_time = (time.time() - start_time) * 1000
                 
-                return {
-                    "status": "healthy" if result else "unhealthy",
-                    "response_time_ms": round(response_time, 2),
-                    "message": "Database connection successful"
-                }
-            finally:
-                session.close()
+            return {
+                "status": "healthy" if value else "unhealthy",
+                "response_time_ms": round(response_time, 2),
+                "message": "Database connection successful"
+            }
                 
         except Exception as e:
             response_time = (time.time() - start_time) * 1000
@@ -376,32 +376,38 @@ class HealthService:
             start_time = time.time()
             
             # Test database response time
-            session = db.get_session()
-            try:
+            from database.async_connection import get_async_session_context
+            from database.models import User, WorkoutSession
+            from sqlalchemy import select, func
+            
+            async with get_async_session_context() as session:
                 # Query some basic stats
-                from database.models import User, WorkoutSession
+                user_count_stmt = select(func.count(User.user_id)).where(User.is_active == True)
+                user_result = await session.execute(user_count_stmt)
+                user_count = user_result.scalar()
                 
-                user_count = session.query(User).filter(User.is_active == True).count()
-                total_sessions = session.query(WorkoutSession).count()
+                session_count_stmt = select(func.count(WorkoutSession.session_id))
+                session_result = await session.execute(session_count_stmt)
+                total_sessions = session_result.scalar()
                 
                 # Sessions today
                 today = datetime.now().date()
-                sessions_today = session.query(WorkoutSession).filter(
+                sessions_today_stmt = select(func.count(WorkoutSession.session_id)).where(
                     WorkoutSession.date == today
-                ).count()
+                )
+                today_result = await session.execute(sessions_today_stmt)
+                sessions_today = today_result.scalar()
                 
                 response_time = (time.time() - start_time) * 1000
                 
-                return DatabaseMetrics(
-                    connection_status="connected",
-                    response_time_ms=round(response_time, 2),
-                    active_connections=1,  # SQLite doesn't have connection pooling
-                    total_users=user_count,
-                    total_sessions=total_sessions,
-                    sessions_today=sessions_today
-                )
-            finally:
-                session.close()
+            return DatabaseMetrics(
+                connection_status="connected",
+                response_time_ms=round(response_time, 2),
+                active_connections=1,  # SQLite doesn't have connection pooling
+                total_users=user_count,
+                total_sessions=total_sessions,
+                sessions_today=sessions_today
+            )
                 
         except Exception as e:
             logger.exception("Error getting database metrics")
@@ -456,7 +462,7 @@ class HealthService:
         # Otherwise, healthy
         return "healthy"
     
-    def get_simple_health(self) -> Dict[str, Any]:
+    async def get_simple_health(self) -> Dict[str, Any]:
         """Get simple health status for quick checks"""
         try:
             # Quick system check
@@ -465,10 +471,10 @@ class HealthService:
             
             # Quick database check
             try:
+                from database.async_connection import get_async_session_context
                 from sqlalchemy import text
-                session = db.get_session()
-                session.execute(text("SELECT 1")).fetchone()
-                session.close()
+                async with get_async_session_context() as session:
+                    await session.execute(text("SELECT 1"))
                 db_status = "healthy"
             except:
                 db_status = "unhealthy"

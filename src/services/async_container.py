@@ -4,6 +4,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import Dict, Optional, Type, TypeVar
 
+from config.logging_config import get_logger
 from database.async_connection import async_db
 from services.async_analytics_service import AsyncAnalyticsService
 from services.async_export_service import AsyncExportService
@@ -11,6 +12,7 @@ from services.async_session_manager import AsyncSessionManager
 from services.async_user_service import AsyncUserService
 from services.async_workout_service import AsyncWorkoutService
 
+logger = get_logger(__name__)
 T = TypeVar("T")
 
 
@@ -78,6 +80,14 @@ class AsyncServiceContainer:
             # Register the pre-created services
             for service_type, instance in services_to_create.items():
                 self._services[service_type] = instance
+
+            # Perform startup cleanup of stale sessions
+            session_manager = self._services[AsyncSessionManager]
+            cleaned_count = await session_manager.cleanup_stale_sessions()
+            if cleaned_count > 0:
+                logger.info(f"🧹 Startup cleanup: {cleaned_count} stale sessions marked as finished")
+            else:
+                logger.info("🧹 Startup cleanup: No stale sessions found")
 
             self._initialized = True
 
