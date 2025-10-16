@@ -760,9 +760,9 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
 📊 **Resumo dos Seus Dados**
 
 📈 **Total de sessões:** {summary['total_sessions']}
-📅 **Período:** {summary['date_range']['earliest']} até {summary['date_range']['latest']}
-💪 **Exercícios de resistência:** {summary['exercise_counts']['resistance']}
-🏃 **Exercícios aeróbicos:** {summary['exercise_counts']['aerobic']}
+📅 **Período:** {summary['date_range']['start']} até {summary['date_range']['end']}
+💪 **Exercícios de resistência:** {summary['resistance_exercises']}
+🏃 **Exercícios aeróbicos:** {summary['aerobic_exercises']}
 
 📄 **Formato:** {format_type.upper()}
 

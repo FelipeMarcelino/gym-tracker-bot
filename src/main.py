@@ -51,6 +51,8 @@ def setup_signal_handlers(app: Application):
     """Setup signal handlers for graceful shutdown"""
 
     async def shutdown_handler():
+        logger.info("🛑 Stopping Telegram bot...")
+        await app.stop()
         logger.info("🔌 Shutting down async services...")
         await shutdown_async_services()
         logger.info("✅ Async services shut down")
@@ -60,13 +62,10 @@ def setup_signal_handlers(app: Application):
         signal_name = signal.Signals(signum).name
         logger.info(f"🛑 Received {signal_name} signal, initiating graceful shutdown...")
 
-        # Stop the bot
-        app.stop()
-
         # Initiate service shutdown
         shutdown_service.initiate_shutdown()
 
-        # Run the async shutdown handler
+        # Run the async shutdown handler (including app.stop())
         loop = asyncio.get_event_loop()
         if loop.is_running():
             loop.create_task(shutdown_handler())
@@ -194,8 +193,8 @@ def main() -> NoReturn:
     logger.info("🛑 Press Ctrl+C to stop gracefully")
     logger.info("=" * 60)
 
-    # Run bot
-    application.run_polling(allowed_updates=["message"])
+    # Run bot with proper signal handling
+    application.run_polling(allowed_updates=["message"], stop_signals=None)
 
 
 if __name__ == "__main__":

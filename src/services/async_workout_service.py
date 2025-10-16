@@ -266,8 +266,8 @@ class AsyncWorkoutService:
                 exercise = Exercise(
                     name=exercise_name_lower,
                     type=ExerciseType.AEROBICO,
-                    muscle_group=infer_muscle_group(exercise_name),
-                    equipment=infer_equipment(exercise_name),
+                    muscle_group=infer_muscle_group(exercise_name, ExerciseType.AEROBICO.value),
+                    equipment=infer_equipment(exercise_name, ExerciseType.AEROBICO.value),
                 )
                 exercise_objects.append(exercise)
                 existing_exercises[exercise_name_lower] = exercise
@@ -279,7 +279,7 @@ class AsyncWorkoutService:
                 duration_minutes=exercise_data.get("duration_minutes", 0),
                 distance_km=exercise_data.get("distance_km"),
                 calories_burned=exercise_data.get("calories_burned"),
-                intensity=exercise_data.get("intensity"),
+                intensity_level=exercise_data.get("intensity_level"),
                 notes=exercise_data.get("notes"),
             )
             aerobic_objects.append(aerobic_exercise)
@@ -359,6 +359,18 @@ class AsyncWorkoutService:
                 user_message="Failed to get session status",
                 cause=e,
             )
+
+    async def get_last_session(self, user_id: str) -> WorkoutSession | None:
+        """Get the most recent session for a user (async)"""
+        async with get_async_session_context() as session:
+            stmt = (
+                select(WorkoutSession)
+                .where(WorkoutSession.user_id == user_id)
+                .order_by(WorkoutSession.date.desc(), WorkoutSession.start_time.desc())
+                .limit(1)
+            )
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
 
     async def finish_session(self, session_id: int, user_id: str) -> Dict[str, Any]:
         """Finish a workout session with optimized stats calculation (async)

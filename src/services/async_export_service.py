@@ -3,16 +3,16 @@
 import csv
 import json
 import logging
-from datetime import datetime, date
+from datetime import date, datetime
 from io import StringIO
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import joinedload
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from database.async_connection import get_async_session_context
-from database.models import WorkoutSession, SessionStatus, WorkoutExercise, AerobicExercise, Exercise
-from services.exceptions import ValidationError, DatabaseError
+from database.models import AerobicExercise, SessionStatus, WorkoutExercise, WorkoutSession
+from services.exceptions import DatabaseError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +21,12 @@ class AsyncExportService:
     """Async service for exporting workout data in various formats"""
 
     async def export_user_data(
-        self, 
-        user_id: str, 
+        self,
+        user_id: str,
         format: str = "json",
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
-        include_active: bool = True
+        include_active: bool = True,
     ) -> Dict[str, Any]:
         """Export all workout data for a user (async)
         
@@ -43,10 +43,11 @@ class AsyncExportService:
         Raises:
             ValidationError: If parameters are invalid
             DatabaseError: If database operation fails
+
         """
         if not user_id or not user_id.strip():
             raise ValidationError("User ID is required")
-            
+
         if format not in ["json", "csv"]:
             raise ValidationError("Format must be 'json' or 'csv'")
 
@@ -54,13 +55,13 @@ class AsyncExportService:
             try:
                 # Get user's workout sessions
                 sessions = await self._get_user_sessions(
-                    session, user_id, start_date, end_date, include_active
+                    session, user_id, start_date, end_date, include_active,
                 )
-                
+
                 if not sessions:
                     return {
                         "success": False,
-                        "message": "No workout data found for export"
+                        "message": "No workout data found for export",
                     }
 
                 # Export data based on format
@@ -78,12 +79,12 @@ class AsyncExportService:
                     "data": export_data,
                     "summary": summary,
                     "export_date": datetime.now().isoformat(),
-                    "user_id": user_id
+                    "user_id": user_id,
                 }
 
             except Exception as e:
                 logger.exception(f"Error exporting data for user {user_id}")
-                raise DatabaseError(f"Failed to export data: {str(e)}")
+                raise DatabaseError(f"Failed to export data: {e!s}")
 
     async def get_export_summary(self, user_id: str) -> Dict[str, Any]:
         """Get summary of data available for export (async)
@@ -93,6 +94,7 @@ class AsyncExportService:
             
         Returns:
             Dict with export summary
+
         """
         if not user_id or not user_id.strip():
             raise ValidationError("User ID is required")
@@ -101,10 +103,10 @@ class AsyncExportService:
             try:
                 # Get all sessions for user
                 sessions_stmt = select(WorkoutSession).where(
-                    WorkoutSession.user_id == user_id
+                    WorkoutSession.user_id == user_id,
                 ).options(
-                    joinedload(WorkoutSession.workout_exercises),
-                    joinedload(WorkoutSession.aerobic_exercises)
+                    joinedload(WorkoutSession.exercises),
+                    joinedload(WorkoutSession.aerobics),
                 )
 
                 result = await session.execute(sessions_stmt)
@@ -117,23 +119,22 @@ class AsyncExportService:
                         "active_sessions": 0,
                         "total_exercises": 0,
                         "date_range": None,
-                        "estimated_size_mb": 0.0
+                        "estimated_size_mb": 0.0,
                     }
 
                 # Calculate summary
                 completed_sessions = len([s for s in sessions if s.status == SessionStatus.FINALIZADA])
                 active_sessions = len([s for s in sessions if s.status == SessionStatus.ATIVA])
-                
-                total_exercises = sum(
-                    len(s.workout_exercises) + len(s.aerobic_exercises) 
-                    for s in sessions
-                )
+
+                total_resistance = sum(len(s.exercises) for s in sessions)
+                total_aerobic = sum(len(s.aerobics) for s in sessions)
+                total_exercises = total_resistance + total_aerobic
 
                 # Date range
                 dates = [s.date for s in sessions]
                 date_range = {
                     "start": min(dates).strftime("%d/%m/%Y"),
-                    "end": max(dates).strftime("%d/%m/%Y")
+                    "end": max(dates).strftime("%d/%m/%Y"),
                 } if dates else None
 
                 # Estimate export size (rough calculation)
@@ -144,13 +145,15 @@ class AsyncExportService:
                     "completed_sessions": completed_sessions,
                     "active_sessions": active_sessions,
                     "total_exercises": total_exercises,
+                    "resistance_exercises": total_resistance,
+                    "aerobic_exercises": total_aerobic,
                     "date_range": date_range,
-                    "estimated_size_mb": estimated_size_mb
+                    "estimated_size_mb": estimated_size_mb,
                 }
 
             except Exception as e:
                 logger.exception(f"Error getting export summary for user {user_id}")
-                raise DatabaseError(f"Failed to get export summary: {str(e)}")
+                raise DatabaseError(f"Failed to get export summary: {e!s}")
 
     async def _get_user_sessions(
         self,
@@ -158,16 +161,15 @@ class AsyncExportService:
         user_id: str,
         start_date: Optional[date],
         end_date: Optional[date],
-        include_active: bool
+        include_active: bool,
     ) -> List[WorkoutSession]:
         """Get user sessions with filters (async)"""
-        
         # Build query
         stmt = select(WorkoutSession).where(
-            WorkoutSession.user_id == user_id
+            WorkoutSession.user_id == user_id,
         ).options(
-            joinedload(WorkoutSession.workout_exercises).joinedload(WorkoutExercise.exercise),
-            joinedload(WorkoutSession.aerobic_exercises)
+            joinedload(WorkoutSession.exercises).joinedload(WorkoutExercise.exercise),
+            joinedload(WorkoutSession.aerobics).joinedload(AerobicExercise.exercise),
         )
 
         # Add date filters
@@ -188,14 +190,13 @@ class AsyncExportService:
 
     async def _export_to_json(self, sessions: List[WorkoutSession]) -> str:
         """Export sessions to JSON format (async)"""
-        
         export_data = {
             "export_info": {
                 "format": "json",
                 "export_date": datetime.now().isoformat(),
-                "total_sessions": len(sessions)
+                "total_sessions": len(sessions),
             },
-            "sessions": []
+            "sessions": [],
         }
 
         for session in sessions:
@@ -207,32 +208,32 @@ class AsyncExportService:
                 "notes": session.notes,
                 "created_at": session.created_at.isoformat(),
                 "workout_exercises": [],
-                "aerobic_exercises": []
+                "aerobic_exercises": [],
             }
 
             # Add workout exercises
-            for we in session.workout_exercises:
+            for we in session.exercises:
                 exercise_data = {
                     "exercise_name": we.exercise.name if we.exercise else "Unknown",
                     "muscle_group": we.exercise.muscle_group if we.exercise else None,
                     "equipment": we.exercise.equipment if we.exercise else None,
                     "sets": we.sets,
                     "reps": we.reps,
-                    "weight": we.weight,
+                    "weight": we.weights_kg,
                     "rest_seconds": we.rest_seconds,
-                    "notes": we.notes
+                    "notes": we.notes,
                 }
                 session_data["workout_exercises"].append(exercise_data)
 
             # Add aerobic exercises
-            for ae in session.aerobic_exercises:
+            for ae in session.aerobics:
                 aerobic_data = {
-                    "exercise_name": ae.exercise_name,
+                    "exercise_name": ae.exercise.name if ae.exercise else "Unknown",
                     "duration_minutes": ae.duration_minutes,
                     "distance_km": ae.distance_km,
-                    "calories": ae.calories,
-                    "intensity": ae.intensity,
-                    "notes": ae.notes
+                    "calories_burned": ae.calories_burned,
+                    "intensity_level": ae.intensity_level,
+                    "notes": ae.notes,
                 }
                 session_data["aerobic_exercises"].append(aerobic_data)
 
@@ -242,18 +243,17 @@ class AsyncExportService:
 
     async def _export_to_csv(self, sessions: List[WorkoutSession]) -> str:
         """Export sessions to CSV format (async)"""
-        
         output = StringIO()
-        
+
         # Create CSV writer
         fieldnames = [
             "session_id", "date", "status", "duration_minutes",
             "exercise_type", "exercise_name", "muscle_group", "equipment",
-            "sets", "reps", "weight", "rest_seconds", 
+            "sets", "reps", "weight", "rest_seconds",
             "duration_minutes_cardio", "distance_km", "calories", "intensity",
-            "notes"
+            "notes",
         ]
-        
+
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
 
@@ -262,11 +262,11 @@ class AsyncExportService:
                 "session_id": session.session_id,
                 "date": session.date.isoformat(),
                 "status": session.status.value,
-                "duration_minutes": session.duration_minutes
+                "duration_minutes": session.duration_minutes,
             }
 
             # Write workout exercises
-            for we in session.workout_exercises:
+            for we in session.exercises:
                 row = base_row.copy()
                 row.update({
                     "exercise_type": "resistance",
@@ -275,28 +275,28 @@ class AsyncExportService:
                     "equipment": we.exercise.equipment if we.exercise else None,
                     "sets": we.sets,
                     "reps": we.reps,
-                    "weight": we.weight,
+                    "weight": we.weights_kg,
                     "rest_seconds": we.rest_seconds,
-                    "notes": we.notes
+                    "notes": we.notes,
                 })
                 writer.writerow(row)
 
             # Write aerobic exercises
-            for ae in session.aerobic_exercises:
+            for ae in session.aerobics:
                 row = base_row.copy()
                 row.update({
                     "exercise_type": "aerobic",
-                    "exercise_name": ae.exercise_name,
+                    "exercise_name": ae.exercise.name if ae.exercise else "Unknown",
                     "duration_minutes_cardio": ae.duration_minutes,
                     "distance_km": ae.distance_km,
-                    "calories": ae.calories,
-                    "intensity": ae.intensity,
-                    "notes": ae.notes
+                    "calories": ae.calories_burned,
+                    "intensity": ae.intensity_level,
+                    "notes": ae.notes,
                 })
                 writer.writerow(row)
 
             # If session has no exercises, write a row for the session itself
-            if not session.workout_exercises and not session.aerobic_exercises:
+            if not session.exercises and not session.aerobics:
                 row = base_row.copy()
                 row.update({"notes": session.notes})
                 writer.writerow(row)
@@ -305,19 +305,18 @@ class AsyncExportService:
 
     async def _calculate_export_summary(self, sessions: List[WorkoutSession]) -> Dict[str, Any]:
         """Calculate summary statistics for exported data (async)"""
-        
         total_sessions = len(sessions)
         completed_sessions = len([s for s in sessions if s.status == SessionStatus.FINALIZADA])
-        
-        total_resistance = sum(len(s.workout_exercises) for s in sessions)
-        total_aerobic = sum(len(s.aerobic_exercises) for s in sessions)
+
+        total_resistance = sum(len(s.exercises) for s in sessions)
+        total_aerobic = sum(len(s.aerobics) for s in sessions)
         total_exercises = total_resistance + total_aerobic
-        
+
         # Date range
         dates = [s.date for s in sessions]
         date_range = {
             "start": min(dates).strftime("%d/%m/%Y"),
-            "end": max(dates).strftime("%d/%m/%Y")
+            "end": max(dates).strftime("%d/%m/%Y"),
         } if dates else None
 
         # Total duration
@@ -331,22 +330,22 @@ class AsyncExportService:
             "resistance_exercises": total_resistance,
             "aerobic_exercises": total_aerobic,
             "total_duration_minutes": total_duration,
-            "date_range": date_range
+            "date_range": date_range,
         }
 
     async def _estimate_export_size(self, sessions: List[WorkoutSession]) -> float:
         """Estimate export file size in MB (async)"""
-        
         # Rough calculation based on data complexity
         base_size_per_session = 0.5  # KB
         base_size_per_exercise = 0.2  # KB
-        
+
         total_exercises = sum(
-            len(s.workout_exercises) + len(s.aerobic_exercises) 
+            len(s.exercises) + len(s.aerobics)
             for s in sessions
         )
-        
+
         estimated_kb = (len(sessions) * base_size_per_session) + (total_exercises * base_size_per_exercise)
         estimated_mb = estimated_kb / 1024
-        
+
         return round(estimated_mb, 2)
+
