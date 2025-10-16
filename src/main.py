@@ -62,8 +62,12 @@ def setup_signal_handlers(app: Application):
         signal_name = signal.Signals(signum).name
         logger.info(f"🛑 Received {signal_name} signal, initiating graceful shutdown...")
 
-        # Initiate service shutdown
-        shutdown_service.initiate_shutdown()
+        # Initiate service shutdown (async)
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.create_task(shutdown_service.initiate_shutdown())
+        else:
+            loop.run_until_complete(shutdown_service.initiate_shutdown())
 
         # Run the async shutdown handler (including app.stop())
         loop = asyncio.get_event_loop()
@@ -177,8 +181,17 @@ def main() -> NoReturn:
 
 
     logger.info("✅ All handlers registered")
+    
+    # Add post_init callback to start backup scheduler  
+    async def post_init_callback(app):
+        """Called after the application is initialized and event loop is running"""
+        logger.info("🔄 Starting backup scheduler...")
+        await backup_service.ensure_scheduler_running()
+        logger.info("✅ Backup scheduler started")
 
-    # Start automated backups
+    application.post_init = post_init_callback
+
+    # Start automated backups (will defer scheduler until event loop runs)
     try:
         logger.info("💾 Starting automated backups...")
         backup_service.start_automated_backups()
@@ -195,6 +208,8 @@ def main() -> NoReturn:
 
     # Run bot with proper signal handling
     application.run_polling(allowed_updates=["message"], stop_signals=None)
+    
+    # Note: The backup scheduler will auto-start when the event loop begins
 
 
 if __name__ == "__main__":

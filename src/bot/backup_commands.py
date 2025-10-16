@@ -214,7 +214,7 @@ async def backup_cleanup(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await backup_service.cleanup_old_backups()
         
         # Get new count
-        new_stats = backup_service.get_backup_stats()
+        new_stats = await backup_service.get_backup_stats()
         new_count = new_stats["total_backups"]
         
         removed = old_count - new_count
