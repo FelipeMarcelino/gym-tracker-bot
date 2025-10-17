@@ -49,45 +49,33 @@ from services.shutdown_service import shutdown_service
 
 def setup_signal_handlers(app: Application):
     """Setup signal handlers for graceful shutdown"""
-
-    async def shutdown_handler():
-        logger.info("🛑 Stopping Telegram bot...")
-        await app.stop()
-        logger.info("🔌 Shutting down async services...")
-        await shutdown_async_services()
-        logger.info("✅ Async services shut down")
-
-    def signal_handler(signum, frame):
-        """Handle shutdown signals"""
-        signal_name = signal.Signals(signum).name
-        logger.info(f"🛑 Received {signal_name} signal, initiating graceful shutdown...")
-
-        # Initiate service shutdown (async)
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(shutdown_service.initiate_shutdown())
-        else:
-            loop.run_until_complete(shutdown_service.initiate_shutdown())
-
-        # Run the async shutdown handler (including app.stop())
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(shutdown_handler())
-        else:
-            loop.run_until_complete(shutdown_handler())
-
-        # Exit
-        sys.exit(0)
-
-    # Register signal handlers
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-
-    # On Unix systems, also handle SIGHUP
-    if hasattr(signal, "SIGHUP"):
-        signal.signal(signal.SIGHUP, signal_handler)
-
-    logger.info("📡 Signal handlers registered")
+    
+    # Add a shutdown callback to the application
+    async def shutdown_callback(app):
+        """Called when the application is shutting down"""
+        logger.info("🛑 Application shutdown initiated...")
+        
+        try:
+            # Stop backup service first
+            from services.backup_service import backup_service
+            await backup_service.stop_automated_backups_async()
+            logger.info("✅ Backup service stopped")
+            
+            # Stop other async services
+            await shutdown_async_services()
+            logger.info("✅ Async services stopped")
+            
+            # Stop shutdown service
+            await shutdown_service.initiate_shutdown()
+            logger.info("✅ Shutdown service completed")
+            
+        except Exception as e:
+            logger.error(f"❌ Error during shutdown: {e}")
+    
+    # Register the shutdown callback
+    app.post_shutdown = shutdown_callback
+    
+    logger.info("📡 Shutdown callback registered")
 
 
 def main() -> NoReturn:
@@ -132,8 +120,23 @@ def main() -> NoReturn:
     logger.info("🤖 CREATING TELEGRAM BOT")
     logger.info("=" * 60)
 
-    # Create Telegram application
-    application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
+    # Create Telegram application with proper timeout settings
+    from telegram.request import HTTPXRequest
+    
+    request = HTTPXRequest(
+        connection_pool_size=8,
+        connect_timeout=30.0,
+        read_timeout=30.0,
+        write_timeout=30.0,
+        pool_timeout=10.0
+    )
+    
+    application = (
+        Application.builder()
+        .token(settings.TELEGRAM_BOT_TOKEN)
+        .request(request)
+        .build()
+    )
 
     # Setup signal handlers
     setup_signal_handlers(application)
@@ -206,8 +209,8 @@ def main() -> NoReturn:
     logger.info("🛑 Press Ctrl+C to stop gracefully")
     logger.info("=" * 60)
 
-    # Run bot with proper signal handling
-    application.run_polling(allowed_updates=["message"], stop_signals=None)
+    # Run bot with default signal handling (SIGINT, SIGTERM)
+    application.run_polling(allowed_updates=["message"])
     
     # Note: The backup scheduler will auto-start when the event loop begins
 

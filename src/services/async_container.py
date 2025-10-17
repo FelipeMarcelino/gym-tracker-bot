@@ -157,6 +157,7 @@ async def initialize_async_services() -> None:
 
 async def shutdown_async_services() -> None:
     """Shutdown all async services - call this at shutdown"""
+    # Shutdown async container
     container = await get_async_container()
     await container.shutdown()
     global _async_container

@@ -38,6 +38,7 @@ class BackupService:
         self.database_path = settings.DATABASE_URL.replace("sqlite:///", "")
         self.is_running = False
         self.scheduler_task = None
+        self._stop_event = None
 
         # Ensure backup directory exists
         self.backup_dir.mkdir(exist_ok=True)
@@ -427,18 +428,60 @@ class BackupService:
             return
 
         self.is_running = False
+        
+        # Set the stop event to wake up the scheduler
+        if hasattr(self, '_stop_event'):
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Schedule the event to be set
+                    loop.call_soon_threadsafe(self._stop_event.set)
+            except RuntimeError:
+                pass  # No event loop running
 
-        if hasattr(self, "scheduler_task"):
-            self.scheduler_task.cancel()
+        if hasattr(self, "scheduler_task") and self.scheduler_task is not None:
+            if not self.scheduler_task.cancelled():
+                self.scheduler_task.cancel()
+                logger.info("Backup scheduler task cancelled")
 
         logger.info("Automated backups stopped")
+
+    async def stop_automated_backups_async(self):
+        """Stop automated backup scheduler (async version)"""
+        if not self.is_running:
+            return
+
+        self.is_running = False
+        
+        # Set the stop event to wake up the scheduler immediately
+        if hasattr(self, '_stop_event'):
+            self._stop_event.set()
+
+        if hasattr(self, "scheduler_task") and self.scheduler_task is not None:
+            if not self.scheduler_task.cancelled():
+                self.scheduler_task.cancel()
+                try:
+                    await self.scheduler_task
+                except asyncio.CancelledError:
+                    pass  # Expected when cancelling
+                logger.info("Backup scheduler task cancelled and awaited")
+
+        logger.info("Automated backups stopped (async)")
 
     async def ensure_scheduler_running(self):
         """Ensure the async scheduler task is running (call after event loop starts)"""
         if self.is_running and self.scheduler_task is None:
             try:
+                # Create stop event if not exists
+                if self._stop_event is None:
+                    self._stop_event = asyncio.Event()
+                else:
+                    # Reset the stop event for a fresh start
+                    self._stop_event.clear()
                 self.scheduler_task = asyncio.create_task(self._run_async_scheduler())
                 logger.info("Backup scheduler task created and started")
+                # Return immediately - don't await the task
+                return
             except Exception as e:
                 logger.error(f"Failed to start backup scheduler task: {e}")
 
@@ -467,15 +510,18 @@ class BackupService:
                     next_backup_time = current_time + timedelta(hours=self.backup_frequency_hours)
                     logger.info(f"Next backup scheduled for: {next_backup_time}")
 
-                # Check every 5 minutes
-                await asyncio.sleep(300)
+                # Check every 5 seconds for faster shutdown response
+                for _ in range(12):  # 12 * 5 = 60 seconds total
+                    if not self.is_running:
+                        return  # Exit immediately if stopped
+                    await asyncio.sleep(5)
 
             except asyncio.CancelledError:
                 logger.info("Backup scheduler cancelled")
                 break
             except Exception:
                 logger.exception("Backup scheduler error")
-                await asyncio.sleep(300)  # Wait 5 minutes on error
+                await asyncio.sleep(60)  # Wait 1 minute on error
 
 
 # Global backup service instance

@@ -339,8 +339,8 @@ class HealthService:
             # Database metrics
             metrics["database"] = asdict(await self._get_database_metrics())
 
-            # Bot metrics
-            metrics["bot"] = asdict(self._get_bot_metrics())
+            # Bot metrics (async version to get active sessions)
+            metrics["bot"] = asdict(await self._get_bot_metrics_async())
 
             return metrics
 
@@ -439,13 +439,63 @@ class HealthService:
             if total_operations > 0 else 0
         )
 
+        # Get active sessions count (sync version - will be 0 for now)
+        # This will be properly calculated in the async version
+        active_sessions_count = 0
+
         return BotMetrics(
             total_commands_processed=self.command_count,
             total_audio_processed=self.audio_count,
             average_response_time_ms=round(avg_response_time, 2),
             error_rate_percent=round(error_rate, 2),
-            active_sessions=0,  # Would need to implement session tracking
+            active_sessions=active_sessions_count,
         )
+
+    async def _get_bot_metrics_async(self) -> BotMetrics:
+        """Get bot-specific metrics with async database queries"""
+        # Calculate average response time
+        avg_response_time = (
+            sum(self.response_times) / len(self.response_times)
+            if self.response_times else 0
+        )
+
+        # Calculate error rate
+        total_operations = self.command_count + self.audio_count
+        error_rate = (
+            (self.error_count / total_operations * 100)
+            if total_operations > 0 else 0
+        )
+
+        # Get active sessions count from database
+        active_sessions_count = await self._get_active_sessions_count()
+
+        return BotMetrics(
+            total_commands_processed=self.command_count,
+            total_audio_processed=self.audio_count,
+            average_response_time_ms=round(avg_response_time, 2),
+            error_rate_percent=round(error_rate, 2),
+            active_sessions=active_sessions_count,
+        )
+
+    async def _get_active_sessions_count(self) -> int:
+        """Get count of active workout sessions"""
+        try:
+            from sqlalchemy import func, select
+            from database.async_connection import get_async_session_context
+            from database.models import WorkoutSession, SessionStatus
+
+            async with get_async_session_context() as session:
+                # Count sessions with status 'ativa' (active)
+                active_sessions_stmt = select(func.count(WorkoutSession.session_id)).where(
+                    WorkoutSession.status == SessionStatus.ATIVA
+                )
+                result = await session.execute(active_sessions_stmt)
+                count = result.scalar()
+                return count or 0
+
+        except Exception as e:
+            logger.exception("Error getting active sessions count")
+            return 0
 
     def _determine_overall_status(self, checks: Dict[str, Any]) -> str:
         """Determine overall health status from individual checks"""

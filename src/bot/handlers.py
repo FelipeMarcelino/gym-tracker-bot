@@ -7,6 +7,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from bot.middleware import admin_only, authorized_only, log_access
+from bot.metrics_middleware import track_command_metrics, track_audio_metrics
 from bot.rate_limiter import rate_limit_commands, rate_limit_voice
 from bot.validation_middleware import CommonSchemas, validate_input
 from config.logging_config import get_logger
@@ -33,6 +34,7 @@ from services.exceptions import (
 logger = get_logger(__name__)
 
 
+@track_command_metrics("start")
 @rate_limit_commands
 @validate_input(CommonSchemas.text_message(min_length=0, max_length=100))
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
@@ -45,6 +47,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_da
     await update.message.reply_text(message)
 
 
+@track_command_metrics("help")
 @rate_limit_commands
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /help - Ajuda"""
@@ -440,6 +443,7 @@ async def _process_workout_message(
 
 @authorized_only
 @rate_limit_voice  # Usar mesmo rate limit que voz para mensagens de treino (processamento pesado)
+@track_command_metrics("text_message")
 @error_handler("processing text message")
 @validate_input(CommonSchemas.text_message(min_length=1, max_length=4000))
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
@@ -472,6 +476,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE, valida
 
 @authorized_only
 @rate_limit_voice
+@track_audio_metrics("voice_processing")
 @error_handler("processing voice message")
 @validate_input(CommonSchemas.voice_message())
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
@@ -586,6 +591,7 @@ def _format_success_response(
     return response
 
 
+@track_command_metrics("status")
 @authorized_only
 @rate_limit_commands
 @validate_input(CommonSchemas.admin_command())
@@ -655,6 +661,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         import traceback
         traceback.print_exc()
 
+@track_command_metrics("finish")
 @authorized_only
 @rate_limit_commands
 @validate_input(CommonSchemas.admin_command())
@@ -833,6 +840,7 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         traceback.print_exc()
 
 
+@track_command_metrics("stats")
 @authorized_only
 @rate_limit_commands
 @validate_input(CommonSchemas.command_with_args(min_args=0, max_args=1))
@@ -960,6 +968,7 @@ async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE, v
         traceback.print_exc()
 
 
+@track_command_metrics("exercises")
 @authorized_only
 @rate_limit_commands
 @validate_input(CommonSchemas.admin_command())
