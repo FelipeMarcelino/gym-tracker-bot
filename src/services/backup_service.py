@@ -404,7 +404,7 @@ class BackupService:
             return
 
         self.is_running = True
-        
+
         # Try to create asyncio task, but handle the case where no event loop exists
         try:
             loop = asyncio.get_event_loop()

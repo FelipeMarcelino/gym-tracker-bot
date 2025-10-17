@@ -1,9 +1,12 @@
+import asyncio
 import logging
 import os
 import tempfile
 from typing import Optional
 
-from groq import Groq
+import aiofiles
+import aiofiles.os
+from groq import AsyncGroq
 
 from config.settings import settings
 from services.exceptions import AudioProcessingError, ServiceUnavailableError, ValidationError
@@ -24,7 +27,7 @@ class AudioTranscriptionService:
             )
 
         try:
-            self.client = Groq(api_key=settings.GROQ_API_KEY)
+            self.client = AsyncGroq(api_key=settings.GROQ_API_KEY)
             logger.info("Groq Whisper API inicializada com sucesso")
         except Exception as e:
             raise ServiceUnavailableError(
@@ -66,18 +69,27 @@ class AudioTranscriptionService:
         temp_path: Optional[str] = None
 
         try:
-            # Criar arquivo temporário
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_file:
-                temp_file.write(file_bytes)
-                temp_path = temp_file.name
+            # Criar arquivo temporário usando asyncio.to_thread
+            temp_file = await asyncio.to_thread(
+                tempfile.NamedTemporaryFile, 
+                delete=False, 
+                suffix=".ogg"
+            )
+            
+            # Escrever dados de forma assíncrona
+            async with aiofiles.open(temp_file.name, "wb") as f:
+                await f.write(file_bytes)
+            temp_path = temp_file.name
+            temp_file.close()  # Close the file descriptor
 
             logger.info(f"Transcrevendo áudio de {len(file_bytes)} bytes via Groq API...")
 
-            # Abrir arquivo e enviar para Groq
-            with open(temp_path, "rb") as audio_file:
+            # Ler arquivo e enviar para Groq de forma assíncrona
+            async with aiofiles.open(temp_path, "rb") as audio_file:
+                audio_data = await audio_file.read()
                 try:
-                    transcription = self.client.audio.transcriptions.create(
-                        file=(temp_path, audio_file.read()),
+                    transcription = await self.client.audio.transcriptions.create(
+                        file=(temp_path, audio_data),
                         model=settings.WHISPER_MODEL,
                         language="pt",
                         response_format="text",
@@ -123,10 +135,10 @@ class AudioTranscriptionService:
             )
 
         finally:
-            # Deletar arquivo temporário
+            # Deletar arquivo temporário de forma assíncrona
             if temp_path:
                 try:
-                    os.unlink(temp_path)
+                    await aiofiles.os.remove(temp_path)
                 except Exception as e:
                     logger.warning(f"Falha ao deletar arquivo temporário {temp_path}: {e}")
 
