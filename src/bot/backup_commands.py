@@ -5,7 +5,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from config.logging_config import get_logger
-from services.backup_service import backup_service
+from services.async_backup_service import backup_service
 from services.exceptions import BackupError
 from bot.middleware import admin_only
 from bot.validation_middleware import validate_input, CommonSchemas

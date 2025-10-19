@@ -5,7 +5,7 @@ import asyncio
 import time
 from unittest.mock import Mock, patch, AsyncMock
 
-from services.health_service import HealthService, SystemMetrics, DatabaseMetrics, BotMetrics
+from services.async_health_service import HealthService, SystemMetrics, DatabaseMetrics, BotMetrics
 
 
 class TestHealthService:

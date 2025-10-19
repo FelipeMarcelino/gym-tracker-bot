@@ -1,5 +1,4 @@
 import asyncio
-import signal
 import sys
 from typing import NoReturn
 
@@ -42,9 +41,9 @@ from bot.handlers import (
 from bot.health_endpoints import health_command, health_full_command, metrics_command, performance_command
 from config.settings import settings
 from services.async_container import initialize_async_services, shutdown_async_services
-from services.backup_service import backup_service
+from services.async_backup_service import backup_service
 from services.container import initialize_all_services
-from services.shutdown_service import shutdown_service
+from services.async_shutdown_service import shutdown_service
 
 
 def setup_signal_handlers(app: Application):
@@ -57,7 +56,7 @@ def setup_signal_handlers(app: Application):
         
         try:
             # Stop backup service first
-            from services.backup_service import backup_service
+            from services.async_backup_service import backup_service
             await backup_service.stop_automated_backups_async()
             logger.info("✅ Backup service stopped")
             

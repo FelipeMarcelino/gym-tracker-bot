@@ -13,9 +13,9 @@ def test_imports():
     """Test that core modules can be imported"""
     try:
         from config.logging_config import get_logger
-        from services.backup_service import BackupService
-        from services.health_service import HealthService
-        from services.shutdown_service import ShutdownService
+        from services.async_backup_service import BackupService
+        from services.async_health_service import HealthService
+        from services.async_shutdown_service import ShutdownService
         from services.exceptions import GymTrackerError, ValidationError
         assert True
     except ImportError as e:
@@ -33,7 +33,7 @@ def test_logger_initialization():
 
 def test_backup_service_creation():
     """Test backup service can be created"""
-    from services.backup_service import BackupService
+    from services.async_backup_service import BackupService
     
     with tempfile.TemporaryDirectory() as temp_dir:
         service = BackupService(
@@ -50,7 +50,7 @@ def test_backup_service_creation():
 
 def test_health_service_creation():
     """Test health service can be created"""
-    from services.health_service import HealthService
+    from services.async_health_service import HealthService
     
     service = HealthService()
     assert service.command_count == 0
@@ -61,7 +61,7 @@ def test_health_service_creation():
 
 def test_shutdown_service_creation():
     """Test shutdown service can be created"""
-    from services.shutdown_service import ShutdownService
+    from services.async_shutdown_service import ShutdownService
     
     service = ShutdownService()
     assert service.shutdown_handlers == []
@@ -88,7 +88,7 @@ def test_exceptions_creation():
 
 def test_health_service_metrics():
     """Test health service can record metrics"""
-    from services.health_service import HealthService
+    from services.async_health_service import HealthService
     
     service = HealthService()
     
@@ -105,7 +105,7 @@ def test_health_service_metrics():
 
 def test_shutdown_service_handlers():
     """Test shutdown service can register handlers"""
-    from services.shutdown_service import ShutdownService
+    from services.async_shutdown_service import ShutdownService
     
     service = ShutdownService()
     
@@ -119,7 +119,7 @@ def test_shutdown_service_handlers():
 @pytest.mark.asyncio
 async def test_async_health_service():
     """Test health service async functionality"""
-    from services.health_service import HealthService
+    from services.async_health_service import HealthService
     from unittest.mock import patch
     
     service = HealthService()
@@ -138,14 +138,15 @@ async def test_async_health_service():
         assert "test" in health_status.checks
 
 
-def test_backup_service_stats_no_backups():
+@pytest.mark.asyncio
+async def test_backup_service_stats_no_backups():
     """Test backup service stats with no backups"""
-    from services.backup_service import BackupService
+    from services.async_backup_service import BackupService
     
     with tempfile.TemporaryDirectory() as temp_dir:
         service = BackupService(backup_dir=temp_dir)
         
-        stats = service.get_backup_stats()
+        stats = await service.get_backup_stats()
         assert stats["total_backups"] == 0
         assert stats["total_size_mb"] == 0
         assert stats["newest_backup"] is None
@@ -154,7 +155,7 @@ def test_backup_service_stats_no_backups():
 
 def test_backup_service_automation():
     """Test backup service automation controls"""
-    from services.backup_service import BackupService
+    from services.async_backup_service import BackupService
     
     with tempfile.TemporaryDirectory() as temp_dir:
         service = BackupService(backup_dir=temp_dir)
@@ -184,17 +185,18 @@ def test_configuration_loading():
 class TestBasicIntegration:
     """Basic integration tests between components"""
     
+    @pytest.mark.asyncio
     async def test_health_service_with_backup_service(self):
         """Test health service can work with backup service"""
-        from services.health_service import HealthService
-        from services.backup_service import BackupService
+        from services.async_health_service import HealthService
+        from services.async_backup_service import BackupService
         
         with tempfile.TemporaryDirectory() as temp_dir:
             backup_service = BackupService(backup_dir=temp_dir)
             health_service = HealthService()
             
             # Should not error when services exist
-            backup_stats = backup_service.get_backup_stats()
+            backup_stats = await backup_service.get_backup_stats()
             assert backup_stats["total_backups"] == 0
             
             simple_health = await health_service.get_simple_health()
@@ -202,8 +204,8 @@ class TestBasicIntegration:
     
     def test_shutdown_service_with_health_service(self):
         """Test shutdown service can work with health service"""
-        from services.shutdown_service import ShutdownService
-        from services.health_service import HealthService
+        from services.async_shutdown_service import ShutdownService
+        from services.async_health_service import HealthService
         
         shutdown_service = ShutdownService()
         health_service = HealthService()
@@ -220,7 +222,7 @@ class TestBasicIntegration:
 def test_logging_integration():
     """Test logging works across services"""
     from config.logging_config import get_logger
-    from services.health_service import HealthService
+    from services.async_health_service import HealthService
     
     # Get logger
     logger = get_logger("test_integration")
@@ -233,10 +235,11 @@ def test_logging_integration():
     health_service.record_command(100, False)
 
 
-def test_error_handling_integration():
+@pytest.mark.asyncio
+async def test_error_handling_integration():
     """Test error handling works across services"""
     from services.exceptions import BackupError, ValidationError
-    from services.backup_service import BackupService
+    from services.async_backup_service import BackupService
     
     with tempfile.TemporaryDirectory() as temp_dir:
         service = BackupService(backup_dir=temp_dir)
@@ -244,16 +247,16 @@ def test_error_handling_integration():
         
         # Should raise BackupError, not generic exception
         with pytest.raises(BackupError):
-            service.create_backup("test.db")
+            await service.create_backup("test.db")
 
 
 # Mark this as a comprehensive test
 @pytest.mark.integration
 def test_full_service_lifecycle():
     """Test complete service lifecycle"""
-    from services.backup_service import BackupService
-    from services.health_service import HealthService
-    from services.shutdown_service import ShutdownService
+    from services.async_backup_service import BackupService
+    from services.async_health_service import HealthService
+    from services.async_shutdown_service import ShutdownService
     
     with tempfile.TemporaryDirectory() as temp_dir:
         # Initialize services

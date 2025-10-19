@@ -45,7 +45,7 @@ class WorkoutSession(Base):
 
     session_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String(50), nullable=False)
-    date = Column(Date, default=datetime.now)
+    date = Column(Date, default=lambda: datetime.now().date())
     start_time = Column(Time)  # Primeiro áudio da sessão
     end_time = Column(Time)    # Último áudio da sessão (atualizado automaticamente)
     body_weight_kg = Column(Float)

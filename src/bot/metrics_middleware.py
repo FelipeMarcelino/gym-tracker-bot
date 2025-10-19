@@ -7,7 +7,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from config.logging_config import get_logger
-from services.health_service import health_service
+from services.async_health_service import health_service
 
 logger = get_logger(__name__)
 
@@ -92,78 +92,3 @@ def track_audio_metrics(operation_name: str = None):
     return decorator
 
 
-class MetricsCollector:
-    """Additional metrics collection for specific operations"""
-    
-    def __init__(self):
-        self.operation_times = {}
-        self.operation_counts = {}
-        self.operation_errors = {}
-    
-    def start_operation(self, operation_name: str) -> str:
-        """Start timing an operation"""
-        operation_id = f"{operation_name}_{time.time()}"
-        self.operation_times[operation_id] = time.time()
-        return operation_id
-    
-    def end_operation(self, operation_id: str, is_error: bool = False):
-        """End timing an operation"""
-        if operation_id not in self.operation_times:
-            return
-        
-        # Calculate duration
-        duration = time.time() - self.operation_times[operation_id]
-        
-        # Extract operation name
-        operation_name = "_".join(operation_id.split("_")[:-1])
-        
-        # Update counters
-        self.operation_counts[operation_name] = self.operation_counts.get(operation_name, 0) + 1
-        
-        if is_error:
-            self.operation_errors[operation_name] = self.operation_errors.get(operation_name, 0) + 1
-        
-        # Clean up
-        del self.operation_times[operation_id]
-        
-        # Log metrics
-        logger.debug(f"Operation {operation_name} completed in {duration*1000:.2f}ms (error: {is_error})")
-    
-    def get_operation_metrics(self) -> dict:
-        """Get metrics for all tracked operations"""
-        metrics = {}
-        
-        for operation_name, count in self.operation_counts.items():
-            error_count = self.operation_errors.get(operation_name, 0)
-            error_rate = (error_count / count * 100) if count > 0 else 0
-            
-            metrics[operation_name] = {
-                "total_count": count,
-                "error_count": error_count,
-                "error_rate_percent": round(error_rate, 2),
-                "success_rate_percent": round(100 - error_rate, 2)
-            }
-        
-        return metrics
-
-
-# Global metrics collector
-metrics_collector = MetricsCollector()
-
-
-def track_operation(operation_name: str):
-    """Context manager for tracking custom operations"""
-    class OperationTracker:
-        def __init__(self, name: str):
-            self.name = name
-            self.operation_id = None
-        
-        def __enter__(self):
-            self.operation_id = metrics_collector.start_operation(self.name)
-            return self
-        
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            is_error = exc_type is not None
-            metrics_collector.end_operation(self.operation_id, is_error)
-    
-    return OperationTracker(operation_name)

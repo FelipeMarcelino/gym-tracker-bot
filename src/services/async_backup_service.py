@@ -430,7 +430,7 @@ class BackupService:
         self.is_running = False
         
         # Set the stop event to wake up the scheduler
-        if hasattr(self, '_stop_event'):
+        if hasattr(self, '_stop_event') and self._stop_event is not None:
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
@@ -522,6 +522,7 @@ class BackupService:
             except Exception:
                 logger.exception("Backup scheduler error")
                 await asyncio.sleep(60)  # Wait 1 minute on error
+
 
 
 # Global backup service instance

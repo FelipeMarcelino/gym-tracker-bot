@@ -14,10 +14,10 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from config.logging_config import get_logger
-from database.connection import DatabaseConnection
-from services.backup_service import BackupService
-from services.health_service import HealthService
-from services.shutdown_service import ShutdownService
+from database.async_connection import async_db
+from services.async_backup_service import BackupService
+from services.async_health_service import HealthService
+from services.async_shutdown_service import ShutdownService
 
 logger = get_logger(__name__)
 
@@ -44,18 +44,26 @@ def test_backup_dir(temp_dir):
     return backup_dir
 
 
-@pytest.fixture
-def test_database(test_db_path):
-    """Create a test database instance"""
+@pytest.fixture(scope="function")
+async def test_database(test_db_path):
+    """Create a test database instance using async connection"""
     # Mock settings for testing
     original_db_url = os.environ.get("DATABASE_URL")
-    os.environ["DATABASE_URL"] = f"sqlite:///{test_db_path}"
+    os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{test_db_path}"
 
     try:
-        db = DatabaseConnection()
-        db.initialize()
-        yield db
+        # Reset the async_db instance to ensure clean state
+        async_db._engine = None
+        async_db._session_factory = None
+        await async_db.initialize()
+        yield test_db_path
     finally:
+        # Clean up the async database connection
+        if async_db._engine:
+            await async_db.close()
+            async_db._engine = None
+            async_db._session_factory = None
+        
         # Restore original settings
         if original_db_url:
             os.environ["DATABASE_URL"] = original_db_url
@@ -162,54 +170,151 @@ def event_loop():
 
 
 # Helper functions for tests
-def create_test_database_with_data(db_path):
+async def create_test_database_with_data(db_path):
     """Create a test database with sample data"""
+    from database.async_connection import get_async_session_context
+    from database.models import Exercise, User, ExerciseType
+
+    async with get_async_session_context() as session:
+        try:
+            # Add test user
+            user = User(
+                user_id=12345,
+                first_name="Test User",
+                username="testuser",
+                is_admin=False,
+                is_active=True,
+            )
+            session.add(user)
+
+            # Add test exercises
+            exercises = [
+                Exercise(name="supino reto", type=ExerciseType.RESISTENCIA, muscle_group="chest"),
+                Exercise(name="agachamento", type=ExerciseType.RESISTENCIA, muscle_group="legs"),
+                Exercise(name="deadlift", type=ExerciseType.RESISTENCIA, muscle_group="back"),
+            ]
+            session.add_all(exercises)
+
+            await session.commit()
+            return db_path
+        except Exception as e:
+            await session.rollback()
+            raise e
+
+
+@pytest.fixture(scope="function")
+async def populated_test_database(test_db_path):
+    """Create a test database with sample data using async connection"""
+    # Set up async database URL
+    original_db_url = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{test_db_path}"
+    
+    try:
+        # Ensure clean state - remove database file if it exists
+        if os.path.exists(test_db_path):
+            os.remove(test_db_path)
+            
+        # Reset the async_db instance to ensure clean state
+        async_db._engine = None
+        async_db._session_factory = None
+        await async_db.initialize()
+        await create_test_database_with_data(test_db_path)
+        yield test_db_path
+    finally:
+        # Clean up the async database connection
+        if async_db._engine:
+            await async_db.close()
+            async_db._engine = None
+            async_db._session_factory = None
+            
+        # Remove database file after test
+        if os.path.exists(test_db_path):
+            try:
+                os.remove(test_db_path)
+            except (OSError, PermissionError):
+                pass  # Ignore cleanup errors
+            
+        # Restore original settings
+        if original_db_url:
+            os.environ["DATABASE_URL"] = original_db_url
+        else:
+            os.environ.pop("DATABASE_URL", None)
+
+
+# Legacy sync fixture for backward compatibility
+@pytest.fixture(scope="function")
+def sync_test_database(test_db_path):
+    """Create a sync test database for backward compatibility"""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+    from database.models import Base
 
-    from database.models import Base, Exercise, User
-
-    engine = create_engine(f"sqlite:///{db_path}")
-    Base.metadata.create_all(engine)
-
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    # Mock settings for testing
+    original_db_url = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = f"sqlite:///{test_db_path}"
 
     try:
-        # Add test user
-        user = User(
-            user_id=12345,
-            first_name="Test User",
-            username="testuser",
-            is_admin=False,
-            is_active=True,
-        )
-        session.add(user)
-
-        # Add test exercises
-        from database.models import ExerciseType
-        exercises = [
-            Exercise(name="supino reto", type=ExerciseType.RESISTENCIA, muscle_group="chest"),
-            Exercise(name="agachamento", type=ExerciseType.RESISTENCIA, muscle_group="legs"),
-            Exercise(name="deadlift", type=ExerciseType.RESISTENCIA, muscle_group="back"),
-        ]
-        session.add_all(exercises)
-
-        session.commit()
-        return session
-    except Exception as e:
-        session.rollback()
-        raise e
+        engine = create_engine(f"sqlite:///{test_db_path}")
+        Base.metadata.create_all(engine)
+        yield test_db_path
     finally:
-        session.close()
+        # Restore original settings
+        if original_db_url:
+            os.environ["DATABASE_URL"] = original_db_url
+        else:
+            os.environ.pop("DATABASE_URL", None)
 
 
-@pytest.fixture
-def populated_test_database(test_db_path):
-    """Create a test database with sample data"""
-    session = create_test_database_with_data(test_db_path)
-    yield test_db_path
-    # Cleanup is handled by temp_dir fixture
+@pytest.fixture(scope="function")
+def sync_populated_test_database(test_db_path):
+    """Create a sync test database with sample data for backward compatibility"""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from database.models import Base, Exercise, User, ExerciseType
+
+    # Mock settings for testing
+    original_db_url = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = f"sqlite:///{test_db_path}"
+
+    try:
+        engine = create_engine(f"sqlite:///{test_db_path}")
+        Base.metadata.create_all(engine)
+
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        try:
+            # Add test user
+            user = User(
+                user_id=12345,
+                first_name="Test User",
+                username="testuser",
+                is_admin=False,
+                is_active=True,
+            )
+            session.add(user)
+
+            # Add test exercises
+            exercises = [
+                Exercise(name="supino reto", type=ExerciseType.RESISTENCIA, muscle_group="chest"),
+                Exercise(name="agachamento", type=ExerciseType.RESISTENCIA, muscle_group="legs"),
+                Exercise(name="deadlift", type=ExerciseType.RESISTENCIA, muscle_group="back"),
+            ]
+            session.add_all(exercises)
+
+            session.commit()
+            yield test_db_path
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+    finally:
+        # Restore original settings
+        if original_db_url:
+            os.environ["DATABASE_URL"] = original_db_url
+        else:
+            os.environ.pop("DATABASE_URL", None)
 
 
 # Test configuration

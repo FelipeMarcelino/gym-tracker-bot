@@ -31,14 +31,18 @@ class AsyncDatabaseConnection:
         """Initialize async database connection"""
         async with self._lock:
             if self._engine is None:
+                # Read DATABASE_URL from environment directly to support test overrides
+                import os
+                database_url = os.getenv("DATABASE_URL", "sqlite:///gym_tracker.db")
+                
                 # Convert SQLite URL to async version
-                if settings.DATABASE_URL.startswith("sqlite:///"):
-                    async_url = settings.DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
+                if database_url.startswith("sqlite:///"):
+                    async_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
                 else:
                     # For other databases, you might need different async drivers
                     # PostgreSQL: postgresql+asyncpg://
                     # MySQL: mysql+aiomysql://
-                    async_url = settings.DATABASE_URL
+                    async_url = database_url
 
                 # Configure engine based on database type
                 if "sqlite" in async_url:

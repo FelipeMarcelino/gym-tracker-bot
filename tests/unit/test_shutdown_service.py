@@ -6,7 +6,7 @@ import time
 import asyncio
 from unittest.mock import Mock, patch, AsyncMock
 
-from services.shutdown_service import ShutdownService
+from services.async_shutdown_service import ShutdownService
 
 
 class TestShutdownService:
@@ -118,24 +118,24 @@ class TestShutdownService:
         
         assert execution_log == ["async_executed"]
     
-    def test_create_emergency_backup_disabled(self, test_shutdown_service):
+    async def test_create_emergency_backup_disabled(self, test_shutdown_service):
         """Test emergency backup when disabled"""
         # Emergency backup is disabled in test fixture
         assert test_shutdown_service.emergency_backup_on_shutdown is False
         
         # Should not create backup
         with patch('services.shutdown_service.backup_service') as mock_backup:
-            test_shutdown_service._create_emergency_backup()
+            await test_shutdown_service._create_emergency_backup()
             mock_backup.create_backup.assert_not_called()
     
-    def test_create_emergency_backup_enabled(self, test_shutdown_service):
+    async def test_create_emergency_backup_enabled(self, test_shutdown_service):
         """Test emergency backup when enabled"""
         test_shutdown_service.emergency_backup_on_shutdown = True
         
         with patch('services.shutdown_service.backup_service') as mock_backup:
             mock_backup.create_backup.return_value = "test_backup.db"
             
-            test_shutdown_service._create_emergency_backup()
+            await test_shutdown_service._create_emergency_backup()
             
             mock_backup.create_backup.assert_called_once()
             # Check that backup name contains "emergency_shutdown"
@@ -151,7 +151,7 @@ class TestShutdownService:
             
             mock_backup.stop_automated_backups.assert_called_once()
     
-    def test_initiate_shutdown_complete_process(self, test_shutdown_service):
+    async def test_initiate_shutdown_complete_process(self, test_shutdown_service):
         """Test complete shutdown process"""
         execution_log = []
         test_shutdown_service.emergency_backup_on_shutdown = False  # Disable for test
@@ -162,13 +162,13 @@ class TestShutdownService:
         test_shutdown_service.register_shutdown_handler(test_handler, "Test handler")
         
         with patch.object(test_shutdown_service, '_stop_background_services') as mock_stop:
-            test_shutdown_service.initiate_shutdown()
+            await test_shutdown_service.initiate_shutdown()
             
             assert test_shutdown_service.is_shutting_down is True
             assert execution_log == ["handler_executed"]
             mock_stop.assert_called_once()
     
-    def test_initiate_shutdown_duplicate_call(self, test_shutdown_service):
+    async def test_initiate_shutdown_duplicate_call(self, test_shutdown_service):
         """Test that duplicate shutdown calls are ignored"""
         test_shutdown_service.is_shutting_down = True
         
@@ -180,7 +180,7 @@ class TestShutdownService:
         test_shutdown_service.register_shutdown_handler(test_handler, "Test handler")
         
         # Should be ignored
-        test_shutdown_service.initiate_shutdown()
+        await test_shutdown_service.initiate_shutdown()
         
         assert execution_log == []
     
@@ -204,28 +204,28 @@ class TestShutdownServiceHelperFunctions:
     
     async def test_close_database_connections(self):
         """Test database connection closing"""
-        from services.shutdown_service import close_database_connections
+        from services.async_shutdown_service import close_database_connections
         
         # Should not raise exception
         await close_database_connections()
     
     def test_flush_logs(self):
         """Test log buffer flushing"""
-        from services.shutdown_service import flush_logs
+        from services.async_shutdown_service import flush_logs
         
         # Should not raise exception
         flush_logs()
     
     def test_save_pending_operations(self):
         """Test saving pending operations"""
-        from services.shutdown_service import save_pending_operations
+        from services.async_shutdown_service import save_pending_operations
         
         # This is an async function
         asyncio.run(save_pending_operations())
     
     def test_cleanup_temp_files(self):
         """Test temporary file cleanup"""
-        from services.shutdown_service import cleanup_temp_files
+        from services.async_shutdown_service import cleanup_temp_files
         
         # Should not raise exception
         cleanup_temp_files()
@@ -259,7 +259,7 @@ class TestShutdownServiceEdgeCases:
         # Should not raise exception
         test_shutdown_service._run_shutdown_handlers()
     
-    def test_emergency_backup_error(self, test_shutdown_service):
+    async def test_emergency_backup_error(self, test_shutdown_service):
         """Test emergency backup with error"""
         test_shutdown_service.emergency_backup_on_shutdown = True
         
@@ -267,7 +267,7 @@ class TestShutdownServiceEdgeCases:
             mock_backup.create_backup.side_effect = Exception("Backup error")
             
             # Should not raise exception
-            test_shutdown_service._create_emergency_backup()
+            await test_shutdown_service._create_emergency_backup()
     
     def test_background_services_stop_error(self, test_shutdown_service):
         """Test background services stop with error"""
@@ -277,7 +277,7 @@ class TestShutdownServiceEdgeCases:
             # Should not raise exception
             test_shutdown_service._stop_background_services()
     
-    def test_shutdown_with_all_errors(self, test_shutdown_service):
+    async def test_shutdown_with_all_errors(self, test_shutdown_service):
         """Test shutdown process when everything fails"""
         def error_handler():
             raise RuntimeError("Handler error")
@@ -290,6 +290,6 @@ class TestShutdownServiceEdgeCases:
             mock_backup.stop_automated_backups.side_effect = Exception("Stop error")
             
             # Should complete without raising exception
-            test_shutdown_service.initiate_shutdown()
+            await test_shutdown_service.initiate_shutdown()
             
             assert test_shutdown_service.is_shutting_down is True

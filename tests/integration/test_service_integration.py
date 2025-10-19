@@ -6,14 +6,14 @@ from unittest.mock import patch
 
 import pytest
 
-from services.health_service import HealthService
-from services.shutdown_service import ShutdownService
+from services.async_health_service import HealthService
+from services.async_shutdown_service import ShutdownService
 
 
 class TestServiceIntegration:
     """Test integration between different services"""
 
-    def test_health_and_backup_integration(self, test_backup_service, populated_test_database):
+    async def test_health_and_backup_integration(self, test_backup_service, populated_test_database):
         """Test health service monitoring backup service"""
         test_backup_service.database_path = populated_test_database
         health_service = HealthService()
@@ -23,26 +23,26 @@ class TestServiceIntegration:
 
         try:
             # Create some backups
-            backup1 = test_backup_service.create_backup("integration_test_1.db")
-            backup2 = test_backup_service.create_backup("integration_test_2.db")
+            backup1 = await test_backup_service.create_backup("integration_test_1.db")
+            backup2 = await test_backup_service.create_backup("integration_test_2.db")
 
             assert os.path.exists(backup1)
             assert os.path.exists(backup2)
 
             # Get backup stats through health monitoring
-            stats = test_backup_service.get_backup_stats()
+            stats = await test_backup_service.get_backup_stats()
             assert stats["total_backups"] >= 2
             assert stats["verified_backups"] >= 2
 
             # Verify backups are healthy
-            backups = test_backup_service.list_backups()
+            backups = await test_backup_service.list_backups()
             for backup in backups:
                 assert backup["verified"] is True
 
         finally:
             test_backup_service.stop_automated_backups()
 
-    def test_shutdown_and_backup_integration(self, test_backup_service, populated_test_database):
+    async def test_shutdown_and_backup_integration(self, test_backup_service, populated_test_database):
         """Test shutdown service creating emergency backup"""
         test_backup_service.database_path = populated_test_database
         shutdown_service = ShutdownService()
@@ -53,18 +53,20 @@ class TestServiceIntegration:
 
         try:
             # Simulate shutdown process
-            initial_backups = len(test_backup_service.list_backups())
+            backups_list = await test_backup_service.list_backups()
+            initial_backups = len(backups_list)
 
             # Mock the backup service in shutdown service
             with patch("services.shutdown_service.backup_service", test_backup_service):
-                shutdown_service._create_emergency_backup()
+                await shutdown_service._create_emergency_backup()
 
             # Should have created an emergency backup
-            final_backups = len(test_backup_service.list_backups())
+            backups_list = await test_backup_service.list_backups()
+            final_backups = len(backups_list)
             assert final_backups == initial_backups + 1
 
             # Find the emergency backup
-            backups = test_backup_service.list_backups()
+            backups = await test_backup_service.list_backups()
             emergency_backup = next(
                 (b for b in backups if "emergency_shutdown_backup_" in b["name"]),
                 None,
@@ -131,7 +133,7 @@ class TestEndToEndWorkflow:
         health_service.record_command(300, True)  # Error
 
         # Create manual backup
-        backup_path = test_backup_service.create_backup("workflow_test.db")
+        backup_path = await test_backup_service.create_backup("workflow_test.db")
         assert os.path.exists(backup_path)
 
         # Monitor health
@@ -154,7 +156,7 @@ class TestEndToEndWorkflow:
 
         # Mock the backup service in shutdown
         with patch("services.shutdown_service.backup_service", test_backup_service):
-            shutdown_service.initiate_shutdown()
+            await shutdown_service.initiate_shutdown()
 
         # Verify shutdown completed
         assert shutdown_service.is_shutting_down is True
@@ -162,7 +164,7 @@ class TestEndToEndWorkflow:
         assert not test_backup_service.is_running
 
         # Verify emergency backup was created
-        backups = test_backup_service.list_backups()
+        backups = await test_backup_service.list_backups()
         emergency_backup = next(
             (b for b in backups if "emergency_shutdown_backup_" in b["name"]),
             None,
@@ -173,7 +175,7 @@ class TestEndToEndWorkflow:
         expected_workflow = ["startup", "operational", "shutdown", "shutdown_handler_executed"]
         assert workflow_log == expected_workflow
 
-    def test_error_recovery_workflow(self, test_backup_service, populated_test_database):
+    async def test_error_recovery_workflow(self, test_backup_service, populated_test_database):
         """Test error recovery and resilience"""
         test_backup_service.database_path = populated_test_database
         health_service = HealthService()
@@ -184,7 +186,7 @@ class TestEndToEndWorkflow:
         # 1. Backup service errors
         try:
             test_backup_service.database_path = "/nonexistent/database.db"
-            test_backup_service.create_backup("error_test.db")
+            await test_backup_service.create_backup("error_test.db")
         except Exception:
             error_log.append("backup_error_handled")
 
@@ -206,12 +208,12 @@ class TestEndToEndWorkflow:
         assert metrics.error_rate_percent == 50.0  # 2 errors out of 4 total
 
         # 4. Verify system can still create backups after errors
-        backup_path = test_backup_service.create_backup("recovery_test.db")
+        backup_path = await test_backup_service.create_backup("recovery_test.db")
         assert os.path.exists(backup_path)
 
         assert "backup_error_handled" in error_log
 
-    def test_concurrent_operations(self, test_backup_service, populated_test_database):
+    async def test_concurrent_operations(self, test_backup_service, populated_test_database):
         """Test concurrent operations across services"""
         test_backup_service.database_path = populated_test_database
         health_service = HealthService()
@@ -221,34 +223,30 @@ class TestEndToEndWorkflow:
 
         try:
             # Simulate concurrent operations
-            import threading
+            import asyncio
 
             results = {"backups": [], "metrics": []}
 
-            def create_backups():
+            async def create_backups():
                 for i in range(3):
                     try:
-                        backup = test_backup_service.create_backup(f"concurrent_{i}.db")
+                        backup = await test_backup_service.create_backup(f"concurrent_{i}.db")
                         results["backups"].append(backup)
-                        time.sleep(0.1)
+                        await asyncio.sleep(0.1)
                     except Exception as e:
                         results["backups"].append(f"error: {e}")
 
-            def record_metrics():
+            async def record_metrics():
                 for i in range(5):
                     health_service.record_command(100 + i * 10, i % 3 == 0)  # Some errors
-                    time.sleep(0.05)
+                    await asyncio.sleep(0.05)
                 results["metrics"].append("completed")
 
-            # Run concurrently
-            backup_thread = threading.Thread(target=create_backups)
-            metrics_thread = threading.Thread(target=record_metrics)
-
-            backup_thread.start()
-            metrics_thread.start()
-
-            backup_thread.join()
-            metrics_thread.join()
+            # Run concurrently using asyncio
+            await asyncio.gather(
+                create_backups(),
+                record_metrics()
+            )
 
             # Verify results
             successful_backups = [b for b in results["backups"] if not str(b).startswith("error")]
@@ -282,7 +280,7 @@ class TestServiceErrorPropagation:
         system_metrics = health_service._get_system_metrics()
         assert system_metrics.cpu_percent >= 0
 
-    def test_health_service_error_during_shutdown(self, test_shutdown_service):
+    async def test_health_service_error_during_shutdown(self, test_shutdown_service):
         """Test health service errors don't break shutdown"""
         def failing_handler():
             raise RuntimeError("Handler failure")
@@ -295,7 +293,7 @@ class TestServiceErrorPropagation:
         test_shutdown_service.register_shutdown_handler(working_handler, "Working handler")
 
         # Shutdown should complete despite handler failure
-        test_shutdown_service.initiate_shutdown()
+        await test_shutdown_service.initiate_shutdown()
         assert test_shutdown_service.is_shutting_down is True
 
     @pytest.mark.asyncio

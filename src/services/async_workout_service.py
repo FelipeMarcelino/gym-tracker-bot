@@ -418,10 +418,21 @@ class AsyncWorkoutService:
                         }
 
                     # Calculate session duration and stats
-                    end_time = datetime.now().time()
+                    now = datetime.now()
+                    end_time = now.time()
                     start_datetime = datetime.combine(workout_session.date, workout_session.start_time)
-                    end_datetime = datetime.combine(workout_session.date, end_time)
+                    
+                    # Handle cross-midnight sessions: if end_time is before start_time, 
+                    # assume we crossed midnight and the session ended the next day
+                    if end_time < workout_session.start_time:
+                        end_datetime = datetime.combine(workout_session.date + timedelta(days=1), end_time)
+                    else:
+                        end_datetime = datetime.combine(workout_session.date, end_time)
+                    
                     duration_minutes = int((end_datetime - start_datetime).total_seconds() // 60)
+                    
+                    # Ensure duration is not negative (safety check)
+                    duration_minutes = max(0, duration_minutes)
 
                     # Calculate exercise stats
                     stats = await self._calculate_session_stats_async(workout_session)

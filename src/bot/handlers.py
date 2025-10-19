@@ -17,10 +17,11 @@ from database.models import SessionStatus
 from services.async_container import (
     get_async_analytics_service,
     get_async_export_service,
+    get_async_llm_service,
     get_async_session_manager,
     get_async_workout_service,
 )
-from services.container import get_audio_service, get_llm_service
+from services.container import get_audio_service
 from services.error_handler import error_handler
 from services.exceptions import (
     AudioProcessingError,
@@ -148,7 +149,7 @@ async def _process_workout_audio_optimized(
             parse_mode="Markdown",
         )
 
-        llm_service = get_llm_service()
+        llm_service = await get_async_llm_service()
 
         # Executar LLM parsing (agora async)
         llm_task = asyncio.create_task(
@@ -231,95 +232,6 @@ async def _process_workout_audio_optimized(
         traceback.print_exc()
 
 
-async def _process_workout_audio(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    status_msg,
-    initial_msg: str,
-    transcription: str,
-    workout_session,
-    is_new: bool,
-    start_time: float,
-    user_id: str,
-) -> None:
-    """Processa workout de áudio após transcrição"""
-    try:
-        llm_service = get_llm_service()
-        parsed_data = await llm_service.parse_workout(transcription)
-
-        logger.info(f"LLM parsing completo: {len(parsed_data.get('resistance_exercises', []))} resistência, {len(parsed_data.get('aerobic_exercises', []))} aeróbico")
-
-        # ===== PASSO 4: SALVAR NO BANCO =====
-        await status_msg.edit_text(
-            f"{initial_msg}\n\n✅ Baixado\n✅ Transcrito\n✅ Analisado\n💾 Salvando...",
-            parse_mode="Markdown",
-        )
-
-        # Use async services for better performance
-        workout_service = await get_async_workout_service()
-        processing_time = time.time() - start_time
-
-        # ADICIONAR à sessão existente (não criar nova!) (async)
-        await workout_service.add_exercises_to_session(
-            session_id=workout_session.session_id,
-            parsed_data=parsed_data,
-            user_id=user_id,
-        )
-
-        # Atualizar metadados da sessão (async)
-        session_manager = await get_async_session_manager()
-        await session_manager.update_session_metadata(
-            session_id=workout_session.session_id,
-            transcription=transcription,
-            processing_time=processing_time,
-            model_used=settings.LLM_MODEL,
-        )
-
-        # ===== PASSO 5: RESPOSTA FINAL =====
-        response = _format_success_response(
-            transcription=transcription,
-            parsed_data=parsed_data,
-            session_id=workout_session.session_id,
-            processing_time=processing_time,
-            is_new_session=is_new,
-            audio_count=workout_session.audio_count + 1,
-        )
-
-        await status_msg.edit_text(response, parse_mode="Markdown")
-
-        logger.info(f"Processamento completo em {processing_time:.2f}s para usuário {user_id}")
-
-    except ValidationError as e:
-        details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
-        error_msg = messages.ERROR_VALIDATION.format(message=e.message, details=details)
-        await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        logger.error(f"Erro de validação: {e}")
-
-    except LLMParsingError as e:
-        error_msg = messages.ERROR_LLM_PARSING.format(message=e.message)
-        await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        logger.error(f"Erro de LLM: {e}")
-
-    except ServiceUnavailableError as e:
-        details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
-        error_msg = messages.ERROR_SERVICE_UNAVAILABLE.format(message=e.message, details=details)
-        await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        logger.error(f"Erro de serviço: {e}")
-
-    except (DatabaseError, SessionError) as e:
-        error_msg = messages.ERROR_DATABASE.format(message=e.message)
-        await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        logger.error(f"Erro de banco/sessão: {e}")
-        import traceback
-        traceback.print_exc()
-
-    except Exception as e:
-        error_msg = messages.ERROR_UNEXPECTED.format(error_message="Ocorreu um erro interno.")
-        await status_msg.edit_text(error_msg, parse_mode="Markdown")
-        logger.error(f"Erro inesperado: {e}")
-        import traceback
-        traceback.print_exc()
-
 
 async def _process_workout_message(
     update: Update,
@@ -365,7 +277,7 @@ async def _process_workout_message(
             parse_mode="Markdown",
         )
 
-        llm_service = get_llm_service()
+        llm_service = await get_async_llm_service()
         parsed_data = await llm_service.parse_workout(workout_text)
 
         logger.info(f"LLM parsing completo: {len(parsed_data.get('resistance_exercises', []))} resistência, {len(parsed_data.get('aerobic_exercises', []))} aeróbico")
@@ -684,11 +596,20 @@ async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         return
 
     if last_session.status == SessionStatus.FINALIZADA:
+        # Handle None duration_minutes case
+        duration_str = f"{last_session.duration_minutes}" if last_session.duration_minutes is not None else "N/A"
+        
+        # Handle potential date issues
+        try:
+            date_str = last_session.date.strftime("%d/%m/%Y")
+        except (AttributeError, ValueError):
+            date_str = "Data inválida"
+        
         await update.message.reply_text(
             messages.ERROR_SESSION_ALREADY_FINISHED.format(
                 session_id=last_session.session_id,
-                date=last_session.date.strftime("%d/%m/%Y"),
-                duration=last_session.duration_minutes,
+                date=date_str,
+                duration=duration_str,
             ),
         )
         return

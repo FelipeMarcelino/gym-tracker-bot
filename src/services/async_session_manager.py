@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
-from sqlalchemy import select, update, func
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from config.logging_config import get_logger
@@ -203,23 +203,42 @@ class AsyncSessionManager:
                 now = datetime.now()
                 timeout_threshold = now - timedelta(hours=settings.SESSION_TIMEOUT_HOURS)
 
-                # Find stale sessions
-                stmt = (
-                    update(WorkoutSession)
+                # First, find stale sessions to calculate their durations
+                find_stmt = (
+                    select(WorkoutSession)
                     .where(
                         (WorkoutSession.status == SessionStatus.ATIVA) &
                         (func.datetime(WorkoutSession.date, WorkoutSession.start_time) < timeout_threshold),
                     )
-                    .values(
-                        status=SessionStatus.FINALIZADA,
-                        end_time=now.time(),
-                    )
                 )
 
-                result = await session.execute(stmt)
+                result = await session.execute(find_stmt)
+                stale_sessions = result.scalars().all()
+
+                if not stale_sessions:
+                    return 0
+
+                # Update each session with calculated duration
+                cleaned_count = 0
+                for stale_session in stale_sessions:
+                    # Calculate duration from start_time to timeout_threshold
+                    start_datetime = datetime.combine(stale_session.date, stale_session.start_time)
+                    # Use timeout_threshold as end time (when session should have ended)
+                    duration_minutes = int((timeout_threshold - start_datetime).total_seconds() // 60)
+                    
+                    # Ensure duration is not negative
+                    duration_minutes = max(0, duration_minutes)
+
+                    # Update the session
+                    stale_session.status = SessionStatus.FINALIZADA
+                    stale_session.end_time = timeout_threshold.time()
+                    stale_session.duration_minutes = duration_minutes
+                    
+                    session.add(stale_session)
+                    cleaned_count += 1
+
                 await session.commit()
 
-                cleaned_count = result.rowcount
                 if cleaned_count > 0:
                     logger.info(f"Cleaned up {cleaned_count} stale sessions")
 

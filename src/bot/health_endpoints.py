@@ -9,7 +9,7 @@ from bot.middleware import admin_only
 from bot.rate_limiter import rate_limit_commands
 from bot.validation_middleware import validate_input, CommonSchemas
 from config.logging_config import get_logger
-from services.health_service import health_service
+from services.async_health_service import health_service
 from services.error_handler import error_handler
 
 logger = get_logger(__name__)

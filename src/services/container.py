@@ -4,7 +4,6 @@ from typing import Dict, Any, Optional, Type, TypeVar, Generic
 import threading
 
 from services.audio_service import AudioTranscriptionService
-from services.llm_service import LLMParsingService
 
 
 T = TypeVar('T')
@@ -30,10 +29,8 @@ class ServiceContainer:
                 # Auto-instantiate if not registered
                 if service_type == AudioTranscriptionService:
                     instance = AudioTranscriptionService()
-                elif service_type == LLMParsingService:
-                    instance = LLMParsingService()
                 else:
-                    raise ValueError(f"Unknown service type: {service_type} - Note: Database services have been migrated to async versions")
+                    raise ValueError(f"Unknown service type: {service_type} - Note: Most services have been migrated to async versions. Check async_container.py")
                 
                 self._services[service_type] = instance
             
@@ -52,7 +49,6 @@ class ServiceContainer:
         with self._lock:
             # Pre-initialize remaining sync services to catch configuration errors early
             self.get_service(AudioTranscriptionService)
-            self.get_service(LLMParsingService) 
             self._initialized = True
 
 
@@ -74,13 +70,14 @@ def get_audio_service() -> AudioTranscriptionService:
     return get_container().get_service(AudioTranscriptionService)
 
 
-def get_llm_service() -> LLMParsingService:
-    """Get LLM parsing service"""
-    return get_container().get_service(LLMParsingService)
-
-
-# Note: Export and Analytics services have been migrated to async versions
-# Use get_async_export_service() and get_async_analytics_service() instead
+# Note: Most services have been migrated to async versions
+# Use functions from async_container.py instead:
+# - get_async_llm_service()
+# - get_async_backup_service()
+# - get_async_health_service()
+# - get_async_shutdown_service()
+# - get_async_export_service()
+# - get_async_analytics_service()
 
 
 def initialize_all_services() -> None:

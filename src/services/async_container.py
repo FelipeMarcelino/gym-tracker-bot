@@ -7,8 +7,12 @@ from typing import Dict, Optional, Type, TypeVar
 from config.logging_config import get_logger
 from database.async_connection import async_db
 from services.async_analytics_service import AsyncAnalyticsService
+from services.async_backup_service import BackupService
 from services.async_export_service import AsyncExportService
+from services.async_health_service import HealthService
+from services.async_llm_service import LLMParsingService
 from services.async_session_manager import AsyncSessionManager
+from services.async_shutdown_service import ShutdownService
 from services.async_user_service import AsyncUserService
 from services.async_workout_service import AsyncWorkoutService
 
@@ -44,6 +48,14 @@ class AsyncServiceContainer:
                     instance = AsyncAnalyticsService()
                 elif service_type == AsyncExportService:
                     instance = AsyncExportService()
+                elif service_type == BackupService:
+                    instance = BackupService()
+                elif service_type == HealthService:
+                    instance = HealthService()
+                elif service_type == LLMParsingService:
+                    instance = LLMParsingService()
+                elif service_type == ShutdownService:
+                    instance = ShutdownService()
                 else:
                     raise ValueError(f"Unknown async service type: {service_type}")
 
@@ -68,6 +80,10 @@ class AsyncServiceContainer:
             AsyncSessionManager: AsyncSessionManager(),
             AsyncAnalyticsService: AsyncAnalyticsService(),
             AsyncExportService: AsyncExportService(),
+            BackupService: BackupService(),
+            HealthService: HealthService(),
+            LLMParsingService: LLMParsingService(),
+            ShutdownService: ShutdownService(),
         }
 
         async with self._lock:
@@ -147,6 +163,30 @@ async def get_async_export_service() -> AsyncExportService:
     """Get async export service"""
     container = await get_async_container()
     return await container.get_service(AsyncExportService)
+
+
+async def get_async_backup_service() -> BackupService:
+    """Get async backup service"""
+    container = await get_async_container()
+    return await container.get_service(BackupService)
+
+
+async def get_async_health_service() -> HealthService:
+    """Get async health service"""
+    container = await get_async_container()
+    return await container.get_service(HealthService)
+
+
+async def get_async_llm_service() -> LLMParsingService:
+    """Get async LLM service"""
+    container = await get_async_container()
+    return await container.get_service(LLMParsingService)
+
+
+async def get_async_shutdown_service() -> ShutdownService:
+    """Get async shutdown service"""
+    container = await get_async_container()
+    return await container.get_service(ShutdownService)
 
 
 async def initialize_async_services() -> None:

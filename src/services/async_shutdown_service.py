@@ -7,8 +7,8 @@ from typing import List, Callable, Any, Optional
 from datetime import datetime
 
 from config.logging_config import get_logger
-from services.backup_service import backup_service
-from services.health_service import health_service
+from services.async_backup_service import backup_service
+from services.async_health_service import health_service
 
 logger = get_logger(__name__)
 
@@ -164,6 +164,7 @@ class ShutdownService:
         except Exception as e:
             logger.exception(f"❌ Error stopping background services: {e}")
     
+    
     def force_shutdown(self, exit_code: int = 1):
         """Force immediate shutdown if graceful shutdown fails"""
         logger.warning(f"🚨 Forcing immediate shutdown with exit code {exit_code}")
@@ -184,7 +185,7 @@ class ShutdownService:
         
         try:
             # Perform graceful shutdown
-            self.initiate_shutdown()
+            asyncio.run(self.initiate_shutdown())
             timer.cancel()  # Cancel timeout if shutdown completes
             
         except Exception as e:

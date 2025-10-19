@@ -9,9 +9,9 @@ from unittest.mock import Mock, patch
 from pathlib import Path
 
 # Import services
-from services.backup_service import BackupService
-from services.health_service import HealthService, HealthStatus, BotMetrics, SystemMetrics
-from services.shutdown_service import ShutdownService
+from services.async_backup_service import BackupService
+from services.async_health_service import HealthService, HealthStatus, BotMetrics, SystemMetrics
+from services.async_shutdown_service import ShutdownService
 from services.exceptions import BackupError, GymTrackerError
 
 
@@ -48,18 +48,20 @@ class TestBackupService:
             service.stop_automated_backups()
             assert not service.is_running
     
-    def test_backup_stats_empty(self):
+    @pytest.mark.asyncio
+    async def test_backup_stats_empty(self):
         """Test backup stats with no backups"""
         with tempfile.TemporaryDirectory() as temp_dir:
             service = BackupService(backup_dir=temp_dir)
             
-            stats = service.get_backup_stats()
+            stats = await service.get_backup_stats()
             assert stats["total_backups"] == 0
             assert stats["total_size_mb"] == 0
             assert stats["newest_backup"] is None
             assert stats["oldest_backup"] is None
     
-    def test_error_handling(self):
+    @pytest.mark.asyncio
+    async def test_error_handling(self):
         """Test backup service error handling"""
         with tempfile.TemporaryDirectory() as temp_dir:
             service = BackupService(backup_dir=temp_dir)
@@ -67,7 +69,7 @@ class TestBackupService:
             
             # Should raise BackupError for nonexistent database
             with pytest.raises(BackupError):
-                service.create_backup("test_backup.db")
+                await service.create_backup("test_backup.db")
 
 
 class TestHealthService:
@@ -132,6 +134,7 @@ class TestHealthService:
         assert metrics.disk_percent >= 0
         # Note: not testing uptime_seconds as it might not exist
     
+    @pytest.mark.asyncio
     async def test_simple_health_check(self):
         """Test simple health check"""
         service = HealthService()
@@ -200,7 +203,8 @@ class TestShutdownService:
         assert test_handler in service.shutdown_handlers
         assert another_handler in service.shutdown_handlers
     
-    def test_shutdown_initiation(self):
+    @pytest.mark.asyncio
+    async def test_shutdown_initiation(self):
         """Test shutdown process initiation"""
         service = ShutdownService()
         execution_log = []
@@ -216,13 +220,14 @@ class TestShutdownService:
         service.register_shutdown_handler(handler2, "Handler 2")
         
         # Initiate shutdown
-        service.initiate_shutdown()
+        await service.initiate_shutdown()
         
         assert service.is_shutting_down is True
         assert "handler1" in execution_log
         assert "handler2" in execution_log
     
-    def test_shutdown_with_handler_error(self):
+    @pytest.mark.asyncio
+    async def test_shutdown_with_handler_error(self):
         """Test shutdown continues even if handler fails"""
         service = ShutdownService()
         execution_log = []
@@ -239,7 +244,7 @@ class TestShutdownService:
         service.register_shutdown_handler(working_handler, "Working handler")
         
         # Shutdown should complete despite handler failure
-        service.initiate_shutdown()
+        await service.initiate_shutdown()
         
         assert service.is_shutting_down is True
         assert "failing_handler_started" in execution_log
@@ -249,6 +254,7 @@ class TestShutdownService:
 class TestServiceIntegration:
     """Integration tests between services"""
     
+    @pytest.mark.asyncio
     async def test_health_and_backup_integration(self):
         """Test basic integration between health and backup services"""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -256,13 +262,14 @@ class TestServiceIntegration:
             health_service = HealthService()
             
             # Both services should work independently
-            backup_stats = backup_service.get_backup_stats()
+            backup_stats = await backup_service.get_backup_stats()
             health_status = await health_service.get_simple_health()
             
             assert backup_stats["total_backups"] == 0
             assert "status" in health_status
     
-    def test_health_and_shutdown_integration(self):
+    @pytest.mark.asyncio
+    async def test_health_and_shutdown_integration(self):
         """Test basic integration between health and shutdown services"""
         health_service = HealthService()
         shutdown_service = ShutdownService()
@@ -282,13 +289,14 @@ class TestServiceIntegration:
         assert len(shutdown_service.shutdown_handlers) == 1
         
         # Execute shutdown
-        shutdown_service.initiate_shutdown()
+        await shutdown_service.initiate_shutdown()
         
         # Metrics should have been updated by shutdown handler
         assert health_service.command_count == 2
         assert shutdown_service.is_shutting_down is True
     
-    def test_backup_and_shutdown_integration(self):
+    @pytest.mark.asyncio
+    async def test_backup_and_shutdown_integration(self):
         """Test basic integration between backup and shutdown services"""
         with tempfile.TemporaryDirectory() as temp_dir:
             backup_service = BackupService(backup_dir=temp_dir)
@@ -308,7 +316,7 @@ class TestServiceIntegration:
             assert len(shutdown_service.shutdown_handlers) == 1
             
             # Execute shutdown
-            shutdown_service.initiate_shutdown()
+            await shutdown_service.initiate_shutdown()
             
             # Backup service should be stopped
             assert backup_service.is_running is False
@@ -332,7 +340,8 @@ class TestServiceErrorHandling:
         assert metrics.total_audio_processed == 1
         assert metrics.error_rate_percent == 50.0
     
-    def test_shutdown_service_resilience(self):
+    @pytest.mark.asyncio
+    async def test_shutdown_service_resilience(self):
         """Test shutdown service handles handler errors gracefully"""
         service = ShutdownService()
         execution_log = []
@@ -353,7 +362,7 @@ class TestServiceErrorHandling:
         service.register_shutdown_handler(cleanup_handler, "Cleanup operations")
         
         # All handlers should execute despite failure
-        service.initiate_shutdown()
+        await service.initiate_shutdown()
         
         assert service.is_shutting_down is True
         assert "critical_executed" in execution_log
@@ -411,6 +420,7 @@ class TestServiceConfiguration:
 class TestCompleteWorkflow:
     """Test complete service lifecycle"""
     
+    @pytest.mark.asyncio
     async def test_startup_operational_shutdown_workflow(self):
         """Test complete workflow: startup -> operational -> shutdown"""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -452,7 +462,7 @@ class TestCompleteWorkflow:
                 backup_service.stop_automated_backups()
             
             shutdown_service.register_shutdown_handler(track_shutdown, "Track shutdown")
-            shutdown_service.initiate_shutdown()
+            await shutdown_service.initiate_shutdown()
             
             # Verify shutdown completed
             assert shutdown_service.is_shutting_down is True
