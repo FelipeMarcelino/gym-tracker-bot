@@ -19,6 +19,7 @@ from services.async_container import (
     get_async_export_service,
     get_async_llm_service,
     get_async_session_manager,
+    get_async_user_service,
     get_async_workout_service,
 )
 from services.container import get_audio_service
@@ -53,7 +54,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_da
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /help - Ajuda"""
     await log_access(update, context)
-    await update.message.reply_text(messages.HELP)
+
+    # Get user ID
+    user_id = str(update.effective_user.id)
+
+    # Check if user is admin
+    try:
+        user_service = await get_async_user_service()
+        is_admin = await user_service.is_user_admin(user_id)
+
+        # Show appropriate help message based on role
+        if is_admin:
+            await update.message.reply_text(messages.HELP_ADMIN)
+        else:
+            await update.message.reply_text(messages.HELP_USER)
+    except Exception as e:
+        # Fallback to user help message if there's an error checking admin status
+        logger.error(f"Error checking admin status in help command: {e}")
+        await update.message.reply_text(messages.HELP_USER)
 
 
 @rate_limit_commands
