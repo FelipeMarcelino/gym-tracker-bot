@@ -1,7 +1,6 @@
 """Integration tests for service interactions"""
 
 import os
-import time
 from unittest.mock import patch
 
 import pytest
@@ -57,7 +56,7 @@ class TestServiceIntegration:
             initial_backups = len(backups_list)
 
             # Mock the backup service in shutdown service
-            with patch("services.shutdown_service.backup_service", test_backup_service):
+            with patch("services.async_shutdown_service.backup_service", test_backup_service):
                 await shutdown_service._create_emergency_backup()
 
             # Should have created an emergency backup
@@ -141,7 +140,7 @@ class TestEndToEndWorkflow:
         assert health_status.status in ["healthy", "degraded"]
 
         # Check metrics
-        bot_metrics = health_service._get_bot_metrics()
+        bot_metrics = await health_service._get_bot_metrics_async()
         assert bot_metrics.total_commands_processed == 2
         assert bot_metrics.total_audio_processed == 1
         assert bot_metrics.error_rate_percent > 0  # Had one error
@@ -155,7 +154,7 @@ class TestEndToEndWorkflow:
         shutdown_service.register_shutdown_handler(track_shutdown, "Track shutdown")
 
         # Mock the backup service in shutdown
-        with patch("services.shutdown_service.backup_service", test_backup_service):
+        with patch("services.async_shutdown_service.backup_service", test_backup_service):
             await shutdown_service.initiate_shutdown()
 
         # Verify shutdown completed
@@ -197,14 +196,14 @@ class TestEndToEndWorkflow:
         health_service.record_command(100, True)  # Error command
         health_service.record_audio_processing(500, True)  # Error audio
 
-        metrics = health_service._get_bot_metrics()
+        metrics = await health_service._get_bot_metrics_async()
         assert metrics.error_rate_percent == 100.0  # All operations failed
 
         # 3. Recovery - successful operations
         health_service.record_command(200, False)  # Success
         health_service.record_audio_processing(1000, False)  # Success
 
-        metrics = health_service._get_bot_metrics()
+        metrics = await health_service._get_bot_metrics_async()
         assert metrics.error_rate_percent == 50.0  # 2 errors out of 4 total
 
         # 4. Verify system can still create backups after errors
@@ -245,7 +244,7 @@ class TestEndToEndWorkflow:
             # Run concurrently using asyncio
             await asyncio.gather(
                 create_backups(),
-                record_metrics()
+                record_metrics(),
             )
 
             # Verify results
@@ -254,7 +253,7 @@ class TestEndToEndWorkflow:
             assert "completed" in results["metrics"]
 
             # Verify metrics were recorded
-            bot_metrics = health_service._get_bot_metrics()
+            bot_metrics = await health_service._get_bot_metrics_async()
             assert bot_metrics.total_commands_processed == 5
 
         finally:

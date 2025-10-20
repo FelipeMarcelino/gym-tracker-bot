@@ -82,7 +82,7 @@ class TestHealthService:
         assert service.command_count == 0
         assert service.audio_count == 0
         assert service.error_count == 0
-        assert service.response_times == []
+        assert len(service.response_times) == 0
         assert service.start_time is not None
     
     def test_metrics_recording(self):
@@ -103,7 +103,7 @@ class TestHealthService:
         assert 100.5 in service.response_times
         assert 1500.0 in service.response_times
     
-    def test_bot_metrics(self):
+    async def test_bot_metrics(self):
         """Test bot metrics calculation"""
         service = HealthService()
         
@@ -113,7 +113,7 @@ class TestHealthService:
         service.record_command(200, True)   # Error
         service.record_audio_processing(1000, False)  # Success
         
-        metrics = service._get_bot_metrics()
+        metrics = await service._get_bot_metrics_async()
         
         assert isinstance(metrics, BotMetrics)
         assert metrics.total_commands_processed == 3
@@ -326,7 +326,7 @@ class TestServiceIntegration:
 class TestServiceErrorHandling:
     """Test error handling across services"""
     
-    def test_health_service_resilience(self):
+    async def test_health_service_resilience(self):
         """Test health service handles errors gracefully"""
         service = HealthService()
         
@@ -335,7 +335,7 @@ class TestServiceErrorHandling:
         service.record_audio_processing(0, True)  # Zero time with error
         
         # Service should still function
-        metrics = service._get_bot_metrics()
+        metrics = await service._get_bot_metrics_async()
         assert metrics.total_commands_processed == 1
         assert metrics.total_audio_processed == 1
         assert metrics.error_rate_percent == 50.0
@@ -397,7 +397,7 @@ class TestServiceConfiguration:
         assert hasattr(service, 'record_command')
         assert hasattr(service, 'record_audio_processing')
         assert hasattr(service, 'get_simple_health')
-        assert hasattr(service, '_get_bot_metrics')
+        assert hasattr(service, '_get_bot_metrics_async')
         assert hasattr(service, '_get_system_metrics')
         assert callable(service.record_command)
         assert callable(service.record_audio_processing)
@@ -449,7 +449,7 @@ class TestCompleteWorkflow:
             assert health_status["status"] in ["healthy", "degraded", "unhealthy"]
             
             # Check metrics
-            bot_metrics = health_service._get_bot_metrics()
+            bot_metrics = await health_service._get_bot_metrics_async()
             assert bot_metrics.total_commands_processed == 2
             assert bot_metrics.total_audio_processed == 1
             assert bot_metrics.error_rate_percent > 0  # Had one error

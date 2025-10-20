@@ -124,7 +124,7 @@ class TestShutdownService:
         assert test_shutdown_service.emergency_backup_on_shutdown is False
         
         # Should not create backup
-        with patch('services.shutdown_service.backup_service') as mock_backup:
+        with patch('services.async_shutdown_service.backup_service') as mock_backup:
             await test_shutdown_service._create_emergency_backup()
             mock_backup.create_backup.assert_not_called()
     
@@ -132,7 +132,7 @@ class TestShutdownService:
         """Test emergency backup when enabled"""
         test_shutdown_service.emergency_backup_on_shutdown = True
         
-        with patch('services.shutdown_service.backup_service') as mock_backup:
+        with patch('services.async_shutdown_service.backup_service') as mock_backup:
             mock_backup.create_backup.return_value = "test_backup.db"
             
             await test_shutdown_service._create_emergency_backup()
@@ -144,7 +144,7 @@ class TestShutdownService:
     
     def test_stop_background_services(self, test_shutdown_service):
         """Test stopping background services"""
-        with patch('services.shutdown_service.backup_service') as mock_backup:
+        with patch('services.async_shutdown_service.backup_service') as mock_backup:
             mock_backup.is_running = True
             
             test_shutdown_service._stop_background_services()
@@ -263,7 +263,7 @@ class TestShutdownServiceEdgeCases:
         """Test emergency backup with error"""
         test_shutdown_service.emergency_backup_on_shutdown = True
         
-        with patch('services.shutdown_service.backup_service') as mock_backup:
+        with patch('services.async_shutdown_service.backup_service') as mock_backup:
             mock_backup.create_backup.side_effect = Exception("Backup error")
             
             # Should not raise exception
@@ -271,7 +271,7 @@ class TestShutdownServiceEdgeCases:
     
     def test_background_services_stop_error(self, test_shutdown_service):
         """Test background services stop with error"""
-        with patch('services.shutdown_service.backup_service') as mock_backup:
+        with patch('services.async_shutdown_service.backup_service') as mock_backup:
             mock_backup.stop_automated_backups.side_effect = Exception("Stop error")
             
             # Should not raise exception
@@ -285,7 +285,7 @@ class TestShutdownServiceEdgeCases:
         test_shutdown_service.register_shutdown_handler(error_handler, "Error handler")
         test_shutdown_service.emergency_backup_on_shutdown = True
         
-        with patch('services.shutdown_service.backup_service') as mock_backup:
+        with patch('services.async_shutdown_service.backup_service') as mock_backup:
             mock_backup.create_backup.side_effect = Exception("Backup error")
             mock_backup.stop_automated_backups.side_effect = Exception("Stop error")
             

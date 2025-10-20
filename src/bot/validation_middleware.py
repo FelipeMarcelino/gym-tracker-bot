@@ -6,12 +6,12 @@ and middleware for all bot operations with automatic error handling.
 
 import re
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
 from typing import Any, Dict, List, Optional, Union, Callable, Type
 from telegram import Update
 from telegram.ext import ContextTypes
+from pydantic import BaseModel, Field, model_validator
 
 from config.logging_config import get_logger
 from config.settings import settings
@@ -29,16 +29,27 @@ class ValidationLevel(Enum):
     LENIENT = "lenient"    # Allow most inputs with basic sanitization
 
 
-@dataclass
-class ValidationRule:
+class ValidationRule(BaseModel):
     """Individual validation rule"""
-    field: str
-    required: bool = True
-    min_length: Optional[int] = None
-    max_length: Optional[int] = None
-    pattern: Optional[str] = None
-    validator: Optional[Callable] = None
-    error_message: Optional[str] = None
+    field: str = Field(..., min_length=1, description="Field name to validate")
+    required: bool = Field(default=True, description="Whether the field is required")
+    min_length: Optional[int] = Field(default=None, ge=0, description="Minimum length for string fields")
+    max_length: Optional[int] = Field(default=None, ge=1, description="Maximum length for string fields")
+    pattern: Optional[str] = Field(default=None, description="Regex pattern for validation")
+    validator: Optional[Callable] = Field(default=None, description="Custom validator function")
+    error_message: Optional[str] = Field(default=None, description="Custom error message")
+
+    @model_validator(mode='after')
+    def validate_lengths(self):
+        """Validate that min_length <= max_length"""
+        if (self.min_length is not None and 
+            self.max_length is not None and 
+            self.min_length > self.max_length):
+            raise ValueError("min_length cannot be greater than max_length")
+        return self
+
+    class Config:
+        arbitrary_types_allowed = True  # Allow Callable type
 
 
 class BaseValidator(ABC):
@@ -330,28 +341,24 @@ class CommandArgsValidator(BaseValidator):
         }
 
 
-@dataclass
-class ValidationSchema:
+class ValidationSchema(BaseModel):
     """Schema for validating inputs"""
-    user_required: bool = True
-    message_required: bool = True
-    text_validator: Optional[TextValidator] = None
-    audio_validator: Optional[AudioValidator] = None
-    command_args_validator: Optional[CommandArgsValidator] = None
-    custom_validators: Optional[Dict[str, BaseValidator]] = None
-    level: ValidationLevel = ValidationLevel.STRICT
-    
-    def __post_init__(self):
-        """Initialize fields dict for dynamic validation"""
-        if not hasattr(self, 'fields'):
-            self.fields = {}
-        if self.custom_validators is None:
-            self.custom_validators = {}
+    user_required: bool = Field(default=True, description="Whether user information is required")
+    message_required: bool = Field(default=True, description="Whether message is required")
+    text_validator: Optional[TextValidator] = Field(default=None, description="Text validation rules")
+    audio_validator: Optional[AudioValidator] = Field(default=None, description="Audio validation rules")
+    command_args_validator: Optional[CommandArgsValidator] = Field(default=None, description="Command arguments validation")
+    custom_validators: Optional[Dict[str, BaseValidator]] = Field(default_factory=dict, description="Custom field validators")
+    level: ValidationLevel = Field(default=ValidationLevel.STRICT, description="Validation strictness level")
+    fields: Dict[str, BaseValidator] = Field(default_factory=dict, description="Dynamic field validators")
     
     def add_field(self, name: str, validator: BaseValidator):
         """Add a field validator to the schema"""
         self.fields[name] = validator
         self.custom_validators[name] = validator
+
+    class Config:
+        arbitrary_types_allowed = True  # Allow BaseValidator types
     
     def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate data against the schema"""
@@ -359,7 +366,7 @@ class ValidationSchema:
         errors = {}
         
         # If we have defined fields, validate them
-        if hasattr(self, 'fields') and self.fields:
+        if self.fields:
             for field_name, validator in self.fields.items():
                 if field_name in data:
                     validation_result = validator.validate(data[field_name])

@@ -1,11 +1,13 @@
 """Health check and monitoring service"""
 
+import threading
 import time
-from dataclasses import asdict, dataclass
+from collections import deque
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import psutil
+from pydantic import BaseModel, Field, ConfigDict
 
 from config.logging_config import get_logger
 from config.settings import settings
@@ -13,51 +15,55 @@ from config.settings import settings
 logger = get_logger(__name__)
 
 
-@dataclass
-class HealthStatus:
-    """Health status data class"""
+class HealthStatus(BaseModel):
+    """Health status data model"""
+    model_config = ConfigDict(
+        json_encoders={datetime: lambda v: v.isoformat()},
+        validate_assignment=True
+    )
 
-    status: str  # "healthy", "degraded", "unhealthy"
-    timestamp: datetime
-    uptime_seconds: int
-    checks: Dict[str, Any]
-    metrics: Dict[str, Any]
+    status: str = Field(..., pattern="^(healthy|degraded|unhealthy)$", description="Overall health status")
+    timestamp: datetime = Field(..., description="Timestamp of health check")
+    uptime_seconds: int = Field(..., ge=0, description="System uptime in seconds")
+    checks: Dict[str, Any] = Field(default_factory=dict, description="Individual health check results")
+    metrics: Dict[str, Any] = Field(default_factory=dict, description="System and application metrics")
 
 
-@dataclass
-class SystemMetrics:
+class SystemMetrics(BaseModel):
     """System performance metrics"""
+    model_config = ConfigDict(validate_assignment=True)
 
-    cpu_percent: float
-    memory_percent: float
-    memory_used_mb: float
-    memory_total_mb: float
-    disk_percent: float
-    disk_used_gb: float
-    disk_total_gb: float
+    cpu_percent: float = Field(..., ge=0, le=100, description="CPU usage percentage")
+    memory_percent: float = Field(..., ge=0, le=100, description="Memory usage percentage")
+    memory_used_mb: float = Field(..., ge=0, description="Memory used in MB")
+    memory_total_mb: float = Field(..., ge=0, description="Total memory in MB")
+    disk_percent: float = Field(..., ge=0, le=100, description="Disk usage percentage")
+    disk_used_gb: float = Field(..., ge=0, description="Disk used in GB")
+    disk_total_gb: float = Field(..., ge=0, description="Total disk space in GB")
 
 
-@dataclass
-class DatabaseMetrics:
+class DatabaseMetrics(BaseModel):
     """Database performance metrics"""
+    model_config = ConfigDict(validate_assignment=True)
 
-    connection_status: str
-    response_time_ms: float
-    active_connections: int
-    total_users: int
-    total_sessions: int
-    sessions_today: int
+    connection_status: str = Field(..., pattern="^(connected|disconnected|error)$", description="Database connection status")
+    response_time_ms: float = Field(..., ge=0, description="Database response time in milliseconds")
+    active_connections: int = Field(..., ge=0, description="Number of active database connections")
+    total_users: int = Field(..., ge=0, description="Total number of users in database")
+    total_sessions: int = Field(..., ge=0, description="Total number of workout sessions")
+    sessions_today: int = Field(..., ge=0, description="Number of sessions created today")
 
 
-@dataclass
-class BotMetrics:
+class BotMetrics(BaseModel):
     """Bot-specific metrics"""
+    model_config = ConfigDict(validate_assignment=True)
 
-    total_commands_processed: int
-    total_audio_processed: int
-    average_response_time_ms: float
-    error_rate_percent: float
-    active_sessions: int
+    total_commands_processed: int = Field(..., ge=0, description="Total commands processed by bot")
+    total_audio_processed: int = Field(..., ge=0, description="Total audio files processed")
+    average_response_time_ms: float = Field(..., ge=0, description="Average response time in milliseconds")
+    percentile_response_time_ms: float = Field(..., ge=0, description="95th percentile response time in milliseconds")
+    error_rate_percent: float = Field(..., ge=0, le=100, description="Error rate percentage")
+    active_sessions: int = Field(..., ge=0, description="Number of active workout sessions")
 
 
 class HealthService:
@@ -70,30 +76,72 @@ class HealthService:
         self.error_count = 0
         self.response_times = []
         self.max_response_times = 1000  # Keep last 1000 response times
+        self.response_times = deque(maxlen=self.max_response_times)
+        self._metrics_lock = threading.RLock()
+        self._response_time_sum = 0.0
+        self._response_time_count = 0
 
     def record_command(self, response_time_ms: float, is_error: bool = False):
-        """Record a command execution"""
-        self.command_count += 1
-        self.response_times.append(response_time_ms)
+        with self._metrics_lock:
+            self.command_count += 1
 
-        # Keep only recent response times
-        if len(self.response_times) > self.max_response_times:
-            self.response_times = self.response_times[-self.max_response_times:]
+            # Sanitize response time to ensure it's non-negative
+            sanitized_time = max(0.0, response_time_ms)
 
-        if is_error:
-            self.error_count += 1
+            old_value = None
+            if len(self.response_times) == self.max_response_times:
+                old_value = self.response_times[0]
+
+            self.response_times.append(sanitized_time)
+
+            self._response_time_sum += sanitized_time
+            if old_value is not None:
+                self._response_time_sum -= old_value
+            self._response_time_count = len(self.response_times)
+
+            if is_error:
+                self.error_count += 1
+
+    def get_average_response_time(self) -> float:
+        """Get average with O(1) complexity"""
+        with self._metrics_lock:
+            if self._response_time_count == 0:
+                return 0.0
+            # O(1) em vez de O(n) como era antes
+            return self._response_time_sum / self._response_time_count
+
+    def get_percentile_response_time(self, percentile: float = 0.95) -> float:
+        """Get percentile with optimized sorting"""
+        with self._metrics_lock:
+            if not self.response_times:
+                return 0.0
+
+            # Cópia shallow apenas quando necessário
+            sorted_times = sorted(self.response_times)
+            index = int(len(sorted_times) * percentile)
+            return sorted_times[min(index, len(sorted_times) - 1)]
 
     def record_audio_processing(self, response_time_ms: float, is_error: bool = False):
         """Record audio processing"""
-        self.audio_count += 1
-        self.response_times.append(response_time_ms)
+        with self._metrics_lock:
+            self.audio_count += 1
 
-        # Keep only recent response times
-        if len(self.response_times) > self.max_response_times:
-            self.response_times = self.response_times[-self.max_response_times:]
+            # Sanitize response time to ensure it's non-negative
+            sanitized_time = max(0.0, response_time_ms)
 
-        if is_error:
-            self.error_count += 1
+            old_value = None
+            if len(self.response_times) == self.max_response_times:
+                old_value = self.response_times[0]
+
+            self.response_times.append(sanitized_time)
+
+            self._response_time_sum += sanitized_time
+            if old_value is not None:
+                self._response_time_sum -= old_value
+            self._response_time_count = len(self.response_times)
+
+            if is_error:
+                self.error_count += 1
 
     async def get_health_status(self) -> HealthStatus:
         """Get comprehensive health status"""
@@ -334,13 +382,13 @@ class HealthService:
             metrics = {}
 
             # System metrics
-            metrics["system"] = asdict(self._get_system_metrics())
+            metrics["system"] = self._get_system_metrics().model_dump()
 
             # Database metrics
-            metrics["database"] = asdict(await self._get_database_metrics())
+            metrics["database"] = (await self._get_database_metrics()).model_dump()
 
             # Bot metrics (async version to get active sessions)
-            metrics["bot"] = asdict(await self._get_bot_metrics_async())
+            metrics["bot"] = (await self._get_bot_metrics_async()).model_dump()
 
             return metrics
 
@@ -424,40 +472,11 @@ class HealthService:
                 sessions_today=0,
             )
 
-    def _get_bot_metrics(self) -> BotMetrics:
-        """Get bot-specific metrics"""
-        # Calculate average response time
-        avg_response_time = (
-            sum(self.response_times) / len(self.response_times)
-            if self.response_times else 0
-        )
-
-        # Calculate error rate
-        total_operations = self.command_count + self.audio_count
-        error_rate = (
-            (self.error_count / total_operations * 100)
-            if total_operations > 0 else 0
-        )
-
-        # Get active sessions count (sync version - will be 0 for now)
-        # This will be properly calculated in the async version
-        active_sessions_count = 0
-
-        return BotMetrics(
-            total_commands_processed=self.command_count,
-            total_audio_processed=self.audio_count,
-            average_response_time_ms=round(avg_response_time, 2),
-            error_rate_percent=round(error_rate, 2),
-            active_sessions=active_sessions_count,
-        )
 
     async def _get_bot_metrics_async(self) -> BotMetrics:
         """Get bot-specific metrics with async database queries"""
         # Calculate average response time
-        avg_response_time = (
-            sum(self.response_times) / len(self.response_times)
-            if self.response_times else 0
-        )
+        avg_response_time = self.get_average_response_time()
 
         # Calculate error rate
         total_operations = self.command_count + self.audio_count
@@ -473,6 +492,7 @@ class HealthService:
             total_commands_processed=self.command_count,
             total_audio_processed=self.audio_count,
             average_response_time_ms=round(avg_response_time, 2),
+            percentile_response_time_ms=self.get_percentile_response_time(),
             error_rate_percent=round(error_rate, 2),
             active_sessions=active_sessions_count,
         )
@@ -481,19 +501,20 @@ class HealthService:
         """Get count of active workout sessions"""
         try:
             from sqlalchemy import func, select
+
             from database.async_connection import get_async_session_context
-            from database.models import WorkoutSession, SessionStatus
+            from database.models import SessionStatus, WorkoutSession
 
             async with get_async_session_context() as session:
                 # Count sessions with status 'ativa' (active)
                 active_sessions_stmt = select(func.count(WorkoutSession.session_id)).where(
-                    WorkoutSession.status == SessionStatus.ATIVA
+                    WorkoutSession.status == SessionStatus.ATIVA,
                 )
                 result = await session.execute(active_sessions_stmt)
                 count = result.scalar()
                 return count or 0
 
-        except Exception as e:
+        except Exception:
             logger.exception("Error getting active sessions count")
             return 0
 

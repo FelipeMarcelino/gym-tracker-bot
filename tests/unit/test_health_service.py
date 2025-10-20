@@ -16,7 +16,7 @@ class TestHealthService:
         assert test_health_service.command_count == 0
         assert test_health_service.audio_count == 0
         assert test_health_service.error_count == 0
-        assert test_health_service.response_times == []
+        assert len(test_health_service.response_times) == 0
         assert test_health_service.max_response_times == 1000
     
     def test_record_command_metrics(self, test_health_service):
@@ -25,13 +25,13 @@ class TestHealthService:
         test_health_service.record_command(150.5, False)
         assert test_health_service.command_count == 1
         assert test_health_service.error_count == 0
-        assert test_health_service.response_times == [150.5]
+        assert list(test_health_service.response_times) == [150.5]
         
         # Record command with error
         test_health_service.record_command(250.0, True)
         assert test_health_service.command_count == 2
         assert test_health_service.error_count == 1
-        assert test_health_service.response_times == [150.5, 250.0]
+        assert list(test_health_service.response_times) == [150.5, 250.0]
     
     def test_record_audio_metrics(self, test_health_service):
         """Test recording audio processing metrics"""
@@ -39,13 +39,13 @@ class TestHealthService:
         test_health_service.record_audio_processing(1500.0, False)
         assert test_health_service.audio_count == 1
         assert test_health_service.error_count == 0
-        assert test_health_service.response_times == [1500.0]
+        assert list(test_health_service.response_times) == [1500.0]
         
         # Record audio processing with error
         test_health_service.record_audio_processing(2000.0, True)
         assert test_health_service.audio_count == 2
         assert test_health_service.error_count == 1
-        assert test_health_service.response_times == [1500.0, 2000.0]
+        assert list(test_health_service.response_times) == [1500.0, 2000.0]
     
     def test_response_time_limit(self, test_health_service):
         """Test response time list size limit"""
@@ -169,7 +169,7 @@ class TestHealthService:
             assert metrics.disk_used_gb == 100.0
             assert metrics.disk_total_gb == 500.0
     
-    def test_get_bot_metrics(self, test_health_service):
+    async def test_get_bot_metrics(self, test_health_service):
         """Test bot metrics calculation"""
         # Record some operations
         test_health_service.record_command(100, False)
@@ -178,7 +178,7 @@ class TestHealthService:
         test_health_service.record_audio_processing(1000, False)
         test_health_service.record_audio_processing(1500, True)  # Error
         
-        metrics = test_health_service._get_bot_metrics()
+        metrics = await test_health_service._get_bot_metrics_async()
         
         assert isinstance(metrics, BotMetrics)
         assert metrics.total_commands_processed == 3
@@ -187,9 +187,9 @@ class TestHealthService:
         assert metrics.error_rate_percent == 40.0  # 2 errors out of 5 total
         assert metrics.active_sessions == 0  # Not implemented yet
     
-    def test_get_bot_metrics_no_data(self, test_health_service):
+    async def test_get_bot_metrics_no_data(self, test_health_service):
         """Test bot metrics with no recorded data"""
-        metrics = test_health_service._get_bot_metrics()
+        metrics = await test_health_service._get_bot_metrics_async()
         
         assert metrics.total_commands_processed == 0
         assert metrics.total_audio_processed == 0
@@ -284,7 +284,7 @@ class TestHealthServiceSystemChecks:
     
     def test_check_configuration_healthy(self, test_health_service):
         """Test configuration check - healthy scenario"""
-        with patch('services.health_service.settings') as mock_settings:
+        with patch('services.async_health_service.settings') as mock_settings:
             mock_settings.TELEGRAM_BOT_TOKEN = "valid_token"
             mock_settings.DATABASE_URL = "sqlite:///test.db"
             mock_settings.GROQ_API_KEY = "valid_key"
@@ -297,7 +297,7 @@ class TestHealthServiceSystemChecks:
     
     def test_check_configuration_issues(self, test_health_service):
         """Test configuration check - with issues"""
-        with patch('services.health_service.settings') as mock_settings:
+        with patch('services.async_health_service.settings') as mock_settings:
             mock_settings.TELEGRAM_BOT_TOKEN = None
             mock_settings.DATABASE_URL = None
             mock_settings.GROQ_API_KEY = None

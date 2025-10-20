@@ -56,7 +56,7 @@ def test_health_service_creation():
     assert service.command_count == 0
     assert service.audio_count == 0
     assert service.error_count == 0
-    assert service.response_times == []
+    assert len(service.response_times) == 0
 
 
 def test_shutdown_service_creation():

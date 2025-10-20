@@ -1,5 +1,6 @@
 """Async session manager for workout sessions"""
 
+import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
@@ -17,6 +18,17 @@ logger = get_logger(__name__)
 
 class AsyncSessionManager:
     """Async manager for workout sessions with optimized database operations"""
+
+    def __init__(self):
+        self._users_locks = {}
+        self._lock_creation_lock = asyncio.Lock()
+
+    def _get_user_lock(self, user_id: str) -> asyncio.Lock:
+        if user_id not in self._user_locks:
+            with self._lock_creation_lock:
+                if user_id not in self._user_locks:
+                    self._user_locks[user_id] = asyncio.Lock()
+        return self._user_locks[user_id]
 
     async def get_or_create_session(self, user_id: int) -> Tuple[WorkoutSession, bool]:
         """Get existing active session or create a new one (async)
@@ -44,41 +56,44 @@ class AsyncSessionManager:
         # Clean up stale sessions before checking for active ones
         await self.cleanup_stale_sessions()
 
-        async with get_async_session_context() as session:
-            # Look for active session
-            now = datetime.now()
-            timeout_threshold = now - timedelta(hours=settings.SESSION_TIMEOUT_HOURS)
+        user_lock = self._get_user_lock(user_id)
 
-            # Find the most recent session for this user
-            stmt = (
-                select(WorkoutSession)
-                .where(WorkoutSession.user_id == user_id)
-                .order_by(WorkoutSession.date.desc(), WorkoutSession.start_time.desc())
-                .limit(1)
-            )
-            result = await session.execute(stmt)
-            last_session = result.scalar_one_or_none()
+        async with user_lock:
+            async with get_async_session_context() as session:
+                # Look for active session
+                now = datetime.now()
+                timeout_threshold = now - timedelta(hours=settings.SESSION_TIMEOUT_HOURS)
 
-            # Check if we can reuse the last session
-            if last_session and self._is_session_active(last_session, timeout_threshold):
-                logger.info(f"Reusing active session {last_session.session_id} for user {user_id}")
-                return last_session, False
+                # Find the most recent session for this user
+                stmt = (
+                    select(WorkoutSession)
+                    .where(WorkoutSession.user_id == user_id)
+                    .order_by(WorkoutSession.date.desc(), WorkoutSession.start_time.desc())
+                    .limit(1)
+                )
+                result = await session.execute(stmt)
+                last_session = result.scalar_one_or_none()
 
-            # Create new session
-            new_session = WorkoutSession(
-                user_id=user_id,
-                date=now.date(),
-                start_time=now.time(),
-                status=SessionStatus.ATIVA,
-                audio_count=0,
-            )
+                # Check if we can reuse the last session
+                if last_session and self._is_session_active(last_session, timeout_threshold):
+                    logger.info(f"Reusing active session {last_session.session_id} for user {user_id}")
+                    return last_session, False
 
-            session.add(new_session)
-            await session.commit()
-            await session.refresh(new_session)
+                # Create new session
+                new_session = WorkoutSession(
+                    user_id=user_id,
+                    date=now.date(),
+                    start_time=now.time(),
+                    status=SessionStatus.ATIVA,
+                    audio_count=0,
+                )
 
-            logger.info(f"Created new session {new_session.session_id} for user {user_id}")
-            return new_session, True
+                session.add(new_session)
+                await session.commit()
+                await session.refresh(new_session)
+
+                logger.info(f"Created new session {new_session.session_id} for user {user_id}")
+                return new_session, True
 
     def _is_session_active(self, session: WorkoutSession, timeout_threshold: datetime) -> bool:
         """Check if a session is still active based on timeout"""
@@ -225,7 +240,7 @@ class AsyncSessionManager:
                     start_datetime = datetime.combine(stale_session.date, stale_session.start_time)
                     # Use timeout_threshold as end time (when session should have ended)
                     duration_minutes = int((timeout_threshold - start_datetime).total_seconds() // 60)
-                    
+
                     # Ensure duration is not negative
                     duration_minutes = max(0, duration_minutes)
 
@@ -233,7 +248,7 @@ class AsyncSessionManager:
                     stale_session.status = SessionStatus.FINALIZADA
                     stale_session.end_time = timeout_threshold.time()
                     stale_session.duration_minutes = duration_minutes
-                    
+
                     session.add(stale_session)
                     cleaned_count += 1
 

@@ -28,8 +28,9 @@ def get_admin_user_id() -> str:
         return admin_id.strip()
     
     # Se não tem na env var, tentar pegar da lista de usuários autorizados (primeiro da lista)
-    if settings.AUTHORIZED_USER_IDS:
-        admin_id = str(settings.AUTHORIZED_USER_IDS[0])
+    user_ids = settings.authorized_user_ids_list
+    if user_ids:
+        admin_id = str(user_ids[0])
         print(f"🔧 Usando primeiro usuário da AUTHORIZED_USER_IDS: {admin_id}")
         return admin_id
     
