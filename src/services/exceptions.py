@@ -8,6 +8,8 @@ from enum import Enum
 from typing import Any, Dict, Optional
 import traceback
 
+from models.service_models import ErrorContext
+
 
 class ErrorCode(Enum):
     """Standardized error codes for different types of failures"""
@@ -89,32 +91,32 @@ class ErrorCode(Enum):
 
 class GymTrackerError(Exception):
     """Base exception for gym tracker application
-    
+
     Provides structured error information including error codes,
     user-friendly messages, and detailed technical information.
     """
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         details: Optional[str] = None,
         error_code: Optional[ErrorCode] = None,
         user_message: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[ErrorContext] = None,
         cause: Optional[Exception] = None
     ):
         self.message = message
         self.details = details
         self.error_code = error_code or ErrorCode.UNKNOWN_ERROR
         self.user_message = user_message or message
-        self.context = context or {}
+        self.context = context or ErrorContext()
         self.cause = cause
-        
+
         # Capture stack trace for debugging
         self.stack_trace = traceback.format_exc() if cause else None
-        
+
         super().__init__(self.message)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert exception to dictionary for logging/serialization"""
         return {
@@ -123,11 +125,11 @@ class GymTrackerError(Exception):
             "message": self.message,
             "user_message": self.user_message,
             "details": self.details,
-            "context": self.context,
+            "context": self.context.to_dict(),
             "cause": str(self.cause) if self.cause else None,
             "stack_trace": self.stack_trace
         }
-    
+
     def __str__(self) -> str:
         """String representation for logging"""
         base_msg = f"[{self.error_code.value}] {self.message}"
@@ -147,20 +149,24 @@ class GymTrackerError(Exception):
 
 class ValidationError(GymTrackerError):
     """Raised when input validation fails"""
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         field: Optional[str] = None,
         value: Optional[Any] = None,
         **kwargs
     ):
-        context = kwargs.get('context', {})
-        if field:
-            context['field'] = field
-        if value is not None:
-            context['value'] = str(value)
-        
+        # Build ErrorContext from parameters
+        context = kwargs.get('context')
+        if not isinstance(context, ErrorContext):
+            context_dict = context if isinstance(context, dict) else {}
+            if field:
+                context_dict['field'] = field
+            if value is not None:
+                context_dict['value'] = str(value)
+            context = ErrorContext(**context_dict)
+
         super().__init__(
             message=message,
             error_code=kwargs.get('error_code', ErrorCode.INVALID_INPUT),
@@ -172,12 +178,15 @@ class ValidationError(GymTrackerError):
 
 class DatabaseError(GymTrackerError):
     """Raised when database operations fail"""
-    
+
     def __init__(self, message: str, operation: Optional[str] = None, **kwargs):
-        context = kwargs.get('context', {})
-        if operation:
-            context['operation'] = operation
-        
+        context = kwargs.get('context')
+        if not isinstance(context, ErrorContext):
+            context_dict = context if isinstance(context, dict) else {}
+            if operation:
+                context_dict['operation'] = operation
+            context = ErrorContext(**context_dict)
+
         super().__init__(
             message=message,
             error_code=kwargs.get('error_code', ErrorCode.DATABASE_QUERY_FAILED),
@@ -189,12 +198,15 @@ class DatabaseError(GymTrackerError):
 
 class SessionError(GymTrackerError):
     """Raised when session management fails"""
-    
+
     def __init__(self, message: str, session_id: Optional[str] = None, **kwargs):
-        context = kwargs.get('context', {})
-        if session_id:
-            context['session_id'] = session_id
-        
+        context = kwargs.get('context')
+        if not isinstance(context, ErrorContext):
+            context_dict = context if isinstance(context, dict) else {}
+            if session_id:
+                context_dict['session_id'] = session_id
+            context = ErrorContext(**context_dict)
+
         super().__init__(
             message=message,
             error_code=kwargs.get('error_code', ErrorCode.SESSION_NOT_FOUND),
@@ -206,20 +218,23 @@ class SessionError(GymTrackerError):
 
 class AudioProcessingError(GymTrackerError):
     """Raised when audio processing fails"""
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         stage: Optional[str] = None,
         duration: Optional[float] = None,
         **kwargs
     ):
-        context = kwargs.get('context', {})
-        if stage:
-            context['stage'] = stage
-        if duration:
-            context['duration'] = duration
-        
+        context = kwargs.get('context')
+        if not isinstance(context, ErrorContext):
+            context_dict = context if isinstance(context, dict) else {}
+            if stage:
+                context_dict['stage'] = stage
+            if duration:
+                context_dict['duration'] = duration
+            context = ErrorContext(**context_dict)
+
         super().__init__(
             message=message,
             error_code=kwargs.get('error_code', ErrorCode.AUDIO_TRANSCRIPTION_FAILED),
@@ -231,21 +246,24 @@ class AudioProcessingError(GymTrackerError):
 
 class LLMParsingError(GymTrackerError):
     """Raised when LLM parsing fails"""
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         model: Optional[str] = None,
         response: Optional[str] = None,
         **kwargs
     ):
-        context = kwargs.get('context', {})
-        if model:
-            context['model'] = model
-        if response:
-            # Truncate response for context
-            context['response_preview'] = response[:200] + "..." if len(response) > 200 else response
-        
+        context = kwargs.get('context')
+        if not isinstance(context, ErrorContext):
+            context_dict = context if isinstance(context, dict) else {}
+            if model:
+                context_dict['model'] = model
+            if response:
+                # Truncate response for context
+                context_dict['response_preview'] = response[:200] + "..." if len(response) > 200 else response
+            context = ErrorContext(**context_dict)
+
         super().__init__(
             message=message,
             error_code=kwargs.get('error_code', ErrorCode.LLM_PARSING_FAILED),
@@ -257,20 +275,23 @@ class LLMParsingError(GymTrackerError):
 
 class ServiceUnavailableError(GymTrackerError):
     """Raised when external services are unavailable"""
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         service: Optional[str] = None,
         retry_after: Optional[int] = None,
         **kwargs
     ):
-        context = kwargs.get('context', {})
-        if service:
-            context['service'] = service
-        if retry_after:
-            context['retry_after'] = retry_after
-        
+        context = kwargs.get('context')
+        if not isinstance(context, ErrorContext):
+            context_dict = context if isinstance(context, dict) else {}
+            if service:
+                context_dict['service'] = service
+            if retry_after:
+                context_dict['retry_after'] = retry_after
+            context = ErrorContext(**context_dict)
+
         super().__init__(
             message=message,
             error_code=kwargs.get('error_code', ErrorCode.SERVICE_TIMEOUT),
@@ -282,12 +303,15 @@ class ServiceUnavailableError(GymTrackerError):
 
 class AuthenticationError(GymTrackerError):
     """Raised when authentication/authorization fails"""
-    
+
     def __init__(self, message: str, user_id: Optional[str] = None, **kwargs):
-        context = kwargs.get('context', {})
-        if user_id:
-            context['user_id'] = user_id
-        
+        context = kwargs.get('context')
+        if not isinstance(context, ErrorContext):
+            context_dict = context if isinstance(context, dict) else {}
+            if user_id:
+                context_dict['user_id'] = user_id
+            context = ErrorContext(**context_dict)
+
         super().__init__(
             message=message,
             error_code=kwargs.get('error_code', ErrorCode.UNAUTHORIZED),
@@ -299,20 +323,23 @@ class AuthenticationError(GymTrackerError):
 
 class RateLimitError(GymTrackerError):
     """Raised when rate limits are exceeded"""
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         limit_type: Optional[str] = None,
         reset_time: Optional[int] = None,
         **kwargs
     ):
-        context = kwargs.get('context', {})
-        if limit_type:
-            context['limit_type'] = limit_type
-        if reset_time:
-            context['reset_time'] = reset_time
-        
+        context = kwargs.get('context')
+        if not isinstance(context, ErrorContext):
+            context_dict = context if isinstance(context, dict) else {}
+            if limit_type:
+                context_dict['limit_type'] = limit_type
+            if reset_time:
+                context_dict['reset_time'] = reset_time
+            context = ErrorContext(**context_dict)
+
         super().__init__(
             message=message,
             error_code=kwargs.get('error_code', ErrorCode.RATE_LIMIT_EXCEEDED),
@@ -324,17 +351,20 @@ class RateLimitError(GymTrackerError):
 
 class ExportError(GymTrackerError):
     """Raised when data export/import fails"""
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         format_type: Optional[str] = None,
         **kwargs
     ):
-        context = kwargs.get('context', {})
-        if format_type:
-            context['format'] = format_type
-        
+        context = kwargs.get('context')
+        if not isinstance(context, ErrorContext):
+            context_dict = context if isinstance(context, dict) else {}
+            if format_type:
+                context_dict['format'] = format_type
+            context = ErrorContext(**context_dict)
+
         super().__init__(
             message=message,
             error_code=kwargs.get('error_code', ErrorCode.EXPORT_FAILED),
@@ -346,20 +376,23 @@ class ExportError(GymTrackerError):
 
 class BackupError(GymTrackerError):
     """Raised when backup/restore operations fail"""
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         backup_path: Optional[str] = None,
         operation: Optional[str] = None,
         **kwargs
     ):
-        context = kwargs.get('context', {})
-        if backup_path:
-            context['backup_path'] = backup_path
-        if operation:
-            context['operation'] = operation
-        
+        context = kwargs.get('context')
+        if not isinstance(context, ErrorContext):
+            context_dict = context if isinstance(context, dict) else {}
+            if backup_path:
+                context_dict['backup_path'] = backup_path
+            if operation:
+                context_dict['operation'] = operation
+            context = ErrorContext(**context_dict)
+
         super().__init__(
             message=message,
             error_code=kwargs.get('error_code', ErrorCode.BACKUP_FAILED),

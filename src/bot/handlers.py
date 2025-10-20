@@ -692,7 +692,7 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         # First get summary (async)
         summary = await export_service.get_export_summary(user_id)
 
-        if summary["total_sessions"] == 0:
+        if summary.total_sessions == 0:
             await update.message.reply_text(
                 "📊 **Exportar Dados**\n\n"
                 "❌ Você ainda não tem dados de treino para exportar.\n\n"
@@ -705,10 +705,10 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         summary_text = f"""
 📊 **Resumo dos Seus Dados**
 
-📈 **Total de sessões:** {summary['total_sessions']}
-📅 **Período:** {summary['date_range']['start']} até {summary['date_range']['end']}
-💪 **Exercícios de resistência:** {summary['resistance_exercises']}
-🏃 **Exercícios aeróbicos:** {summary['aerobic_exercises']}
+📈 **Total de sessões:** {summary.total_sessions}
+📅 **Período:** {summary.date_range.start} até {summary.date_range.end}
+💪 **Exercícios de resistência:** {summary.resistance_exercises}
+🏃 **Exercícios aeróbicos:** {summary.aerobic_exercises}
 
 📄 **Formato:** {format_type.upper()}
 
@@ -722,10 +722,10 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         # Export data (async)
         result = await export_service.export_user_data(user_id, format=format_type)
 
-        if not result["success"] or not result["data"]:
+        if not result.success or not result.data:
             await status_msg.edit_text(
                 "❌ **Erro na exportação**\n\n"
-                f"{result.get('message', 'Falha ao exportar dados')}",
+                f"{result.message or 'Falha ao exportar dados'}",
                 parse_mode="Markdown",
             )
             return
@@ -737,10 +737,11 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         # Prepare file content
         if format_type == "json":
             import json
-            file_content = json.dumps(result["data"], indent=2, ensure_ascii=False).encode("utf-8")
+            # result.data is already a JSON string, so we need to parse it first
+            file_content = result.data.encode("utf-8")
             mime_type = "application/json"
         else:  # csv
-            file_content = result["data"].encode("utf-8")
+            file_content = result.data.encode("utf-8")
             mime_type = "text/csv"
 
         # Send file
@@ -1331,20 +1332,20 @@ async def ratelimit_cleanup_command(update: Update, context: ContextTypes.DEFAUL
 
         message = "🧹 **Rate Limit Cleanup**\n\n"
         message += f"**Usuários removidos:**\n"
-        message += f"• General: {cleanup_stats['general']}\n"
-        message += f"• Voice: {cleanup_stats['voice']}\n"
-        message += f"• Commands: {cleanup_stats['commands']}\n"
-        message += f"• **Total: {cleanup_stats['total']}**\n\n"
+        message += f"• General: {cleanup_stats.general}\n"
+        message += f"• Voice: {cleanup_stats.voice}\n"
+        message += f"• Commands: {cleanup_stats.commands}\n"
+        message += f"• **Total: {cleanup_stats.total}**\n\n"
 
         message += f"**Usuários ativos (antes → depois):**\n"
-        message += f"• General: {stats_before['active_users']['general']} → {stats_after['active_users']['general']}\n"
-        message += f"• Voice: {stats_before['active_users']['voice']} → {stats_after['active_users']['voice']}\n"
-        message += f"• Commands: {stats_before['active_users']['commands']} → {stats_after['active_users']['commands']}\n\n"
+        message += f"• General: {stats_before.active_users.general} → {stats_after.active_users.general}\n"
+        message += f"• Voice: {stats_before.active_users.voice} → {stats_after.active_users.voice}\n"
+        message += f"• Commands: {stats_before.active_users.commands} → {stats_after.active_users.commands}\n\n"
 
         message += f"✅ Cleanup concluído!"
 
         await update.message.reply_text(message, parse_mode="Markdown")
-        logger.info(f"Rate limit cleanup executado por admin {update.effective_user.id}: {cleanup_stats['total']} usuários removidos")
+        logger.info(f"Rate limit cleanup executado por admin {update.effective_user.id}: {cleanup_stats.total} usuários removidos")
 
     except Exception as e:
         await update.message.reply_text(
@@ -1368,14 +1369,14 @@ async def ratelimit_stats_command(update: Update, context: ContextTypes.DEFAULT_
         message = "📊 **Rate Limit Statistics**\n\n"
 
         message += "**Limites configurados:**\n"
-        message += f"• General: {stats['limits']['general']['requests']}/{stats['limits']['general']['window']}s\n"
-        message += f"• Voice: {stats['limits']['voice']['requests']}/{stats['limits']['voice']['window']}s\n"
-        message += f"• Commands: {stats['limits']['commands']['requests']}/{stats['limits']['commands']['window']}s\n\n"
+        message += f"• General: {stats.limits['general'].requests}/{stats.limits['general'].window}s\n"
+        message += f"• Voice: {stats.limits['voice'].requests}/{stats.limits['voice'].window}s\n"
+        message += f"• Commands: {stats.limits['commands'].requests}/{stats.limits['commands'].window}s\n\n"
 
         message += "**Usuários ativos:**\n"
-        message += f"• General: {stats['active_users']['general']}\n"
-        message += f"• Voice: {stats['active_users']['voice']}\n"
-        message += f"• Commands: {stats['active_users']['commands']}\n\n"
+        message += f"• General: {stats.active_users.general}\n"
+        message += f"• Voice: {stats.active_users.voice}\n"
+        message += f"• Commands: {stats.active_users.commands}\n\n"
 
         message += "**Cleanup automático:**\n"
         message += f"• Status: {'✅ Ativo' if cleanup_stats['is_running'] else '❌ Inativo'}\n"
