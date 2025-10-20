@@ -16,7 +16,44 @@ class Messages:
 
 Estou pronto para receber seus dados! 💪"""
 
-    HELP = """🤖 **GYM TRACKER BOT - Comandos Disponíveis**
+    # Help message for regular users (no admin commands)
+    HELP_USER = """🤖 **GYM TRACKER BOT - Comandos Disponíveis**
+
+**📝 Registrar Treino:**
+🎤 Envie um áudio ou um texto descrevendo seu treino!
+
+Exemplo: _"Fiz supino reto com barra, 3 séries de 12, 10 e 8 repetições com 40, 50 e 60 kg, 1 minuto de descanso, estava bem pesado"_
+
+**🎯 O que você pode informar:**
+- Nome do exercício (com equipamento)
+- Número de séries e repetições
+- Peso usado (pode ser diferente por série)
+- Tempo de descanso entre séries
+- Dificuldade percebida (fácil, pesado, etc)
+- Seu peso corporal
+- Nível de energia (1-10)
+
+**📊 Comandos:**
+- `/start` - Inicia o bot
+- `/myid` - Ver seu ID do Telegram
+- `/status` - Ver sessão atual
+- `/finish` - Finalizar treino atual
+- `/stats [dias]` - Estatísticas e analytics
+- `/progress <exercício>` - Progresso específico
+- `/exercises` - Listar todos os exercícios
+- `/export [json|csv]` - Exportar seus dados
+- `/help` - Mostra esta ajuda
+
+**⏰ Sistema de Sessões:**
+- Todos os áudios em 3 horas = mesma sessão
+- Após 3h sem áudio = nova sessão automática
+- Use `/finish` para fechar manualmente
+
+**💡 Dica:** Seja específico sobre o exercício!
+_"supino com halteres"_ é melhor que só _"supino"_"""
+
+    # Help message for admins (includes all commands)
+    HELP_ADMIN = """🤖 **GYM TRACKER BOT - Comandos Disponíveis**
 
 **📝 Registrar Treino:**
 🎤 Envie um áudio ou um texto descrevendo seu treino!
@@ -72,6 +109,9 @@ Exemplo: _"Fiz supino reto com barra, 3 séries de 12, 10 e 8 repetições com 4
 
 **💡 Dica:** Seja específico sobre o exercício!
 _"supino com halteres"_ é melhor que só _"supino"_"""
+
+    # Keep HELP for backward compatibility (defaults to admin version)
+    HELP = HELP_ADMIN
 
     # User info messages
     USER_INFO = """🆔 **Suas Informações:**
