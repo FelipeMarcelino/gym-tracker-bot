@@ -42,7 +42,10 @@ from bot.handlers import (
 )
 from bot.health_endpoints import health_command, health_full_command, metrics_command, performance_command
 from config.settings import settings
-from services.async_container import initialize_async_services, shutdown_async_services
+from services.async_container import (
+    initialize_async_services,
+    shutdown_async_services,
+)
 from services.async_backup_service import backup_service
 from services.rate_limit_cleanup_service import rate_limit_cleanup_service
 from services.container import initialize_all_services
@@ -59,12 +62,10 @@ def setup_signal_handlers(app: Application):
 
         try:
             # Stop backup service first
-            from services.async_backup_service import backup_service
             await backup_service.stop_automated_backups_async()
             logger.info("✅ Backup service stopped")
 
             # Stop rate limit cleanup service
-            from services.rate_limit_cleanup_service import rate_limit_cleanup_service
             await rate_limit_cleanup_service.stop_automated_cleanup_async()
             logger.info("✅ Rate limit cleanup service stopped")
 

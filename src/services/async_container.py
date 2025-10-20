@@ -15,6 +15,7 @@ from services.async_session_manager import AsyncSessionManager
 from services.async_shutdown_service import ShutdownService
 from services.async_user_service import AsyncUserService
 from services.async_workout_service import AsyncWorkoutService
+from services.rate_limit_cleanup_service import RateLimitCleanupService
 
 logger = get_logger(__name__)
 T = TypeVar("T")
@@ -56,6 +57,8 @@ class AsyncServiceContainer:
                     instance = LLMParsingService()
                 elif service_type == ShutdownService:
                     instance = ShutdownService()
+                elif service_type == RateLimitCleanupService:
+                    instance = RateLimitCleanupService()
                 else:
                     raise ValueError(f"Unknown async service type: {service_type}")
 
@@ -84,6 +87,7 @@ class AsyncServiceContainer:
             HealthService: HealthService(),
             LLMParsingService: LLMParsingService(),
             ShutdownService: ShutdownService(),
+            RateLimitCleanupService: RateLimitCleanupService(),
         }
 
         async with self._lock:
@@ -187,6 +191,12 @@ async def get_async_shutdown_service() -> ShutdownService:
     """Get async shutdown service"""
     container = await get_async_container()
     return await container.get_service(ShutdownService)
+
+
+async def get_rate_limit_cleanup_service() -> RateLimitCleanupService:
+    """Get rate limit cleanup service"""
+    container = await get_async_container()
+    return await container.get_service(RateLimitCleanupService)
 
 
 async def initialize_async_services() -> None:

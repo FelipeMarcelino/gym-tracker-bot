@@ -28,11 +28,13 @@ class Settings(BaseSettings):
     # Session and timeout settings
     SESSION_TIMEOUT_HOURS: int = Field(default=3, gt=0, le=24, description="Session timeout in hours")
 
-    # Rate limiting settings  
+    # Rate limiting settings
     RATE_LIMIT_GENERAL_REQUESTS: int = Field(default=20, gt=0, le=1000, description="General request rate limit")
-    RATE_LIMIT_VOICE_REQUESTS: int = Field(default=5, gt=0, le=100, description="Voice request rate limit") 
+    RATE_LIMIT_VOICE_REQUESTS: int = Field(default=5, gt=0, le=100, description="Voice request rate limit")
     RATE_LIMIT_COMMAND_REQUESTS: int = Field(default=30, gt=0, le=1000, description="Command request rate limit")
     RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, gt=0, le=3600, description="Rate limit window in seconds")
+    RATE_LIMIT_CLEANUP_FREQUENCY_HOURS: int = Field(default=1, gt=0, le=24, description="Rate limit cleanup frequency in hours")
+    RATE_LIMIT_MAX_INACTIVE_SECONDS: int = Field(default=3600, gt=0, le=86400, description="Remove users inactive for this many seconds")
 
     # File size limits (in MB)
     MAX_AUDIO_FILE_SIZE_MB: int = Field(default=100, gt=0, le=500, description="Max audio file size in MB")

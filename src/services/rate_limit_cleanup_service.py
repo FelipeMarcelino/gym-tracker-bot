@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict
 
 from config.logging_config import get_logger
+from config.settings import settings
 
 logger = get_logger(__name__)
 
@@ -12,15 +13,10 @@ logger = get_logger(__name__)
 class RateLimitCleanupService:
     """Service for automated rate limit cleanup to prevent memory leaks"""
 
-    def __init__(self, cleanup_frequency_hours: int = 1, max_inactive_seconds: int = 3600):
-        """Initialize rate limit cleanup service
-
-        Args:
-            cleanup_frequency_hours: How often to run cleanup (default: 1 hour)
-            max_inactive_seconds: Remove users inactive for this many seconds (default: 1 hour)
-        """
-        self.cleanup_frequency_hours = cleanup_frequency_hours
-        self.max_inactive_seconds = max_inactive_seconds
+    def __init__(self):
+        """Initialize rate limit cleanup service using settings"""
+        self.cleanup_frequency_hours = settings.RATE_LIMIT_CLEANUP_FREQUENCY_HOURS
+        self.max_inactive_seconds = settings.RATE_LIMIT_MAX_INACTIVE_SECONDS
         self.is_running = False
         self.scheduler_task = None
         self._stop_event = None
@@ -189,5 +185,5 @@ class RateLimitCleanupService:
         }
 
 
-# Global cleanup service instance
+# Global cleanup service instance (used for sync startup in main.py)
 rate_limit_cleanup_service = RateLimitCleanupService()
