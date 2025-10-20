@@ -47,6 +47,8 @@ Exemplo: _"Fiz supino reto com barra, 3 séries de 12, 10 e 8 repetições com 4
 - `/adduser <id> [admin]` - Adicionar usuário
 - `/removeuser <id>` - Remover usuário
 - `/listusers` - Listar usuários
+- `/ratelimit_cleanup` - Limpar rate limiters inativos
+- `/ratelimit_stats` - Estatísticas de rate limiting
 
 **🔧 Monitoramento e Saúde:**
 - `/health` - Status básico do sistema

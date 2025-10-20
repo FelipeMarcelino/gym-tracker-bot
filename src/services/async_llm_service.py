@@ -140,8 +140,16 @@ class LLMParsingService:
             raise
         except Exception as e:
             error_str = str(e).lower()
-            
-            if "rate_limit" in error_str or "429" in error_str:
+
+            # Check for rate limit errors (HTTP 429 or rate_limit in message)
+            is_rate_limit = (
+                "rate_limit" in error_str or
+                "429" in error_str or
+                "too many requests" in error_str or
+                hasattr(e, 'status_code') and getattr(e, 'status_code') == 429
+            )
+
+            if is_rate_limit:
                 raise ServiceUnavailableError(
                     message="Limite de taxa do Groq API excedido",
                     details="Tente novamente em alguns segundos",
@@ -151,8 +159,16 @@ class LLMParsingService:
                     retry_after=30,
                     cause=e
                 )
-            
-            elif "unauthorized" in error_str or "401" in error_str:
+
+            # Check for authentication errors (HTTP 401)
+            is_auth_error = (
+                "unauthorized" in error_str or
+                "401" in error_str or
+                ("invalid" in error_str and "key" in error_str) or
+                hasattr(e, 'status_code') and getattr(e, 'status_code') == 401
+            )
+
+            if is_auth_error:
                 raise ServiceUnavailableError(
                     message="Chave API Groq inválida",
                     details="Verifique a configuração GROQ_API_KEY",
@@ -161,27 +177,34 @@ class LLMParsingService:
                     user_message="Erro de autenticação com o sistema de IA. Contate o administrador.",
                     cause=e
                 )
-            
-            elif "timeout" in error_str:
+
+            # Check for timeout errors
+            is_timeout = (
+                "timeout" in error_str or
+                "timed out" in error_str or
+                hasattr(e, 'status_code') and getattr(e, 'status_code') == 504
+            )
+
+            if is_timeout:
                 raise ServiceUnavailableError(
                     message="Timeout na conexão com Groq API",
                     details=str(e),
-                    service="Groq API", 
+                    service="Groq API",
                     error_code=ErrorCode.LLM_TIMEOUT,
                     user_message="O sistema de IA demorou muito para responder. Tente novamente.",
                     cause=e
                 )
-            
-            else:
-                logger.exception("Erro inesperado no LLM parsing")
-                raise LLMParsingError(
-                    message="Erro inesperado no parsing",
-                    details=f"Erro interno: {e!s}",
-                    model=self.model,
-                    error_code=ErrorCode.LLM_PARSING_FAILED,
-                    user_message="Erro inesperado no sistema de IA. Tente novamente.",
-                    cause=e
-                )
+
+            # Generic error
+            logger.exception("Erro inesperado no LLM parsing")
+            raise LLMParsingError(
+                message="Erro inesperado no parsing",
+                details=f"Erro interno: {e!s}",
+                model=self.model,
+                error_code=ErrorCode.LLM_PARSING_FAILED,
+                user_message="Erro inesperado no sistema de IA. Tente novamente.",
+                cause=e
+            )
 
     def _build_prompt(self, transcription: str) -> str:
         """Constrói o prompt para o LLM"""

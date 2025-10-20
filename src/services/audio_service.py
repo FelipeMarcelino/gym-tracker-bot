@@ -97,16 +97,35 @@ class AudioTranscriptionService:
                         prompt=self.gym_vocabulary,
                     )
                 except Exception as e:
-                    if "rate_limit" in str(e).lower():
+                    # Check for rate limit errors (HTTP 429 or rate_limit in message)
+                    error_str = str(e).lower()
+                    is_rate_limit = (
+                        "rate_limit" in error_str or
+                        "429" in error_str or
+                        "too many requests" in error_str or
+                        hasattr(e, 'status_code') and getattr(e, 'status_code') == 429
+                    )
+
+                    if is_rate_limit:
                         raise ServiceUnavailableError(
                             "Limite de taxa do Groq API excedido",
                             "Tente novamente em alguns segundos",
                         )
-                    if "unauthorized" in str(e).lower():
+
+                    # Check for authentication errors (HTTP 401)
+                    is_auth_error = (
+                        "unauthorized" in error_str or
+                        "401" in error_str or
+                        "invalid" in error_str and "key" in error_str or
+                        hasattr(e, 'status_code') and getattr(e, 'status_code') == 401
+                    )
+
+                    if is_auth_error:
                         raise ServiceUnavailableError(
                             "Chave API Groq inválida",
                             "Verifique a configuração GROQ_API_KEY",
                         )
+
                     raise AudioProcessingError(
                         "Falha na transcrição do áudio",
                         f"Erro do Groq API: {e!s}",

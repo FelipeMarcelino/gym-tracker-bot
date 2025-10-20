@@ -49,6 +49,8 @@ if __name__ == "__main__":
     print("   /adduser <user_id> [admin] - Add user")
     print("   /removeuser <user_id> - Remove user")
     print("   /listusers - List all users")
+    print("   /ratelimit_cleanup - Clean up inactive rate limiters")
+    print("   /ratelimit_stats - Show rate limit statistics")
     print()
     print("⚠️  **Important Notes:**")
     print("   • Health and backup commands require admin privileges")

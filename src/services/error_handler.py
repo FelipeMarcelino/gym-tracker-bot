@@ -10,13 +10,14 @@ from telegram.ext import ContextTypes
 
 from config.logging_config import get_logger
 from config.messages import messages
+from config.settings import settings
 from services.exceptions import (
-    GymTrackerError, 
-    ValidationError, 
-    DatabaseError, 
+    GymTrackerError,
+    ValidationError,
+    DatabaseError,
     AudioProcessingError,
-    LLMParsingError, 
-    ServiceUnavailableError, 
+    LLMParsingError,
+    ServiceUnavailableError,
     AuthenticationError,
     RateLimitError,
     SessionError,
@@ -205,24 +206,24 @@ class ErrorHandler:
         elif isinstance(error, RateLimitError):
             reset_time = error.context.get('reset_time', 0)
             limit_type = error.context.get('limit_type', 'general')
-            
+
             if limit_type == 'voice':
                 return messages.RATE_LIMIT_VOICE.format(
                     reset_time=reset_time,
-                    max_requests=5,  # Default values
-                    window_seconds=60
+                    max_requests=settings.RATE_LIMIT_VOICE_REQUESTS,
+                    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS
                 )
             elif limit_type == 'commands':
                 return messages.RATE_LIMIT_COMMANDS.format(
                     reset_time=reset_time,
-                    max_requests=30,
-                    window_seconds=60
+                    max_requests=settings.RATE_LIMIT_COMMAND_REQUESTS,
+                    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS
                 )
             else:
                 return messages.RATE_LIMIT_GENERAL.format(
                     reset_time=reset_time,
-                    max_requests=20,
-                    window_seconds=60
+                    max_requests=settings.RATE_LIMIT_GENERAL_REQUESTS,
+                    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS
                 )
         
         else:

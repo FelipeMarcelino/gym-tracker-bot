@@ -33,6 +33,8 @@ from bot.handlers import (
     list_users_command,
     myid_command,
     progress_command,
+    ratelimit_cleanup_command,
+    ratelimit_stats_command,
     remove_user_command,
     start,
     stats_command,
@@ -40,8 +42,12 @@ from bot.handlers import (
 )
 from bot.health_endpoints import health_command, health_full_command, metrics_command, performance_command
 from config.settings import settings
-from services.async_container import initialize_async_services, shutdown_async_services
+from services.async_container import (
+    initialize_async_services,
+    shutdown_async_services,
+)
 from services.async_backup_service import backup_service
+from services.rate_limit_cleanup_service import rate_limit_cleanup_service
 from services.container import initialize_all_services
 from services.async_shutdown_service import shutdown_service
 
@@ -53,21 +59,24 @@ def setup_signal_handlers(app: Application):
     async def shutdown_callback(app):
         """Called when the application is shutting down"""
         logger.info("🛑 Application shutdown initiated...")
-        
+
         try:
             # Stop backup service first
-            from services.async_backup_service import backup_service
             await backup_service.stop_automated_backups_async()
             logger.info("✅ Backup service stopped")
-            
+
+            # Stop rate limit cleanup service
+            await rate_limit_cleanup_service.stop_automated_cleanup_async()
+            logger.info("✅ Rate limit cleanup service stopped")
+
             # Stop other async services
             await shutdown_async_services()
             logger.info("✅ Async services stopped")
-            
+
             # Stop shutdown service
             await shutdown_service.initiate_shutdown()
             logger.info("✅ Shutdown service completed")
-            
+
         except Exception as e:
             logger.error(f"❌ Error during shutdown: {e}")
     
@@ -160,6 +169,8 @@ def main() -> NoReturn:
     application.add_handler(CommandHandler("adduser", add_user_command))
     application.add_handler(CommandHandler("removeuser", remove_user_command))
     application.add_handler(CommandHandler("listusers", list_users_command))
+    application.add_handler(CommandHandler("ratelimit_cleanup", ratelimit_cleanup_command))
+    application.add_handler(CommandHandler("ratelimit_stats", ratelimit_stats_command))
 
     # Health and monitoring commands (Admin only)
     application.add_handler(CommandHandler("health", health_command))
@@ -184,12 +195,16 @@ def main() -> NoReturn:
 
     logger.info("✅ All handlers registered")
     
-    # Add post_init callback to start backup scheduler  
+    # Add post_init callback to start schedulers
     async def post_init_callback(app):
         """Called after the application is initialized and event loop is running"""
         logger.info("🔄 Starting backup scheduler...")
         await backup_service.ensure_scheduler_running()
         logger.info("✅ Backup scheduler started")
+
+        logger.info("🔄 Starting rate limit cleanup scheduler...")
+        await rate_limit_cleanup_service.ensure_scheduler_running()
+        logger.info("✅ Rate limit cleanup scheduler started")
 
     application.post_init = post_init_callback
 
@@ -200,6 +215,14 @@ def main() -> NoReturn:
         logger.info("✅ Automated backups started")
     except Exception as e:
         logger.warning(f"⚠️ Could not start automated backups: {e}")
+
+    # Start automated rate limit cleanup (will defer scheduler until event loop runs)
+    try:
+        logger.info("🧹 Starting automated rate limit cleanup...")
+        rate_limit_cleanup_service.start_automated_cleanup()
+        logger.info("✅ Automated rate limit cleanup started")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not start automated rate limit cleanup: {e}")
 
     # ===== START BOT =====
     logger.info("=" * 60)
