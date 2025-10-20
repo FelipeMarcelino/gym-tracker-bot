@@ -1295,6 +1295,86 @@ async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         logger.error(f"Erro inesperado listusers: {e}")
 
 
+@admin_only
+@rate_limit_commands
+async def ratelimit_cleanup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Comando /ratelimit_cleanup - Limpa rate limiters inativos (ADMIN ONLY)"""
+    try:
+        from bot.rate_limiter import cleanup_all_inactive_users, get_rate_limiter_stats
+
+        # Get stats before cleanup
+        stats_before = get_rate_limiter_stats()
+
+        # Perform cleanup
+        cleanup_stats = cleanup_all_inactive_users()
+
+        # Get stats after cleanup
+        stats_after = get_rate_limiter_stats()
+
+        message = "🧹 **Rate Limit Cleanup**\n\n"
+        message += f"**Usuários removidos:**\n"
+        message += f"• General: {cleanup_stats['general']}\n"
+        message += f"• Voice: {cleanup_stats['voice']}\n"
+        message += f"• Commands: {cleanup_stats['commands']}\n"
+        message += f"• **Total: {cleanup_stats['total']}**\n\n"
+
+        message += f"**Usuários ativos (antes → depois):**\n"
+        message += f"• General: {stats_before['active_users']['general']} → {stats_after['active_users']['general']}\n"
+        message += f"• Voice: {stats_before['active_users']['voice']} → {stats_after['active_users']['voice']}\n"
+        message += f"• Commands: {stats_before['active_users']['commands']} → {stats_after['active_users']['commands']}\n\n"
+
+        message += f"✅ Cleanup concluído!"
+
+        await update.message.reply_text(message, parse_mode="Markdown")
+        logger.info(f"Rate limit cleanup executado por admin {update.effective_user.id}: {cleanup_stats['total']} usuários removidos")
+
+    except Exception as e:
+        await update.message.reply_text(
+            f"❌ **Erro ao executar cleanup**\n\n{str(e)}",
+            parse_mode="Markdown",
+        )
+        logger.error(f"Erro ratelimit_cleanup: {e}")
+
+
+@admin_only
+@rate_limit_commands
+async def ratelimit_stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Comando /ratelimit_stats - Mostra estatísticas de rate limiting (ADMIN ONLY)"""
+    try:
+        from bot.rate_limiter import get_rate_limiter_stats
+        from services.rate_limit_cleanup_service import rate_limit_cleanup_service
+
+        stats = get_rate_limiter_stats()
+        cleanup_stats = rate_limit_cleanup_service.get_stats()
+
+        message = "📊 **Rate Limit Statistics**\n\n"
+
+        message += "**Limites configurados:**\n"
+        message += f"• General: {stats['limits']['general']['requests']}/{stats['limits']['general']['window']}s\n"
+        message += f"• Voice: {stats['limits']['voice']['requests']}/{stats['limits']['voice']['window']}s\n"
+        message += f"• Commands: {stats['limits']['commands']['requests']}/{stats['limits']['commands']['window']}s\n\n"
+
+        message += "**Usuários ativos:**\n"
+        message += f"• General: {stats['active_users']['general']}\n"
+        message += f"• Voice: {stats['active_users']['voice']}\n"
+        message += f"• Commands: {stats['active_users']['commands']}\n\n"
+
+        message += "**Cleanup automático:**\n"
+        message += f"• Status: {'✅ Ativo' if cleanup_stats['is_running'] else '❌ Inativo'}\n"
+        message += f"• Frequência: {cleanup_stats['cleanup_frequency_hours']}h\n"
+        message += f"• Inatividade máxima: {cleanup_stats['max_inactive_seconds']}s\n"
+        message += f"• Scheduler: {'✅ Rodando' if cleanup_stats['scheduler_active'] else '❌ Parado'}\n"
+
+        await update.message.reply_text(message, parse_mode="Markdown")
+
+    except Exception as e:
+        await update.message.reply_text(
+            f"❌ **Erro ao obter estatísticas**\n\n{str(e)}",
+            parse_mode="Markdown",
+        )
+        logger.error(f"Erro ratelimit_stats: {e}")
+
+
 @rate_limit_commands
 async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handler para comandos desconhecidos"""
