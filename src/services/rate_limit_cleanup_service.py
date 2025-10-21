@@ -125,12 +125,12 @@ class RateLimitCleanupService:
             logger.info("Starting scheduled rate limit cleanup")
             cleanup_stats = cleanup_all_inactive_users(self.max_inactive_seconds)
 
-            if cleanup_stats['total'] > 0:
+            if cleanup_stats.total > 0:
                 logger.info(
-                    f"Rate limit cleanup completed: {cleanup_stats['total']} users removed "
-                    f"(general: {cleanup_stats['general']}, "
-                    f"voice: {cleanup_stats['voice']}, "
-                    f"commands: {cleanup_stats['commands']})"
+                    f"Rate limit cleanup completed: {cleanup_stats.total} users removed "
+                    f"(general: {cleanup_stats.general}, "
+                    f"voice: {cleanup_stats.voice}, "
+                    f"commands: {cleanup_stats.commands})"
                 )
             else:
                 logger.debug("Rate limit cleanup: no inactive users to remove")
