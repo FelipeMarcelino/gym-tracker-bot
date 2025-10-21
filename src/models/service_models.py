@@ -237,16 +237,6 @@ class ExportPreview(BaseModel):
 # =============================================================================
 # SESSION MANAGER MODELS
 # =============================================================================
-
-class SessionResult(BaseModel):
-    """Result of session retrieval or creation"""
-
-    session_id: int = Field(gt=0, description="Database session ID")
-    user_id: str = Field(description="User ID")
-    is_new: bool = Field(description="Whether this is a newly created session")
-    is_active: bool = Field(description="Whether session is currently active")
-    date: date = Field(description="Session date")
-    start_time: str = Field(description="Session start time")
-    status: str = Field(description="Session status")
-
-    model_config = {"frozen": True}
+# Note: Session manager currently returns database models directly (WorkoutSession)
+# rather than using Pydantic models. This could be a future enhancement if needed
+# to separate the API layer from the database layer.
