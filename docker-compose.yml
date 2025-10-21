@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  gym-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gym-tracker-bot
+    restart: unless-stopped
+
+    # Environment variables (override with .env file)
+    environment:
+      # Core settings
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - AUTHORIZED_USER_IDS=${AUTHORIZED_USER_IDS}
+      - DATABASE_URL=sqlite:////app/data/gym_tracker.db
+
+      # AI/ML settings
+      - WHISPER_MODEL=${WHISPER_MODEL:-base}
+      - LLM_MODEL=${LLM_MODEL:-llama3-groq-70b-8192-tool-use-preview}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+
+      # Rate limiting
+      - RATE_LIMIT_GENERAL_REQUESTS=${RATE_LIMIT_GENERAL_REQUESTS:-20}
+      - RATE_LIMIT_VOICE_REQUESTS=${RATE_LIMIT_VOICE_REQUESTS:-5}
+      - RATE_LIMIT_COMMAND_REQUESTS=${RATE_LIMIT_COMMAND_REQUESTS:-10}
+      - RATE_LIMIT_WINDOW_SECONDS=${RATE_LIMIT_WINDOW_SECONDS:-60}
+
+      # Audio settings
+      - MAX_AUDIO_FILE_SIZE_MB=${MAX_AUDIO_FILE_SIZE_MB:-20}
+      - MAX_AUDIO_DURATION_SECONDS=${MAX_AUDIO_DURATION_SECONDS:-300}
+
+      # Session settings
+      - SESSION_TIMEOUT_HOURS=${SESSION_TIMEOUT_HOURS:-24}
+      - RATE_LIMIT_CLEANUP_FREQUENCY_HOURS=${RATE_LIMIT_CLEANUP_FREQUENCY_HOURS:-1}
+
+    # Volume mounts for data persistence
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+      - ./logs:/app/logs
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Network mode (use host.docker.internal for Ollama)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+# Optional: Use named volumes instead of bind mounts
+# volumes:
+#   gym_data:
+#   gym_backups:
+#   gym_logs:
