@@ -89,8 +89,13 @@ class TestServiceIntegration:
         health_service.record_command(200, False)
         health_service.record_audio_processing(1500, False)
 
-        # Get comprehensive health status
-        health_status = await health_service.get_health_status()
+        # Mock TELEGRAM_BOT_TOKEN for configuration health check
+        with patch("services.async_health_service.settings") as mock_settings:
+            mock_settings.TELEGRAM_BOT_TOKEN = "test_token_123"
+            mock_settings.DATABASE_URL = "sqlite+aiosqlite:///test.db"
+            mock_settings.GROQ_API_KEY = "test_groq_key"
+            # Get comprehensive health status
+            health_status = await health_service.get_health_status()
 
         # Verify comprehensive results
         assert health_status.status in ["healthy", "degraded"]
@@ -137,8 +142,12 @@ class TestEndToEndWorkflow:
         backup_path = await test_backup_service.create_backup("workflow_test.db")
         assert os.path.exists(backup_path)
 
-        # Monitor health
-        health_status = await health_service.get_health_status()
+        # Monitor health with mocked settings
+        with patch("services.async_health_service.settings") as mock_settings:
+            mock_settings.TELEGRAM_BOT_TOKEN = "test_token_123"
+            mock_settings.DATABASE_URL = "sqlite+aiosqlite:///test.db"
+            mock_settings.GROQ_API_KEY = "test_groq_key"
+            health_status = await health_service.get_health_status()
         assert health_status.status in ["healthy", "degraded"]
 
         # Check metrics
