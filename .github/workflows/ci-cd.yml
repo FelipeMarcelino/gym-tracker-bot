@@ -18,7 +18,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.11', '3.12']
+        python-version: ['3.13']
 
     steps:
       - name: Checkout code
@@ -60,7 +60,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.13'
         uses: codecov/codecov-action@v4
         continue-on-error: true
         with:
