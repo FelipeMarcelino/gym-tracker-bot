@@ -12,6 +12,7 @@ from services.async_shutdown_service import ShutdownService
 class TestServiceIntegration:
     """Test integration between different services"""
 
+    @pytest.mark.asyncio
     async def test_health_and_backup_integration(self, test_backup_service, populated_test_database):
         """Test health service monitoring backup service"""
         test_backup_service.database_path = populated_test_database
@@ -41,6 +42,7 @@ class TestServiceIntegration:
         finally:
             test_backup_service.stop_automated_backups()
 
+    @pytest.mark.asyncio
     async def test_shutdown_and_backup_integration(self, test_backup_service, populated_test_database):
         """Test shutdown service creating emergency backup"""
         test_backup_service.database_path = populated_test_database
@@ -174,6 +176,7 @@ class TestEndToEndWorkflow:
         expected_workflow = ["startup", "operational", "shutdown", "shutdown_handler_executed"]
         assert workflow_log == expected_workflow
 
+    @pytest.mark.asyncio
     async def test_error_recovery_workflow(self, test_backup_service, populated_test_database):
         """Test error recovery and resilience"""
         test_backup_service.database_path = populated_test_database
@@ -212,6 +215,7 @@ class TestEndToEndWorkflow:
 
         assert "backup_error_handled" in error_log
 
+    @pytest.mark.asyncio
     async def test_concurrent_operations(self, test_backup_service, populated_test_database):
         """Test concurrent operations across services"""
         test_backup_service.database_path = populated_test_database
@@ -279,6 +283,7 @@ class TestServiceErrorPropagation:
         system_metrics = health_service._get_system_metrics()
         assert system_metrics.cpu_percent >= 0
 
+    @pytest.mark.asyncio
     async def test_health_service_error_during_shutdown(self, test_shutdown_service):
         """Test health service errors don't break shutdown"""
         def failing_handler():

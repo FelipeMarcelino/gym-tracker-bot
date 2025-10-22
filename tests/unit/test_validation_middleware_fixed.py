@@ -221,6 +221,7 @@ class TestValidationDecorator:
         )
         
         @validate_input(schema)
+        @pytest.mark.asyncio
         async def test_handler(update, context, validated_data=None):
             return validated_data
         
@@ -243,6 +244,7 @@ class TestValidationDecorator:
         )
         
         @validate_input(schema)
+        @pytest.mark.asyncio
         async def test_handler(update, context, validated_data=None):
             return validated_data
         
