@@ -12,6 +12,7 @@ from services.async_shutdown_service import ShutdownService
 class TestServiceIntegration:
     """Test integration between different services"""
 
+    @pytest.mark.asyncio
     async def test_health_and_backup_integration(self, test_backup_service, populated_test_database):
         """Test health service monitoring backup service"""
         test_backup_service.database_path = populated_test_database
@@ -41,6 +42,7 @@ class TestServiceIntegration:
         finally:
             test_backup_service.stop_automated_backups()
 
+    @pytest.mark.asyncio
     async def test_shutdown_and_backup_integration(self, test_backup_service, populated_test_database):
         """Test shutdown service creating emergency backup"""
         test_backup_service.database_path = populated_test_database
@@ -87,8 +89,13 @@ class TestServiceIntegration:
         health_service.record_command(200, False)
         health_service.record_audio_processing(1500, False)
 
-        # Get comprehensive health status
-        health_status = await health_service.get_health_status()
+        # Mock TELEGRAM_BOT_TOKEN for configuration health check
+        with patch("services.async_health_service.settings") as mock_settings:
+            mock_settings.TELEGRAM_BOT_TOKEN = "test_token_123"
+            mock_settings.DATABASE_URL = "sqlite+aiosqlite:///test.db"
+            mock_settings.GROQ_API_KEY = "test_groq_key"
+            # Get comprehensive health status
+            health_status = await health_service.get_health_status()
 
         # Verify comprehensive results
         assert health_status.status in ["healthy", "degraded"]
@@ -135,8 +142,12 @@ class TestEndToEndWorkflow:
         backup_path = await test_backup_service.create_backup("workflow_test.db")
         assert os.path.exists(backup_path)
 
-        # Monitor health
-        health_status = await health_service.get_health_status()
+        # Monitor health with mocked settings
+        with patch("services.async_health_service.settings") as mock_settings:
+            mock_settings.TELEGRAM_BOT_TOKEN = "test_token_123"
+            mock_settings.DATABASE_URL = "sqlite+aiosqlite:///test.db"
+            mock_settings.GROQ_API_KEY = "test_groq_key"
+            health_status = await health_service.get_health_status()
         assert health_status.status in ["healthy", "degraded"]
 
         # Check metrics
@@ -174,6 +185,7 @@ class TestEndToEndWorkflow:
         expected_workflow = ["startup", "operational", "shutdown", "shutdown_handler_executed"]
         assert workflow_log == expected_workflow
 
+    @pytest.mark.asyncio
     async def test_error_recovery_workflow(self, test_backup_service, populated_test_database):
         """Test error recovery and resilience"""
         test_backup_service.database_path = populated_test_database
@@ -212,6 +224,7 @@ class TestEndToEndWorkflow:
 
         assert "backup_error_handled" in error_log
 
+    @pytest.mark.asyncio
     async def test_concurrent_operations(self, test_backup_service, populated_test_database):
         """Test concurrent operations across services"""
         test_backup_service.database_path = populated_test_database
@@ -279,6 +292,7 @@ class TestServiceErrorPropagation:
         system_metrics = health_service._get_system_metrics()
         assert system_metrics.cpu_percent >= 0
 
+    @pytest.mark.asyncio
     async def test_health_service_error_during_shutdown(self, test_shutdown_service):
         """Test health service errors don't break shutdown"""
         def failing_handler():

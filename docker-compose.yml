@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  gym-tracker-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gym-tracker-bot
+    restart: unless-stopped
+
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - DATABASE_PATH=/app/data/gym_tracker.db
+      - PYTHONUNBUFFERED=1
+
+    volumes:
+      # Persist database
+      - ./data:/app/data
+      # Persist backups
+      - ./backups:/app/backups
+      # Persist logs
+      - ./logs:/app/logs
+      # Optional: Mount source for development (uncomment for live reload)
+      # - ./src:/app/src:ro
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.path.insert(0, '/app/src'); from services.async_health_service import AsyncHealthService; import asyncio; service = AsyncHealthService(); result = asyncio.run(service.check_health()); sys.exit(0 if result.status == 'healthy' else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Network (optional, for future services)
+    networks:
+      - gym-tracker-network
+
+networks:
+  gym-tracker-network:
+    driver: bridge

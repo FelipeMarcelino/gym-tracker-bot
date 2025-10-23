@@ -96,6 +96,7 @@ class TestHealthService:
             assert "health_check_error" in health_status.checks
             assert "Test error" in health_status.checks["health_check_error"]
     
+    @pytest.mark.asyncio
     async def test_get_simple_health(self, test_health_service):
         """Test simple health check"""
         with patch('psutil.cpu_percent') as mock_cpu, \
@@ -119,6 +120,7 @@ class TestHealthService:
             assert health["checks"]["cpu_ok"] is True
             assert health["checks"]["memory_ok"] is True
     
+    @pytest.mark.asyncio
     async def test_get_simple_health_degraded(self, test_health_service):
         """Test simple health check with degraded status"""
         with patch('psutil.cpu_percent') as mock_cpu, \
@@ -169,6 +171,7 @@ class TestHealthService:
             assert metrics.disk_used_gb == 100.0
             assert metrics.disk_total_gb == 500.0
     
+    @pytest.mark.asyncio
     async def test_get_bot_metrics(self, test_health_service):
         """Test bot metrics calculation"""
         # Record some operations
@@ -187,6 +190,7 @@ class TestHealthService:
         assert metrics.error_rate_percent == 40.0  # 2 errors out of 5 total
         assert metrics.active_sessions == 0  # Not implemented yet
     
+    @pytest.mark.asyncio
     async def test_get_bot_metrics_no_data(self, test_health_service):
         """Test bot metrics with no recorded data"""
         metrics = await test_health_service._get_bot_metrics_async()

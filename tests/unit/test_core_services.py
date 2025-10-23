@@ -101,6 +101,7 @@ class TestHealthServiceCore:
         assert 100.5 in service.response_times
         assert 1500.0 in service.response_times
 
+    @pytest.mark.asyncio
     async def test_bot_metrics_calculation(self):
         """Test bot metrics calculation"""
         service = HealthService()
@@ -130,6 +131,7 @@ class TestHealthServiceCore:
         assert metrics.memory_percent >= 0
         assert metrics.disk_percent >= 0
 
+    @pytest.mark.asyncio
     async def test_simple_health_check(self):
         """Test simple health check"""
         service = HealthService()
@@ -351,6 +353,7 @@ class TestServiceErrorHandling:
 
             assert "does not exist" in str(exc_info.value)
 
+    @pytest.mark.asyncio
     async def test_health_service_resilience(self):
         """Test health service handles errors gracefully"""
         service = HealthService()

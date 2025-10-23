@@ -263,6 +263,7 @@ class TestValidationDecorator:
         schema = CommonSchemas.text_message(min_length=1, max_length=100)
         
         @validate_input(schema)
+        @pytest.mark.asyncio
         async def test_handler(update, context, validated_data=None):
             return validated_data
         
@@ -281,6 +282,7 @@ class TestValidationDecorator:
         schema = CommonSchemas.text_message(min_length=10, max_length=100)
         
         @validate_input(schema)
+        @pytest.mark.asyncio
         async def test_handler(update, context, validated_data=None):
             return validated_data
         
@@ -301,6 +303,7 @@ class TestValidationDecorator:
         schema = CommonSchemas.text_message(min_length=1, max_length=100)
         
         @validate_input(schema)
+        @pytest.mark.asyncio
         async def test_handler(update, context, extra_arg=None, validated_data=None):
             return {"validated": validated_data, "extra": extra_arg}
         
