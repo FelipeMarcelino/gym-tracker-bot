@@ -20,7 +20,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Final stage
-FROM python:3.12-slim
+FROM python:3.13.7-slim
 
 # Set working directory
 WORKDIR /app
