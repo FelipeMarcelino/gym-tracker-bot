@@ -5,13 +5,7 @@ from groq import AsyncGroq
 
 from config.logging_config import get_logger
 from config.settings import settings
-from services.exceptions import (
-    LLMParsingError, 
-    ServiceUnavailableError, 
-    ValidationError,
-    ErrorCode,
-    handle_service_exception
-)
+from services.exceptions import ErrorCode, LLMParsingError, ServiceUnavailableError, ValidationError
 
 logger = get_logger(__name__)
 
@@ -20,6 +14,9 @@ class LLMParsingService:
     """Serviço para parsear transcrições usando Groq API"""
 
     def __init__(self) -> None:
+
+        logger.info("Inicializando Groq LLM...")
+
         if not settings.GROQ_API_KEY:
             raise ServiceUnavailableError(
                 "GROQ_API_KEY não configurada",
@@ -57,7 +54,7 @@ class LLMParsingService:
                 field="transcription",
                 value=transcription,
                 error_code=ErrorCode.MISSING_REQUIRED_FIELD,
-                user_message="Por favor, envie um áudio com conteúdo válido"
+                user_message="Por favor, envie um áudio com conteúdo válido",
             )
 
         if len(transcription) > settings.MAX_TRANSCRIPTION_LENGTH:
@@ -66,7 +63,7 @@ class LLMParsingService:
                 field="transcription",
                 value=len(transcription),
                 error_code=ErrorCode.VALUE_OUT_OF_RANGE,
-                user_message=f"Áudio muito longo. Máximo permitido: {settings.MAX_TRANSCRIPTION_LENGTH:,} caracteres"
+                user_message=f"Áudio muito longo. Máximo permitido: {settings.MAX_TRANSCRIPTION_LENGTH:,} caracteres",
             )
 
         prompt = self._build_prompt(transcription)
@@ -90,7 +87,7 @@ class LLMParsingService:
                     details="O modelo não retornou uma resposta válida",
                     model=self.model,
                     error_code=ErrorCode.LLM_INVALID_RESPONSE,
-                    user_message="O sistema de IA não conseguiu processar o áudio. Tente novamente."
+                    user_message="O sistema de IA não conseguiu processar o áudio. Tente novamente.",
                 )
 
             content = response.choices[0].message.content
@@ -100,7 +97,7 @@ class LLMParsingService:
                     details="O modelo retornou uma resposta vazia",
                     model=self.model,
                     error_code=ErrorCode.LLM_INVALID_RESPONSE,
-                    user_message="O sistema de IA retornou uma resposta vazia. Tente novamente."
+                    user_message="O sistema de IA retornou uma resposta vazia. Tente novamente.",
                 )
 
             # Limpar markdown se presente
@@ -118,7 +115,7 @@ class LLMParsingService:
                     model=self.model,
                     response=content,
                     error_code=ErrorCode.LLM_INVALID_RESPONSE,
-                    user_message="O sistema de IA retornou uma resposta inválida. Tente descrever o treino de forma mais clara."
+                    user_message="O sistema de IA retornou uma resposta inválida. Tente descrever o treino de forma mais clara.",
                 )
 
             # Validar estrutura básica
@@ -129,7 +126,7 @@ class LLMParsingService:
                     model=self.model,
                     response=content,
                     error_code=ErrorCode.LLM_INVALID_RESPONSE,
-                    user_message="O sistema de IA retornou dados em formato incorreto. Tente novamente."
+                    user_message="O sistema de IA retornou dados em formato incorreto. Tente novamente.",
                 )
 
             logger.info("Groq API parseou com sucesso!")
@@ -146,7 +143,7 @@ class LLMParsingService:
                 "rate_limit" in error_str or
                 "429" in error_str or
                 "too many requests" in error_str or
-                hasattr(e, 'status_code') and getattr(e, 'status_code') == 429
+                (hasattr(e, "status_code") and e.status_code == 429)
             )
 
             if is_rate_limit:
@@ -157,7 +154,7 @@ class LLMParsingService:
                     error_code=ErrorCode.LLM_RATE_LIMIT_EXCEEDED,
                     user_message="Muitas solicitações ao sistema de IA. Aguarde alguns segundos e tente novamente.",
                     retry_after=30,
-                    cause=e
+                    cause=e,
                 )
 
             # Check for authentication errors (HTTP 401)
@@ -165,7 +162,7 @@ class LLMParsingService:
                 "unauthorized" in error_str or
                 "401" in error_str or
                 ("invalid" in error_str and "key" in error_str) or
-                hasattr(e, 'status_code') and getattr(e, 'status_code') == 401
+                (hasattr(e, "status_code") and e.status_code == 401)
             )
 
             if is_auth_error:
@@ -175,14 +172,14 @@ class LLMParsingService:
                     service="Groq API",
                     error_code=ErrorCode.GROQ_API_ERROR,
                     user_message="Erro de autenticação com o sistema de IA. Contate o administrador.",
-                    cause=e
+                    cause=e,
                 )
 
             # Check for timeout errors
             is_timeout = (
                 "timeout" in error_str or
                 "timed out" in error_str or
-                hasattr(e, 'status_code') and getattr(e, 'status_code') == 504
+                (hasattr(e, "status_code") and e.status_code == 504)
             )
 
             if is_timeout:
@@ -192,7 +189,7 @@ class LLMParsingService:
                     service="Groq API",
                     error_code=ErrorCode.LLM_TIMEOUT,
                     user_message="O sistema de IA demorou muito para responder. Tente novamente.",
-                    cause=e
+                    cause=e,
                 )
 
             # Generic error
@@ -203,7 +200,7 @@ class LLMParsingService:
                 model=self.model,
                 error_code=ErrorCode.LLM_PARSING_FAILED,
                 user_message="Erro inesperado no sistema de IA. Tente novamente.",
-                cause=e
+                cause=e,
             )
 
     def _build_prompt(self, transcription: str) -> str:

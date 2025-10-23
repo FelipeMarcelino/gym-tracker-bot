@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import tempfile
 from typing import Optional
 
@@ -31,7 +30,7 @@ class AudioTranscriptionService:
             logger.info("Groq Whisper API inicializada com sucesso")
         except Exception as e:
             raise ServiceUnavailableError(
-                "Falha ao inicializar cliente Groq",
+                f"Falha ao inicializar cliente Groq. Erro: {e!s}",
                 f"Erro: {e!s}",
             )
 
@@ -71,11 +70,11 @@ class AudioTranscriptionService:
         try:
             # Criar arquivo temporário usando asyncio.to_thread
             temp_file = await asyncio.to_thread(
-                tempfile.NamedTemporaryFile, 
-                delete=False, 
-                suffix=".ogg"
+                tempfile.NamedTemporaryFile,
+                delete=False,
+                suffix=".ogg",
             )
-            
+
             # Escrever dados de forma assíncrona
             async with aiofiles.open(temp_file.name, "wb") as f:
                 await f.write(file_bytes)
@@ -103,7 +102,7 @@ class AudioTranscriptionService:
                         "rate_limit" in error_str or
                         "429" in error_str or
                         "too many requests" in error_str or
-                        hasattr(e, 'status_code') and getattr(e, 'status_code') == 429
+                        (hasattr(e, "status_code") and e.status_code == 429)
                     )
 
                     if is_rate_limit:
@@ -116,8 +115,8 @@ class AudioTranscriptionService:
                     is_auth_error = (
                         "unauthorized" in error_str or
                         "401" in error_str or
-                        "invalid" in error_str and "key" in error_str or
-                        hasattr(e, 'status_code') and getattr(e, 'status_code') == 401
+                        ("invalid" in error_str and "key" in error_str) or
+                        (hasattr(e, "status_code") and e.status_code == 401)
                     )
 
                     if is_auth_error:
