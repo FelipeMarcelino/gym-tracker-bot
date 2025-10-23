@@ -20,12 +20,12 @@ class AsyncSessionManager:
     """Async manager for workout sessions with optimized database operations"""
 
     def __init__(self):
-        self._users_locks = {}
+        self._user_locks = {}
         self._lock_creation_lock = asyncio.Lock()
 
-    def _get_user_lock(self, user_id: str) -> asyncio.Lock:
+    async def _get_user_lock(self, user_id: str) -> asyncio.Lock:
         if user_id not in self._user_locks:
-            with self._lock_creation_lock:
+            async with self._lock_creation_lock:
                 if user_id not in self._user_locks:
                     self._user_locks[user_id] = asyncio.Lock()
         return self._user_locks[user_id]
@@ -56,7 +56,7 @@ class AsyncSessionManager:
         # Clean up stale sessions before checking for active ones
         await self.cleanup_stale_sessions()
 
-        user_lock = self._get_user_lock(user_id)
+        user_lock = await self._get_user_lock(user_id)
 
         async with user_lock:
             async with get_async_session_context() as session:
