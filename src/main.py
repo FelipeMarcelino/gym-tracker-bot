@@ -43,20 +43,17 @@ from bot.handlers import (
 )
 from bot.health_endpoints import health_command, health_full_command, metrics_command, performance_command
 from config.settings import settings
-from services.async_container import (
-    initialize_async_services,
-    shutdown_async_services,
-)
 from services.async_backup_service import backup_service
-from services.rate_limit_cleanup_service import rate_limit_cleanup_service
-from services.container import initialize_all_services
+from services.async_container import initialize_async_services, shutdown_async_services
 from services.async_shutdown_service import shutdown_service
 from services.async_user_service import AsyncUserService
+from services.container import initialize_all_services
+from services.rate_limit_cleanup_service import rate_limit_cleanup_service
 
 
 def setup_signal_handlers(app: Application):
     """Setup signal handlers for graceful shutdown"""
-    
+
     # Add a shutdown callback to the application
     async def shutdown_callback(app):
         """Called when the application is shutting down"""
@@ -81,10 +78,10 @@ def setup_signal_handlers(app: Application):
 
         except Exception as e:
             logger.error(f"❌ Error during shutdown: {e}")
-    
+
     # Register the shutdown callback
     app.post_shutdown = shutdown_callback
-    
+
     logger.info("📡 Shutdown callback registered")
 
 
@@ -107,7 +104,7 @@ async def initialize_admin_user() -> None:
 
         if not admin_id:
             # Try to get from authorized users list
-            user_ids = settings.authorized_user_ids_list()
+            user_ids = settings.authorized_user_ids_list
             if user_ids:
                 admin_id = str(user_ids[0])
             else:
@@ -136,10 +133,10 @@ async def initialize_admin_user() -> None:
         user = await user_service.add_user(
             user_id=admin_id,
             is_admin=True,
-            created_by="system"  # Created by system initialization
+            created_by="system",  # Created by system initialization
         )
 
-        logger.info(f"✅ Admin user created successfully!")
+        logger.info("✅ Admin user created successfully!")
         logger.info(f"   ID: {user.user_id}")
         logger.info(f"   Admin: {user.is_admin}")
         logger.info(f"   Active: {user.is_active}")
@@ -198,15 +195,15 @@ def main() -> NoReturn:
 
     # Create Telegram application with proper timeout settings
     from telegram.request import HTTPXRequest
-    
+
     request = HTTPXRequest(
         connection_pool_size=8,
         connect_timeout=30.0,
         read_timeout=30.0,
         write_timeout=30.0,
-        pool_timeout=10.0
+        pool_timeout=10.0,
     )
-    
+
     application = (
         Application.builder()
         .token(settings.TELEGRAM_BOT_TOKEN)
@@ -262,7 +259,7 @@ def main() -> NoReturn:
 
 
     logger.info("✅ All handlers registered")
-    
+
     # Add post_init callback to start schedulers
     async def post_init_callback(app):
         """Called after the application is initialized and event loop is running"""
@@ -301,7 +298,7 @@ def main() -> NoReturn:
 
     # Run bot with default signal handling (SIGINT, SIGTERM)
     application.run_polling(allowed_updates=["message"])
-    
+
     # Note: The backup scheduler will auto-start when the event loop begins
 
 
