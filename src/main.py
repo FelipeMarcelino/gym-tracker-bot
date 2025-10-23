@@ -107,7 +107,7 @@ async def initialize_admin_user() -> None:
 
         if not admin_id:
             # Try to get from authorized users list
-            user_ids = settings.authorized_user_ids_list
+            user_ids = settings.authorized_user_ids_list()
             if user_ids:
                 admin_id = str(user_ids[0])
             else:
