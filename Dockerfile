@@ -1,5 +1,5 @@
 # Multi-stage build for smaller final image
-FROM python:3.12-slim as builder
+FROM python:3.13.7-slim as builder
 
 # Set working directory
 WORKDIR /app
