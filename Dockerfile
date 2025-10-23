@@ -50,7 +50,6 @@ ENV PYTHONPATH=/app/src:$PYTHONPATH
 
 # Environment variables
 ENV PYTHONUNBUFFERED=1
-ENV TELEGRAM_BOT_TOKEN=""
 ENV DATABASE_PATH=/app/data/gym_tracker.db
 
 # Health check
