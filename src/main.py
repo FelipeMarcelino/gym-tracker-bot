@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 from typing import NoReturn
 
@@ -50,6 +51,7 @@ from services.async_backup_service import backup_service
 from services.rate_limit_cleanup_service import rate_limit_cleanup_service
 from services.container import initialize_all_services
 from services.async_shutdown_service import shutdown_service
+from services.async_user_service import AsyncUserService
 
 
 def setup_signal_handlers(app: Application):
@@ -86,6 +88,67 @@ def setup_signal_handlers(app: Application):
     logger.info("📡 Shutdown callback registered")
 
 
+async def initialize_admin_user() -> None:
+    """Initialize the first admin user from environment variables
+
+    This function runs during bot startup to ensure the first admin user
+    is created in the database if it doesn't exist yet.
+
+    It checks:
+    1. FIRST_ADMIN_USER_ID environment variable
+    2. First user from AUTHORIZED_USER_IDS if FIRST_ADMIN_USER_ID is not set
+
+    If the user doesn't exist, creates them as admin.
+    If the user already exists, does nothing (preserves current state).
+    """
+    try:
+        # Try to get admin user ID from environment
+        admin_id = os.getenv("FIRST_ADMIN_USER_ID")
+
+        if not admin_id:
+            # Try to get from authorized users list
+            user_ids = settings.authorized_user_ids_list()
+            if user_ids:
+                admin_id = str(user_ids[0])
+            else:
+                logger.info("⚠️  No admin user configured in FIRST_ADMIN_USER_ID or AUTHORIZED_USER_IDS")
+                return
+
+        admin_id = admin_id.strip()
+        logger.info(f"🔧 Checking admin user initialization for ID: {admin_id}")
+
+        # Initialize user service
+        user_service = AsyncUserService()
+
+        # Check if user already exists
+        existing_user = await user_service.get_user(admin_id)
+
+        if existing_user:
+            # User already exists - do nothing
+            if existing_user.is_admin:
+                logger.info(f"✅ Admin user {admin_id} already exists and is admin")
+            else:
+                logger.info(f"✅ User {admin_id} already exists (not promoting to admin)")
+            return
+
+        # User doesn't exist - create as admin
+        logger.info(f"🔧 Creating new admin user: {admin_id}")
+        user = await user_service.add_user(
+            user_id=admin_id,
+            is_admin=True,
+            created_by="system"  # Created by system initialization
+        )
+
+        logger.info(f"✅ Admin user created successfully!")
+        logger.info(f"   ID: {user.user_id}")
+        logger.info(f"   Admin: {user.is_admin}")
+        logger.info(f"   Active: {user.is_active}")
+
+    except Exception as e:
+        logger.warning(f"⚠️  Could not initialize admin user: {e}")
+        logger.warning("   You may need to run: python src/migrate_admin.py")
+
+
 def main() -> NoReturn:
     """Main function to initialize and run the bot"""
     # Log system info for debugging
@@ -119,6 +182,11 @@ def main() -> NoReturn:
         asyncio.set_event_loop(loop)
         loop.run_until_complete(initialize_async_services())
         logger.info("✅ Async services initialized")
+
+        # Initialize admin user
+        logger.info("👤 Initializing admin user...")
+        loop.run_until_complete(initialize_admin_user())
+        logger.info("✅ Admin user initialization complete")
 
     except Exception as e:
         logger.error(f"❌ Failed to initialize services: {e}")
