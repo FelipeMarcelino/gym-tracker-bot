@@ -1,0 +1,77 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Nix
+flake.lock
+flake.nix
+shell.nix
+.direnv
+
+# Claude
+.claude/
+
+# Documentation
+*.md
+!README.md
+
+# Data (will be mounted as volumes)
+data/
+backups/
+logs/
+*.db
+*.db-shm
+*.db-wal
+
+# Tests
+tests/
+run_tests.py
+
+# Misc
+COMMAND_GUIDE.md

@@ -118,6 +118,7 @@ class TestShutdownService:
         
         assert execution_log == ["async_executed"]
     
+    @pytest.mark.asyncio
     async def test_create_emergency_backup_disabled(self, test_shutdown_service):
         """Test emergency backup when disabled"""
         # Emergency backup is disabled in test fixture
@@ -128,6 +129,7 @@ class TestShutdownService:
             await test_shutdown_service._create_emergency_backup()
             mock_backup.create_backup.assert_not_called()
     
+    @pytest.mark.asyncio
     async def test_create_emergency_backup_enabled(self, test_shutdown_service):
         """Test emergency backup when enabled"""
         test_shutdown_service.emergency_backup_on_shutdown = True
@@ -151,6 +153,7 @@ class TestShutdownService:
             
             mock_backup.stop_automated_backups.assert_called_once()
     
+    @pytest.mark.asyncio
     async def test_initiate_shutdown_complete_process(self, test_shutdown_service):
         """Test complete shutdown process"""
         execution_log = []
@@ -168,6 +171,7 @@ class TestShutdownService:
             assert execution_log == ["handler_executed"]
             mock_stop.assert_called_once()
     
+    @pytest.mark.asyncio
     async def test_initiate_shutdown_duplicate_call(self, test_shutdown_service):
         """Test that duplicate shutdown calls are ignored"""
         test_shutdown_service.is_shutting_down = True
@@ -202,6 +206,7 @@ class TestShutdownService:
 class TestShutdownServiceHelperFunctions:
     """Test the helper functions provided with shutdown service"""
     
+    @pytest.mark.asyncio
     async def test_close_database_connections(self):
         """Test database connection closing"""
         from services.async_shutdown_service import close_database_connections
@@ -259,6 +264,7 @@ class TestShutdownServiceEdgeCases:
         # Should not raise exception
         test_shutdown_service._run_shutdown_handlers()
     
+    @pytest.mark.asyncio
     async def test_emergency_backup_error(self, test_shutdown_service):
         """Test emergency backup with error"""
         test_shutdown_service.emergency_backup_on_shutdown = True
@@ -277,6 +283,7 @@ class TestShutdownServiceEdgeCases:
             # Should not raise exception
             test_shutdown_service._stop_background_services()
     
+    @pytest.mark.asyncio
     async def test_shutdown_with_all_errors(self, test_shutdown_service):
         """Test shutdown process when everything fails"""
         def error_handler():

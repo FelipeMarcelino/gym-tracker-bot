@@ -27,6 +27,7 @@ class TestBackupService:
         assert not service.is_running
         assert service.backup_dir.exists()
     
+    @pytest.mark.asyncio
     async def test_create_backup_with_nonexistent_database(self, test_backup_service):
         """Test backup creation fails with nonexistent database"""
         test_backup_service.database_path = "/nonexistent/database.db"
@@ -36,6 +37,7 @@ class TestBackupService:
         
         assert "Source database does not exist" in str(exc_info.value)
     
+    @pytest.mark.asyncio
     async def test_create_backup_success(self, test_backup_service, sync_populated_test_database):
         """Test successful backup creation"""
         test_backup_service.database_path = sync_populated_test_database
@@ -51,6 +53,7 @@ class TestBackupService:
         assert backups[0]["name"] == "test_backup.db"
         assert backups[0]["verified"] is True
     
+    @pytest.mark.asyncio
     async def test_backup_verification(self, test_backup_service, sync_populated_test_database):
         """Test backup verification"""
         test_backup_service.database_path = sync_populated_test_database
@@ -64,6 +67,7 @@ class TestBackupService:
         invalid_path.write_text("This is not a database")
         assert test_backup_service._verify_backup(str(invalid_path)) is False
     
+    @pytest.mark.asyncio
     async def test_list_backups(self, test_backup_service, sync_populated_test_database):
         """Test backup listing functionality"""
         test_backup_service.database_path = sync_populated_test_database
@@ -91,6 +95,7 @@ class TestBackupService:
             assert "verified" in backup
             assert backup["verified"] is True
     
+    @pytest.mark.asyncio
     async def test_backup_stats(self, test_backup_service, sync_populated_test_database):
         """Test backup statistics"""
         test_backup_service.database_path = sync_populated_test_database
@@ -115,6 +120,7 @@ class TestBackupService:
         assert stats["oldest_backup"] is not None
         assert stats["newest_backup"] > stats["oldest_backup"]
     
+    @pytest.mark.asyncio
     async def test_cleanup_old_backups(self, test_backup_service, sync_populated_test_database):
         """Test cleanup of old backups"""
         test_backup_service.database_path = sync_populated_test_database
@@ -164,6 +170,7 @@ class TestBackupService:
         test_backup_service.stop_automated_backups()  # Should not error
         assert not test_backup_service.is_running
     
+    @pytest.mark.asyncio
     async def test_restore_backup_validation(self, test_backup_service):
         """Test backup restore validation"""
         # Should fail without confirmation
@@ -176,6 +183,7 @@ class TestBackupService:
             await test_backup_service.restore_backup("/nonexistent/backup.db", confirm=True)
         assert "not found" in str(exc_info.value)
     
+    @pytest.mark.asyncio
     async def test_error_handling(self, test_backup_service):
         """Test error handling in backup operations"""
         # Test with invalid database path
@@ -193,6 +201,7 @@ class TestBackupService:
 class TestBackupServiceEdgeCases:
     """Test edge cases and error conditions"""
     
+    @pytest.mark.asyncio
     async def test_backup_name_generation(self, test_backup_service, sync_populated_test_database):
         """Test automatic backup name generation"""
         test_backup_service.database_path = sync_populated_test_database
@@ -206,6 +215,7 @@ class TestBackupServiceEdgeCases:
         assert backup_name.endswith(".db")
         assert len(backup_name) == len("gym_tracker_backup_20251014_123456.db")
     
+    @pytest.mark.asyncio
     async def test_concurrent_backup_operations(self, test_backup_service, sync_populated_test_database):
         """Test handling of concurrent backup operations"""
         test_backup_service.database_path = sync_populated_test_database
@@ -218,6 +228,7 @@ class TestBackupServiceEdgeCases:
         assert os.path.exists(backup2)
         assert backup1 != backup2
     
+    @pytest.mark.asyncio
     async def test_backup_with_special_characters(self, test_backup_service, sync_populated_test_database):
         """Test backup with special characters in name"""
         test_backup_service.database_path = sync_populated_test_database

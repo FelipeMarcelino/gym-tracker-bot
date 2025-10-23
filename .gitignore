@@ -12,3 +12,25 @@ logs/
 *.log
 backups/
 .backup
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+.tox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data directories
+data/
+*.db-shm
+*.db-wal

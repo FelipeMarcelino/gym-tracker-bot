@@ -103,6 +103,7 @@ class TestHealthService:
         assert 100.5 in service.response_times
         assert 1500.0 in service.response_times
     
+    @pytest.mark.asyncio
     async def test_bot_metrics(self):
         """Test bot metrics calculation"""
         service = HealthService()
@@ -326,6 +327,7 @@ class TestServiceIntegration:
 class TestServiceErrorHandling:
     """Test error handling across services"""
     
+    @pytest.mark.asyncio
     async def test_health_service_resilience(self):
         """Test health service handles errors gracefully"""
         service = HealthService()

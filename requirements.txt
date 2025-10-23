@@ -1,6 +1,7 @@
+# Core dependencies
 annotated-types==0.7.0
 anyio==4.10.0
-audioop-lts==0.2.2
+# audioop-lts==0.2.2  # Requires Python 3.13+, commenting out for compatibility
 av==15.1.0
 certifi==2025.7.14
 charset-normalizer==3.4.3
@@ -45,3 +46,17 @@ tqdm==4.67.1
 typing-inspection==0.4.2
 typing_extensions==4.14.1
 urllib3==2.5.0
+
+# Async file operations
+aiofiles==24.1.0
+
+# LLM services
+groq==0.11.0
+
+# Testing dependencies
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+
+# Code quality (for CI/CD)
+flake8==7.1.1
