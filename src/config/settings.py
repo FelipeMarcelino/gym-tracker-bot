@@ -1,24 +1,25 @@
 from typing import List, Optional
+
 from pydantic import Field, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings with automatic environment variable validation"""
-    
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
         validate_assignment=True,
-        extra="ignore"
+        extra="ignore",
     )
 
     # Core settings
     TELEGRAM_BOT_TOKEN: Optional[str] = Field(None, description="Telegram bot token")
     AUTHORIZED_USER_IDS: str = Field(default="", description="Comma-separated string of authorized user IDs")
     DATABASE_URL: str = Field(default="sqlite:///gym_tracker.db", description="Database connection URL")
-    
+
     # AI/ML settings
     WHISPER_MODEL: str = Field(default="whisper-large-v3", description="Whisper model to use for transcription")
     LLM_MODEL: str = Field(default="llama3.1:8b", description="LLM model for text processing")
@@ -62,7 +63,7 @@ class Settings(BaseSettings):
         if not self.AUTHORIZED_USER_IDS.strip():
             print("⚠️  AVISO: Nenhum usuário autorizado configurado! Configure AUTHORIZED_USER_IDS no arquivo .env")
             return []
-        
+
         try:
             # Remove spaces and convert to int
             ids = [
@@ -74,7 +75,7 @@ class Settings(BaseSettings):
         except ValueError as e:
             raise ValueError(
                 f"❌ Erro ao converter AUTHORIZED_USER_IDS: {e}\n"
-                f"   Certifique-se de usar apenas números separados por vírgula"
+                f"   Certifique-se de usar apenas números separados por vírgula",
             )
 
     @validator("AUTHORIZED_USER_IDS")
@@ -82,7 +83,7 @@ class Settings(BaseSettings):
         """Validate AUTHORIZED_USER_IDS format"""
         if not v.strip():
             return v  # Allow empty string
-        
+
         try:
             # Test parsing to ensure valid format
             [int(user_id.strip()) for user_id in v.split(",") if user_id.strip()]
@@ -90,7 +91,7 @@ class Settings(BaseSettings):
         except ValueError as e:
             raise ValueError(
                 f"❌ Erro ao converter AUTHORIZED_USER_IDS: {e}\n"
-                f"   Certifique-se de usar apenas números separados por vírgula"
+                f"   Certifique-se de usar apenas números separados por vírgula",
             )
 
     @validator("TELEGRAM_BOT_TOKEN")
