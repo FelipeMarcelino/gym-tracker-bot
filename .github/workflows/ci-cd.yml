@@ -127,7 +127,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     container: ghcr.io/railwayapp/cli:latest
     env:
-      SVD_ID: merry-perfection
+      SVC_ID: merry-perfection
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
