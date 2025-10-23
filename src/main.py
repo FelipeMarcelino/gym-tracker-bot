@@ -1,7 +1,7 @@
 import asyncio
 import os
 import sys
-from typing import NoReturn, Optional
+from typing import NoReturn
 
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
