@@ -21,6 +21,7 @@ class LLMParsingService:
             raise ServiceUnavailableError(
                 "GROQ_API_KEY não configurada",
                 "Configure a variável de ambiente GROQ_API_KEY",
+                error_code=ErrorCode.GROQ_API_ERROR,
             )
 
         try:
@@ -31,6 +32,7 @@ class LLMParsingService:
             raise ServiceUnavailableError(
                 "Falha ao inicializar cliente Groq LLM",
                 f"Erro: {e!s}",
+                error_code=ErrorCode.GROQ_API_ERROR,
             )
 
     async def parse_workout(self, transcription: str) -> Dict[str, Any]:
