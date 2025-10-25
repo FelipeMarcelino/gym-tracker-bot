@@ -62,7 +62,6 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: codecov/codecov-demo
   # Validate Docker build on PRs (doesn't push)
   build-pr:
     name: Validate Docker Build (PR)
