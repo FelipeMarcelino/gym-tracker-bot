@@ -10,10 +10,6 @@ on:
       - main
       - develop
       - 'claude/**'
-  pull_request:
-    branches:
-      - main
-      - develop
 jobs:
   test:
     name: Run Tests
