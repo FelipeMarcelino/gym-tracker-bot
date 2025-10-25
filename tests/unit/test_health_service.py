@@ -180,25 +180,31 @@ class TestHealthService:
         test_health_service.record_audio_processing(1000, False)
         test_health_service.record_audio_processing(1500, True)  # Error
 
-        metrics = await test_health_service._get_bot_metrics_async()
+        # Mock the active sessions count (async method)
+        with patch.object(test_health_service, '_get_active_sessions_count', new_callable=AsyncMock, return_value=1) as mock_active_sessions:
+            
+            metrics = await test_health_service._get_bot_metrics_async()
 
-        assert isinstance(metrics, BotMetrics)
-        assert metrics.total_commands_processed == 3
-        assert metrics.total_audio_processed == 2
-        assert metrics.average_response_time_ms == 620.0  # (100+200+300+1000+1500)/5
-        assert metrics.error_rate_percent == 40.0  # 2 errors out of 5 total
-        assert metrics.active_sessions == 1
+            assert isinstance(metrics, BotMetrics)
+            assert metrics.total_commands_processed == 3
+            assert metrics.total_audio_processed == 2
+            assert metrics.average_response_time_ms == 620.0  # (100+200+300+1000+1500)/5
+            assert metrics.error_rate_percent == 40.0  # 2 errors out of 5 total
+            assert metrics.active_sessions == 1
 
     @pytest.mark.asyncio
     async def test_get_bot_metrics_no_data(self, test_health_service):
         """Test bot metrics with no recorded data"""
-        metrics = await test_health_service._get_bot_metrics_async()
+        # Mock the active sessions count (async method)
+        with patch.object(test_health_service, '_get_active_sessions_count', new_callable=AsyncMock, return_value=1) as mock_active_sessions:
+            
+            metrics = await test_health_service._get_bot_metrics_async()
 
-        assert metrics.total_commands_processed == 0
-        assert metrics.total_audio_processed == 0
-        assert metrics.average_response_time_ms == 0
-        assert metrics.error_rate_percent == 0
-        assert metrics.active_sessions == 1
+            assert metrics.total_commands_processed == 0
+            assert metrics.total_audio_processed == 0
+            assert metrics.average_response_time_ms == 0
+            assert metrics.error_rate_percent == 0
+            assert metrics.active_sessions == 1
 
     def test_determine_overall_status(self, test_health_service):
         """Test overall status determination"""
