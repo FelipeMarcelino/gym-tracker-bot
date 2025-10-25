@@ -105,7 +105,9 @@ class AsyncServiceContainer:
             session_manager = self._services[AsyncSessionManager]
             cleaned_count = await session_manager.cleanup_stale_sessions()
             if cleaned_count > 0:
-                logger.info(f"🧹 Startup cleanup: {cleaned_count} stale sessions marked as finished")
+                logger.info(
+                    f"🧹 Startup cleanup: {cleaned_count} stale sessions marked as finished"
+                )
             else:
                 logger.info("🧹 Startup cleanup: No stale sessions found")
 
@@ -135,7 +137,6 @@ async def get_async_container() -> AsyncServiceContainer:
             if _async_container is None:
                 _async_container = AsyncServiceContainer()
     return _async_container
-
 
 
 # Convenience functions for async services
@@ -214,7 +215,6 @@ async def shutdown_async_services() -> None:
     _async_container = None
 
 
-
 @asynccontextmanager
 async def async_service_context():
     """Context manager for async services lifecycle"""
@@ -223,4 +223,3 @@ async def async_service_context():
         yield
     finally:
         await shutdown_async_services()
-

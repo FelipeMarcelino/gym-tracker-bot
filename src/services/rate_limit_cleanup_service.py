@@ -41,13 +41,19 @@ class RateLimitCleanupService:
             else:
                 # Defer task creation until event loop is running
                 self.scheduler_task = None
-                logger.info("Event loop not running, cleanup scheduler will start when loop is available")
+                logger.info(
+                    "Event loop not running, cleanup scheduler will start when loop is available"
+                )
         except RuntimeError:
             # No event loop exists yet, defer task creation
             self.scheduler_task = None
-            logger.info("No event loop exists, cleanup scheduler will start when loop is available")
+            logger.info(
+                "No event loop exists, cleanup scheduler will start when loop is available"
+            )
 
-        logger.info(f"Automated rate limit cleanup started: every {self.cleanup_frequency_hours} hour(s)")
+        logger.info(
+            f"Automated rate limit cleanup started: every {self.cleanup_frequency_hours} hour(s)"
+        )
 
     def stop_automated_cleanup(self):
         """Stop automated cleanup scheduler"""
@@ -57,7 +63,7 @@ class RateLimitCleanupService:
         self.is_running = False
 
         # Set the stop event to wake up the scheduler
-        if hasattr(self, '_stop_event') and self._stop_event is not None:
+        if hasattr(self, "_stop_event") and self._stop_event is not None:
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
@@ -81,7 +87,7 @@ class RateLimitCleanupService:
         self.is_running = False
 
         # Set the stop event to wake up the scheduler immediately
-        if hasattr(self, '_stop_event'):
+        if hasattr(self, "_stop_event"):
             self._stop_event.set()
 
         if hasattr(self, "scheduler_task") and self.scheduler_task is not None:
@@ -139,7 +145,13 @@ class RateLimitCleanupService:
 
         except Exception as e:
             logger.exception("Rate limit cleanup failed")
-            return {"general": 0, "voice": 0, "commands": 0, "total": 0, "error": str(e)}
+            return {
+                "general": 0,
+                "voice": 0,
+                "commands": 0,
+                "total": 0,
+                "error": str(e),
+            }
 
     async def _scheduled_cleanup(self):
         """Perform scheduled cleanup"""
@@ -150,7 +162,9 @@ class RateLimitCleanupService:
 
     async def _run_async_scheduler(self):
         """Run the async cleanup scheduler"""
-        next_cleanup_time = datetime.now() + timedelta(hours=self.cleanup_frequency_hours)
+        next_cleanup_time = datetime.now() + timedelta(
+            hours=self.cleanup_frequency_hours
+        )
         logger.info(f"Next rate limit cleanup scheduled for: {next_cleanup_time}")
 
         while self.is_running:
@@ -159,8 +173,12 @@ class RateLimitCleanupService:
 
                 if current_time >= next_cleanup_time:
                     await self._scheduled_cleanup()
-                    next_cleanup_time = current_time + timedelta(hours=self.cleanup_frequency_hours)
-                    logger.info(f"Next rate limit cleanup scheduled for: {next_cleanup_time}")
+                    next_cleanup_time = current_time + timedelta(
+                        hours=self.cleanup_frequency_hours
+                    )
+                    logger.info(
+                        f"Next rate limit cleanup scheduled for: {next_cleanup_time}"
+                    )
 
                 # Check every 5 seconds for faster shutdown response
                 for _ in range(12):  # 12 * 5 = 60 seconds total
@@ -181,7 +199,8 @@ class RateLimitCleanupService:
             "is_running": self.is_running,
             "cleanup_frequency_hours": self.cleanup_frequency_hours,
             "max_inactive_seconds": self.max_inactive_seconds,
-            "scheduler_active": self.scheduler_task is not None and not self.scheduler_task.done()
+            "scheduler_active": self.scheduler_task is not None
+            and not self.scheduler_task.done(),
         }
 
 

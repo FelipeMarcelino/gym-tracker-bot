@@ -14,14 +14,17 @@ from services.async_container import get_async_user_service
 logger = logging.getLogger(__name__)
 
 
-def authorized_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]) -> Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]:
+def authorized_only(
+    func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]],
+) -> Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]:
     """Decorator para proteger handlers - apenas usuários autorizados podem usar
-    
+
     Uso:
     @authorized_only
     async def meu_handler(update, context):
         ...
     """
+
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
         user = update.effective_user
@@ -42,7 +45,9 @@ def authorized_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitabl
 
         if not await user_service.is_user_authorized(str(user_id)):
             # Log da tentativa de acesso não autorizado
-            logger.warning(f"Acesso negado para usuário {user_id} ({user.first_name} {user.last_name or ''}, @{user.username or 'não definido'})")
+            logger.warning(
+                f"Acesso negado para usuário {user_id} ({user.first_name} {user.last_name or ''}, @{user.username or 'não definido'})"
+            )
 
             # Mensagem para o usuário não autorizado
             await update.message.reply_text(
@@ -57,14 +62,17 @@ def authorized_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitabl
     return wrapper
 
 
-def admin_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]) -> Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]:
+def admin_only(
+    func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]],
+) -> Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]:
     """Decorator para proteger handlers - apenas admins podem usar
-    
+
     Uso:
-    @admin_only 
+    @admin_only
     async def admin_handler(update, context):
         ...
     """
+
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
         user = update.effective_user
@@ -74,7 +82,9 @@ def admin_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any
 
         # Verificar se é admin (async)
         if not await user_service.is_user_admin(user_id):
-            logger.warning(f"Acesso admin negado para usuário {user_id} ({user.first_name} {user.last_name or ''})")
+            logger.warning(
+                f"Acesso admin negado para usuário {user_id} ({user.first_name} {user.last_name or ''})"
+            )
 
             await update.message.reply_text(
                 "🚫 **Acesso Negado**\n\nApenas administradores podem usar este comando.",
@@ -89,8 +99,7 @@ def admin_only(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any
 
 
 async def log_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Loga todos os acessos ao bot (opcional - para monitoramento)
-    """
+    """Loga todos os acessos ao bot (opcional - para monitoramento)"""
     user = update.effective_user
     message = update.message
 
@@ -99,7 +108,9 @@ async def log_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     # Determinar tipo de mensagem
     if message.text:
         msg_type = "TEXT"
-        content = message.text[:settings.LOG_MESSAGE_PREVIEW_LENGTH]  # Primeiros caracteres configuráveis
+        content = message.text[
+            : settings.LOG_MESSAGE_PREVIEW_LENGTH
+        ]  # Primeiros caracteres configuráveis
     elif message.voice:
         msg_type = "VOICE"
         content = f"{message.voice.duration}s"
@@ -108,4 +119,6 @@ async def log_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         content = "-"
 
     # Log formatado
-    logger.info(f"Acesso do usuário {user.first_name} (ID: {user.id}) - Tipo: {msg_type}, Conteúdo: {content}")
+    logger.info(
+        f"Acesso do usuário {user.first_name} (ID: {user.id}) - Tipo: {msg_type}, Conteúdo: {content}"
+    )

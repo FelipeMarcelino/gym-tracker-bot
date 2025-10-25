@@ -5,7 +5,12 @@ from groq import AsyncGroq
 
 from config.logging_config import get_logger
 from config.settings import settings
-from services.exceptions import ErrorCode, LLMParsingError, ServiceUnavailableError, ValidationError
+from services.exceptions import (
+    ErrorCode,
+    LLMParsingError,
+    ServiceUnavailableError,
+    ValidationError,
+)
 
 logger = get_logger(__name__)
 
@@ -37,13 +42,13 @@ class LLMParsingService:
 
     async def parse_workout(self, transcription: str) -> Dict[str, Any]:
         """Parse uma transcrição de treino usando Groq API
-        
+
         Args:
             transcription: Texto transcrito do áudio
-            
+
         Returns:
             Dict com dados estruturados do treino
-            
+
         Raises:
             ValidationError: Se a transcrição é inválida
             LLMParsingError: Se o parsing falhar
@@ -75,10 +80,12 @@ class LLMParsingService:
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
-                messages=[{
-                    "role": "user",
-                    "content": prompt,
-                }],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    }
+                ],
                 temperature=settings.LLM_TEMPERATURE,
                 max_completion_tokens=settings.LLM_MAX_TOKENS,
             )
@@ -142,10 +149,10 @@ class LLMParsingService:
 
             # Check for rate limit errors (HTTP 429 or rate_limit in message)
             is_rate_limit = (
-                "rate_limit" in error_str or
-                "429" in error_str or
-                "too many requests" in error_str or
-                (hasattr(e, "status_code") and e.status_code == 429)
+                "rate_limit" in error_str
+                or "429" in error_str
+                or "too many requests" in error_str
+                or (hasattr(e, "status_code") and e.status_code == 429)
             )
 
             if is_rate_limit:
@@ -161,10 +168,10 @@ class LLMParsingService:
 
             # Check for authentication errors (HTTP 401)
             is_auth_error = (
-                "unauthorized" in error_str or
-                "401" in error_str or
-                ("invalid" in error_str and "key" in error_str) or
-                (hasattr(e, "status_code") and e.status_code == 401)
+                "unauthorized" in error_str
+                or "401" in error_str
+                or ("invalid" in error_str and "key" in error_str)
+                or (hasattr(e, "status_code") and e.status_code == 401)
             )
 
             if is_auth_error:
@@ -179,9 +186,9 @@ class LLMParsingService:
 
             # Check for timeout errors
             is_timeout = (
-                "timeout" in error_str or
-                "timed out" in error_str or
-                (hasattr(e, "status_code") and e.status_code == 504)
+                "timeout" in error_str
+                or "timed out" in error_str
+                or (hasattr(e, "status_code") and e.status_code == 504)
             )
 
             if is_timeout:
@@ -458,6 +465,7 @@ IMPORTANTE sobre EXERCÍCIOS AERÓBICOS:
 - Não invente dados
 
 Retorne APENAS o JSON, sem texto adicional."""
+
 
 # Service instantiation moved to container.py
 # This module only defines the service class

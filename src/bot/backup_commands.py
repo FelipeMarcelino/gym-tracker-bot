@@ -19,11 +19,11 @@ async def backup_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         # Create backup
         backup_path = await backup_service.create_backup()
-        
+
         # Get backup info
         backups = await backup_service.list_backups()
         latest_backup = backups[0] if backups else None
-        
+
         if latest_backup:
             message = (
                 "✅ **Backup Created Successfully**\n\n"
@@ -34,15 +34,15 @@ async def backup_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             message = f"✅ Backup created: {backup_path}"
-        
-        await update.message.reply_text(message, parse_mode='Markdown')
+
+        await update.message.reply_text(message, parse_mode="Markdown")
         logger.info(f"Manual backup created by admin {update.effective_user.id}")
-        
+
     except BackupError as e:
         error_msg = f"❌ Backup failed: {e.user_message or str(e)}"
         await update.message.reply_text(error_msg)
         logger.error(f"Manual backup failed: {e}")
-        
+
     except Exception as e:
         await update.message.reply_text("❌ An unexpected error occurred during backup")
         logger.exception(f"Unexpected error in backup_create: {e}")
@@ -53,14 +53,14 @@ async def backup_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """List all available backups"""
     try:
         backups = await backup_service.list_backups()
-        
+
         if not backups:
             await update.message.reply_text("📁 No backups found")
             return
-        
+
         # Build backup list message
         message = "📁 **Available Backups**\n\n"
-        
+
         for i, backup in enumerate(backups[:10], 1):  # Show latest 10
             status = "✔️" if backup["verified"] else "❌"
             message += (
@@ -69,10 +69,10 @@ async def backup_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"   🕐 Created: {backup['created'].strftime('%Y-%m-%d %H:%M:%S')}\n"
                 f"   {status} Verified\n\n"
             )
-        
+
         if len(backups) > 10:
             message += f"... and {len(backups) - 10} more backups\n\n"
-        
+
         # Add summary
         stats = await backup_service.get_backup_stats()
         message += (
@@ -81,9 +81,9 @@ async def backup_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Size: {stats['total_size_mb']} MB\n"
             f"Verified: {stats['verified_backups']}/{stats['total_backups']}"
         )
-        
-        await update.message.reply_text(message, parse_mode='Markdown')
-        
+
+        await update.message.reply_text(message, parse_mode="Markdown")
+
     except Exception as e:
         await update.message.reply_text("❌ Failed to list backups")
         logger.exception(f"Error listing backups: {e}")
@@ -94,13 +94,15 @@ async def backup_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show backup statistics"""
     try:
         stats = await backup_service.get_backup_stats()
-        
+
         if "error" in stats:
-            await update.message.reply_text(f"❌ Error getting backup stats: {stats['error']}")
+            await update.message.reply_text(
+                f"❌ Error getting backup stats: {stats['error']}"
+            )
             return
-        
+
         message = "📊 **Backup Statistics**\n\n"
-        
+
         if stats["total_backups"] == 0:
             message += "No backups found"
         else:
@@ -110,21 +112,23 @@ async def backup_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"✔️ **Verified:** {stats['verified_backups']}/{stats['total_backups']}\n"
                 f"📂 **Directory:** `{stats['backup_directory']}`\n\n"
             )
-            
+
             if stats["newest_backup"]:
                 message += f"🆕 **Newest:** {stats['newest_backup'].strftime('%Y-%m-%d %H:%M:%S')}\n"
-            
+
             if stats["oldest_backup"]:
                 message += f"📅 **Oldest:** {stats['oldest_backup'].strftime('%Y-%m-%d %H:%M:%S')}\n"
-        
+
         # Add system info
         message += f"\n🔧 **Config:**\n"
         message += f"Max backups: {backup_service.max_backups}\n"
         message += f"Frequency: every {backup_service.backup_frequency_hours} hours\n"
-        message += f"Auto-backup: {'Running' if backup_service.is_running else 'Stopped'}"
-        
-        await update.message.reply_text(message, parse_mode='Markdown')
-        
+        message += (
+            f"Auto-backup: {'Running' if backup_service.is_running else 'Stopped'}"
+        )
+
+        await update.message.reply_text(message, parse_mode="Markdown")
+
     except Exception as e:
         await update.message.reply_text("❌ Failed to get backup statistics")
         logger.exception(f"Error getting backup stats: {e}")
@@ -132,13 +136,15 @@ async def backup_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @admin_only
 @validate_input(CommonSchemas.text_message(min_length=5))
-async def backup_restore(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data=None):
+async def backup_restore(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data=None
+):
     """Restore database from backup (DANGEROUS OPERATION)"""
     try:
         # Parse backup name from message
         text = validated_data["text"]
         parts = text.split()
-        
+
         if len(parts) < 2:
             await update.message.reply_text(
                 "❌ Please specify backup filename:\n"
@@ -146,9 +152,9 @@ async def backup_restore(update: Update, context: ContextTypes.DEFAULT_TYPE, val
                 "⚠️ **WARNING:** This will replace the current database!"
             )
             return
-        
+
         backup_name = parts[1]
-        
+
         # Safety confirmation check
         if len(parts) < 3 or parts[2].lower() != "confirm":
             await update.message.reply_text(
@@ -160,45 +166,49 @@ async def backup_restore(update: Update, context: ContextTypes.DEFAULT_TYPE, val
                 f"⚠️ **This action cannot be undone!**"
             )
             return
-        
+
         # Find backup file
         backups = await backup_service.list_backups()
         backup_path = None
-        
+
         for backup in backups:
             if backup["name"] == backup_name:
                 backup_path = backup["path"]
                 break
-        
+
         if not backup_path:
             await update.message.reply_text(
                 f"❌ Backup not found: `{backup_name}`\n\n"
                 f"Use `/backup_list` to see available backups"
             )
             return
-        
+
         # Perform restore
         await update.message.reply_text("🔄 Starting database restore...")
-        
+
         success = await backup_service.restore_backup(backup_path, confirm=True)
-        
+
         if success:
             await update.message.reply_text(
                 f"✅ **Database Restored Successfully**\n\n"
                 f"Restored from: `{backup_name}`\n"
                 f"⚠️ **Bot restart recommended**"
             )
-            logger.warning(f"Database restored from {backup_name} by admin {update.effective_user.id}")
+            logger.warning(
+                f"Database restored from {backup_name} by admin {update.effective_user.id}"
+            )
         else:
             await update.message.reply_text("❌ Database restore failed")
-        
+
     except BackupError as e:
         error_msg = f"❌ Restore failed: {e.user_message or str(e)}"
         await update.message.reply_text(error_msg)
         logger.error(f"Database restore failed: {e}")
-        
+
     except Exception as e:
-        await update.message.reply_text("❌ An unexpected error occurred during restore")
+        await update.message.reply_text(
+            "❌ An unexpected error occurred during restore"
+        )
         logger.exception(f"Unexpected error in backup_restore: {e}")
 
 
@@ -209,26 +219,28 @@ async def backup_cleanup(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Get current backup count
         stats = await backup_service.get_backup_stats()
         old_count = stats["total_backups"]
-        
+
         # Perform cleanup
         await backup_service.cleanup_old_backups()
-        
+
         # Get new count
         new_stats = await backup_service.get_backup_stats()
         new_count = new_stats["total_backups"]
-        
+
         removed = old_count - new_count
-        
+
         message = (
             f"🧹 **Backup Cleanup Complete**\n\n"
             f"Removed: {removed} old backups\n"
             f"Remaining: {new_count} backups\n"
             f"Total size: {new_stats['total_size_mb']} MB"
         )
-        
-        await update.message.reply_text(message, parse_mode='Markdown')
-        logger.info(f"Backup cleanup performed by admin {update.effective_user.id}: removed {removed} backups")
-        
+
+        await update.message.reply_text(message, parse_mode="Markdown")
+        logger.info(
+            f"Backup cleanup performed by admin {update.effective_user.id}: removed {removed} backups"
+        )
+
     except Exception as e:
         await update.message.reply_text("❌ Failed to cleanup backups")
         logger.exception(f"Error during backup cleanup: {e}")
@@ -241,19 +253,19 @@ async def backup_auto_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if backup_service.is_running:
             await update.message.reply_text("🔄 Automated backups are already running")
             return
-        
+
         backup_service.start_automated_backups()
-        
+
         message = (
             f"✅ **Automated Backups Started**\n\n"
             f"📅 Frequency: every {backup_service.backup_frequency_hours} hours\n"
             f"📁 Max backups: {backup_service.max_backups}\n"
             f"📂 Directory: `{backup_service.backup_dir}`"
         )
-        
-        await update.message.reply_text(message, parse_mode='Markdown')
+
+        await update.message.reply_text(message, parse_mode="Markdown")
         logger.info(f"Automated backups started by admin {update.effective_user.id}")
-        
+
     except Exception as e:
         await update.message.reply_text("❌ Failed to start automated backups")
         logger.exception(f"Error starting automated backups: {e}")
@@ -266,12 +278,12 @@ async def backup_auto_stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not backup_service.is_running:
             await update.message.reply_text("⏹️ Automated backups are not running")
             return
-        
+
         backup_service.stop_automated_backups()
-        
+
         await update.message.reply_text("⏹️ **Automated Backups Stopped**")
         logger.info(f"Automated backups stopped by admin {update.effective_user.id}")
-        
+
     except Exception as e:
         await update.message.reply_text("❌ Failed to stop automated backups")
         logger.exception(f"Error stopping automated backups: {e}")

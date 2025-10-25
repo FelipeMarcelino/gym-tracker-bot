@@ -11,7 +11,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from database.async_connection import get_async_session_context
-from database.models import AerobicExercise, SessionStatus, WorkoutExercise, WorkoutSession
+from database.models import (
+    AerobicExercise,
+    SessionStatus,
+    WorkoutExercise,
+    WorkoutSession,
+)
 from models.service_models import DateRange, ExportPreview, ExportResult, ExportSummary
 from services.exceptions import DatabaseError, ValidationError
 
@@ -56,7 +61,11 @@ class AsyncExportService:
             try:
                 # Get user's workout sessions
                 sessions = await self._get_user_sessions(
-                    session, user_id, start_date, end_date, include_active,
+                    session,
+                    user_id,
+                    start_date,
+                    end_date,
+                    include_active,
                 )
 
                 if not sessions:
@@ -118,11 +127,15 @@ class AsyncExportService:
         async with get_async_session_context() as session:
             try:
                 # Get all sessions for user
-                sessions_stmt = select(WorkoutSession).where(
-                    WorkoutSession.user_id == user_id,
-                ).options(
-                    joinedload(WorkoutSession.exercises),
-                    joinedload(WorkoutSession.aerobics),
+                sessions_stmt = (
+                    select(WorkoutSession)
+                    .where(
+                        WorkoutSession.user_id == user_id,
+                    )
+                    .options(
+                        joinedload(WorkoutSession.exercises),
+                        joinedload(WorkoutSession.aerobics),
+                    )
                 )
 
                 result = await session.execute(sessions_stmt)
@@ -141,8 +154,12 @@ class AsyncExportService:
                     )
 
                 # Calculate summary
-                completed_sessions = len([s for s in sessions if s.status == SessionStatus.FINALIZADA])
-                active_sessions = len([s for s in sessions if s.status == SessionStatus.ATIVA])
+                completed_sessions = len(
+                    [s for s in sessions if s.status == SessionStatus.FINALIZADA]
+                )
+                active_sessions = len(
+                    [s for s in sessions if s.status == SessionStatus.ATIVA]
+                )
 
                 total_resistance = sum(len(s.exercises) for s in sessions)
                 total_aerobic = sum(len(s.aerobics) for s in sessions)
@@ -150,10 +167,14 @@ class AsyncExportService:
 
                 # Date range
                 dates = [s.date for s in sessions]
-                date_range = DateRange(
-                    start=min(dates).strftime("%d/%m/%Y"),
-                    end=max(dates).strftime("%d/%m/%Y"),
-                ) if dates else None
+                date_range = (
+                    DateRange(
+                        start=min(dates).strftime("%d/%m/%Y"),
+                        end=max(dates).strftime("%d/%m/%Y"),
+                    )
+                    if dates
+                    else None
+                )
 
                 # Estimate export size (rough calculation)
                 estimated_size_mb = await self._estimate_export_size(sessions)
@@ -183,11 +204,19 @@ class AsyncExportService:
     ) -> List[WorkoutSession]:
         """Get user sessions with filters (async)"""
         # Build query
-        stmt = select(WorkoutSession).where(
-            WorkoutSession.user_id == user_id,
-        ).options(
-            joinedload(WorkoutSession.exercises).joinedload(WorkoutExercise.exercise),
-            joinedload(WorkoutSession.aerobics).joinedload(AerobicExercise.exercise),
+        stmt = (
+            select(WorkoutSession)
+            .where(
+                WorkoutSession.user_id == user_id,
+            )
+            .options(
+                joinedload(WorkoutSession.exercises).joinedload(
+                    WorkoutExercise.exercise
+                ),
+                joinedload(WorkoutSession.aerobics).joinedload(
+                    AerobicExercise.exercise
+                ),
+            )
         )
 
         # Add date filters
@@ -265,10 +294,22 @@ class AsyncExportService:
 
         # Create CSV writer
         fieldnames = [
-            "session_id", "date", "status", "duration_minutes",
-            "exercise_type", "exercise_name", "muscle_group", "equipment",
-            "sets", "reps", "weight", "rest_seconds",
-            "duration_minutes_cardio", "distance_km", "calories", "intensity",
+            "session_id",
+            "date",
+            "status",
+            "duration_minutes",
+            "exercise_type",
+            "exercise_name",
+            "muscle_group",
+            "equipment",
+            "sets",
+            "reps",
+            "weight",
+            "rest_seconds",
+            "duration_minutes_cardio",
+            "distance_km",
+            "calories",
+            "intensity",
             "notes",
         ]
 
@@ -286,31 +327,37 @@ class AsyncExportService:
             # Write workout exercises
             for we in session.exercises:
                 row = base_row.copy()
-                row.update({
-                    "exercise_type": "resistance",
-                    "exercise_name": we.exercise.name if we.exercise else "Unknown",
-                    "muscle_group": we.exercise.muscle_group if we.exercise else None,
-                    "equipment": we.exercise.equipment if we.exercise else None,
-                    "sets": we.sets,
-                    "reps": we.reps,
-                    "weight": we.weights_kg,
-                    "rest_seconds": we.rest_seconds,
-                    "notes": we.notes,
-                })
+                row.update(
+                    {
+                        "exercise_type": "resistance",
+                        "exercise_name": we.exercise.name if we.exercise else "Unknown",
+                        "muscle_group": (
+                            we.exercise.muscle_group if we.exercise else None
+                        ),
+                        "equipment": we.exercise.equipment if we.exercise else None,
+                        "sets": we.sets,
+                        "reps": we.reps,
+                        "weight": we.weights_kg,
+                        "rest_seconds": we.rest_seconds,
+                        "notes": we.notes,
+                    }
+                )
                 writer.writerow(row)
 
             # Write aerobic exercises
             for ae in session.aerobics:
                 row = base_row.copy()
-                row.update({
-                    "exercise_type": "aerobic",
-                    "exercise_name": ae.exercise.name if ae.exercise else "Unknown",
-                    "duration_minutes_cardio": ae.duration_minutes,
-                    "distance_km": ae.distance_km,
-                    "calories": ae.calories_burned,
-                    "intensity": ae.intensity_level,
-                    "notes": ae.notes,
-                })
+                row.update(
+                    {
+                        "exercise_type": "aerobic",
+                        "exercise_name": ae.exercise.name if ae.exercise else "Unknown",
+                        "duration_minutes_cardio": ae.duration_minutes,
+                        "distance_km": ae.distance_km,
+                        "calories": ae.calories_burned,
+                        "intensity": ae.intensity_level,
+                        "notes": ae.notes,
+                    }
+                )
                 writer.writerow(row)
 
             # If session has no exercises, write a row for the session itself
@@ -321,10 +368,14 @@ class AsyncExportService:
 
         return output.getvalue()
 
-    async def _calculate_export_summary(self, sessions: List[WorkoutSession]) -> ExportSummary:
+    async def _calculate_export_summary(
+        self, sessions: List[WorkoutSession]
+    ) -> ExportSummary:
         """Calculate summary statistics for exported data (async)"""
         total_sessions = len(sessions)
-        completed_sessions = len([s for s in sessions if s.status == SessionStatus.FINALIZADA])
+        completed_sessions = len(
+            [s for s in sessions if s.status == SessionStatus.FINALIZADA]
+        )
 
         total_resistance = sum(len(s.exercises) for s in sessions)
         total_aerobic = sum(len(s.aerobics) for s in sessions)
@@ -332,10 +383,14 @@ class AsyncExportService:
 
         # Date range
         dates = [s.date for s in sessions]
-        date_range = DateRange(
-            start=min(dates).strftime("%d/%m/%Y"),
-            end=max(dates).strftime("%d/%m/%Y"),
-        ) if dates else None
+        date_range = (
+            DateRange(
+                start=min(dates).strftime("%d/%m/%Y"),
+                end=max(dates).strftime("%d/%m/%Y"),
+            )
+            if dates
+            else None
+        )
 
         # Total duration
         total_duration = sum(s.duration_minutes or 0 for s in sessions)
@@ -357,13 +412,11 @@ class AsyncExportService:
         base_size_per_session = 0.5  # KB
         base_size_per_exercise = 0.2  # KB
 
-        total_exercises = sum(
-            len(s.exercises) + len(s.aerobics)
-            for s in sessions
-        )
+        total_exercises = sum(len(s.exercises) + len(s.aerobics) for s in sessions)
 
-        estimated_kb = (len(sessions) * base_size_per_session) + (total_exercises * base_size_per_exercise)
+        estimated_kb = (len(sessions) * base_size_per_session) + (
+            total_exercises * base_size_per_exercise
+        )
         estimated_mb = estimated_kb / 1024
 
         return round(estimated_mb, 2)
-

@@ -4,7 +4,12 @@ from typing import Optional, AsyncGenerator
 import asyncio
 from contextlib import asynccontextmanager
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.pool import NullPool
 
 from config.logging_config import get_logger
@@ -33,11 +38,14 @@ class AsyncDatabaseConnection:
             if self._engine is None:
                 # Read DATABASE_URL from environment directly to support test overrides
                 import os
+
                 database_url = os.getenv("DATABASE_URL", "sqlite:///gym_tracker.db")
-                
+
                 # Convert SQLite URL to async version
                 if database_url.startswith("sqlite:///"):
-                    async_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+                    async_url = database_url.replace(
+                        "sqlite:///", "sqlite+aiosqlite:///"
+                    )
                 else:
                     # For other databases, you might need different async drivers
                     # PostgreSQL: postgresql+asyncpg://
@@ -58,22 +66,22 @@ class AsyncDatabaseConnection:
                         async_url,
                         echo=False,  # True for debug SQL
                         pool_pre_ping=True,
-                        pool_size=10,           # Connection pool size
-                        max_overflow=20,        # Additional connections beyond pool_size
-                        pool_recycle=3600,      # Recycle connections after 1 hour
-                        pool_timeout=30,        # Timeout for getting connection from pool
+                        pool_size=10,  # Connection pool size
+                        max_overflow=20,  # Additional connections beyond pool_size
+                        pool_recycle=3600,  # Recycle connections after 1 hour
+                        pool_timeout=30,  # Timeout for getting connection from pool
                     )
-                
+
                 self._session_factory = async_sessionmaker(
                     bind=self._engine,
                     class_=AsyncSession,
                     expire_on_commit=False,
                 )
-                
+
                 # Create tables if they don't exist
                 async with self._engine.begin() as conn:
                     await conn.run_sync(Base.metadata.create_all)
-                
+
                 logger.info(f"Async database initialized: {async_url}")
 
     async def get_session(self) -> AsyncSession:

@@ -20,6 +20,7 @@ pkgs-unfree.mkShell {
     pythonPackages.python-dotenv
     pythonPackages.sqlalchemy
     pythonPackages.pydub
+    pythonPackages.black
     pkgs.ffmpeg
     pkgs.sqlite
 

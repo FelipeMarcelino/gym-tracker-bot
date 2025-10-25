@@ -41,7 +41,12 @@ from bot.handlers import (
     stats_command,
     status_command,
 )
-from bot.health_endpoints import health_command, health_full_command, metrics_command, performance_command
+from bot.health_endpoints import (
+    health_command,
+    health_full_command,
+    metrics_command,
+    performance_command,
+)
 from config.settings import settings
 from services.async_backup_service import backup_service
 from services.async_container import initialize_async_services, shutdown_async_services
@@ -108,7 +113,9 @@ async def initialize_admin_user() -> None:
             if user_ids:
                 admin_id = str(user_ids[0])
             else:
-                logger.info("⚠️  No admin user configured in FIRST_ADMIN_USER_ID or AUTHORIZED_USER_IDS")
+                logger.info(
+                    "⚠️  No admin user configured in FIRST_ADMIN_USER_ID or AUTHORIZED_USER_IDS"
+                )
                 return
 
         admin_id = admin_id.strip()
@@ -125,7 +132,9 @@ async def initialize_admin_user() -> None:
             if existing_user.is_admin:
                 logger.info(f"✅ Admin user {admin_id} already exists and is admin")
             else:
-                logger.info(f"✅ User {admin_id} already exists (not promoting to admin)")
+                logger.info(
+                    f"✅ User {admin_id} already exists (not promoting to admin)"
+                )
             return
 
         # User doesn't exist - create as admin
@@ -234,7 +243,9 @@ def main() -> NoReturn:
     application.add_handler(CommandHandler("adduser", add_user_command))
     application.add_handler(CommandHandler("removeuser", remove_user_command))
     application.add_handler(CommandHandler("listusers", list_users_command))
-    application.add_handler(CommandHandler("ratelimit_cleanup", ratelimit_cleanup_command))
+    application.add_handler(
+        CommandHandler("ratelimit_cleanup", ratelimit_cleanup_command)
+    )
     application.add_handler(CommandHandler("ratelimit_stats", ratelimit_stats_command))
 
     # Health and monitoring commands (Admin only)
@@ -254,9 +265,10 @@ def main() -> NoReturn:
 
     # Message handlers
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)
+    )
     application.add_handler(MessageHandler(filters.COMMAND, handle_unknown))
-
 
     logger.info("✅ All handlers registered")
 
