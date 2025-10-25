@@ -317,7 +317,7 @@ _Seu ID: `{user_id}`_"""
         """Format a single resistance exercise"""
         weights = exercises.get("weights_kg", [])
         if not weights and exercises.get("weight_kg"):
-            weights = [exercises.get("weight_kg")] * ex.get("sets", 1)
+            weights = [exercises.get("weight_kg")] * exercises.get("sets", 1)
 
         reps = exercises.get("reps", [])
         rest_seconds = exercises.get("rest_seconds")
