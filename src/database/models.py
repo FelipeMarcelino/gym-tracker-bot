@@ -76,18 +76,12 @@ class WorkoutSession(Base):
 
     # ===== NOVO: Controle de sessão =====
     status = Column(Enum(SessionStatus), default=SessionStatus.ATIVA)  # ← NOVO
-    last_update = Column(
-        DateTime, default=datetime.now, onupdate=datetime.now
-    )  # ← NOVO
+    last_update = Column(DateTime, default=datetime.now, onupdate=datetime.now)  # ← NOVO
     audio_count = Column(Integer, default=0)  # ← NOVO: Quantos áudios nesta sessão
 
     # Relacionamentos
-    exercises = relationship(
-        "WorkoutExercise", back_populates="session", cascade="all, delete-orphan"
-    )
-    aerobics = relationship(
-        "AerobicExercise", back_populates="session", cascade="all, delete-orphan"
-    )
+    exercises = relationship("WorkoutExercise", back_populates="session", cascade="all, delete-orphan")
+    aerobics = relationship("AerobicExercise", back_populates="session", cascade="all, delete-orphan")
 
 
 class Exercise(Base):
@@ -109,9 +103,7 @@ class WorkoutExercise(Base):
     __tablename__ = "workout_exercises"
 
     workout_exercise_id = Column(Integer, primary_key=True, autoincrement=True)
-    session_id = Column(
-        Integer, ForeignKey("workout_sessions.session_id", ondelete="CASCADE")
-    )
+    session_id = Column(Integer, ForeignKey("workout_sessions.session_id", ondelete="CASCADE"))
     exercise_id = Column(Integer, ForeignKey("exercises.exercise_id"))
     order_in_workout = Column(Integer)
     sets = Column(Integer)
@@ -132,9 +124,7 @@ class AerobicExercise(Base):
     __tablename__ = "aerobic_exercises"
 
     aerobic_id = Column(Integer, primary_key=True, autoincrement=True)
-    session_id = Column(
-        Integer, ForeignKey("workout_sessions.session_id", ondelete="CASCADE")
-    )
+    session_id = Column(Integer, ForeignKey("workout_sessions.session_id", ondelete="CASCADE"))
     exercise_id = Column(Integer, ForeignKey("exercises.exercise_id"))
     duration_minutes = Column(Float)
     distance_km = Column(Float)

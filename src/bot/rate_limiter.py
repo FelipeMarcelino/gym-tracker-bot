@@ -86,9 +86,7 @@ class RateLimiter:
         user_queue = self.user_requests[user_id]
 
         # Count valid requests (within the window)
-        valid_requests = sum(
-            1 for timestamp in user_queue if timestamp > now - self.window_seconds
-        )
+        valid_requests = sum(1 for timestamp in user_queue if timestamp > now - self.window_seconds)
 
         if valid_requests < self.max_requests:
             remaining = self.max_requests - valid_requests
@@ -155,9 +153,7 @@ def rate_limit_general(
                 window_seconds=_general_limiter.window_seconds,
             )
             await update.message.reply_text(message)
-            logger.warning(
-                f"Rate limit geral: Usuário {user_id} bloqueado por {reset_time}s"
-            )
+            logger.warning(f"Rate limit geral: Usuário {user_id} bloqueado por {reset_time}s")
             return None
 
         # Add rate limit headers to context for monitoring
@@ -186,9 +182,7 @@ def rate_limit_voice(
                 window_seconds=_voice_limiter.window_seconds,
             )
             await update.message.reply_text(message)
-            logger.warning(
-                f"Rate limit de voz: Usuário {user_id} bloqueado por {reset_time}s"
-            )
+            logger.warning(f"Rate limit de voz: Usuário {user_id} bloqueado por {reset_time}s")
             return None
 
         context.user_data["voice_limit_remaining"] = result.remaining_requests
@@ -216,9 +210,7 @@ def rate_limit_commands(
                 window_seconds=_command_limiter.window_seconds,
             )
             await update.message.reply_text(message)
-            logger.warning(
-                f"Rate limit de comandos: Usuário {user_id} bloqueado por {reset_time}s"
-            )
+            logger.warning(f"Rate limit de comandos: Usuário {user_id} bloqueado por {reset_time}s")
             return None
 
         context.user_data["command_limit_remaining"] = result.remaining_requests

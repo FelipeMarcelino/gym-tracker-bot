@@ -10,18 +10,10 @@ class ResistanceExercise(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=100, description="Exercise name")
     sets: int = Field(..., gt=0, le=20, description="Number of sets performed")
-    reps: List[int] = Field(
-        ..., min_length=1, max_length=20, description="Repetitions per set"
-    )
-    weights_kg: List[float] = Field(
-        ..., min_length=1, description="Weight used per set in kg"
-    )
-    rest_seconds: Optional[int] = Field(
-        None, ge=0, le=1800, description="Rest time between sets"
-    )
-    perceived_difficulty: Optional[int] = Field(
-        None, ge=1, le=10, description="RPE scale 1-10"
-    )
+    reps: List[int] = Field(..., min_length=1, max_length=20, description="Repetitions per set")
+    weights_kg: List[float] = Field(..., min_length=1, description="Weight used per set in kg")
+    rest_seconds: Optional[int] = Field(None, ge=0, le=1800, description="Rest time between sets")
+    perceived_difficulty: Optional[int] = Field(None, ge=1, le=10, description="RPE scale 1-10")
     notes: Optional[str] = Field(None, max_length=500, description="Additional notes")
 
     @field_validator("reps")
@@ -46,14 +38,10 @@ class ResistanceExercise(BaseModel):
     def validate_arrays_consistency(self):
         """Validate that reps and weights arrays are consistent with sets count"""
         if len(self.reps) != self.sets:
-            raise ValueError(
-                f"Number of rep values ({len(self.reps)}) must match sets count ({self.sets})"
-            )
+            raise ValueError(f"Number of rep values ({len(self.reps)}) must match sets count ({self.sets})")
 
         if len(self.weights_kg) != self.sets:
-            raise ValueError(
-                f"Number of weight values ({len(self.weights_kg)}) must match sets count ({self.sets})"
-            )
+            raise ValueError(f"Number of weight values ({len(self.weights_kg)}) must match sets count ({self.sets})")
 
         return self
 
@@ -62,18 +50,10 @@ class AerobicExercise(BaseModel):
     """Model for aerobic/cardio exercises"""
 
     name: str = Field(..., min_length=1, max_length=100, description="Exercise name")
-    duration_minutes: float = Field(
-        ..., gt=0, le=1440, description="Duration in minutes"
-    )
-    distance_km: Optional[float] = Field(
-        None, gt=0, description="Distance covered in kilometers"
-    )
-    average_heart_rate: Optional[int] = Field(
-        None, ge=40, le=220, description="Average heart rate"
-    )
-    calories_burned: Optional[int] = Field(
-        None, gt=0, le=10000, description="Estimated calories burned"
-    )
+    duration_minutes: float = Field(..., gt=0, le=1440, description="Duration in minutes")
+    distance_km: Optional[float] = Field(None, gt=0, description="Distance covered in kilometers")
+    average_heart_rate: Optional[int] = Field(None, ge=40, le=220, description="Average heart rate")
+    calories_burned: Optional[int] = Field(None, gt=0, le=10000, description="Estimated calories burned")
     intensity_level: Optional[Literal["low", "moderate", "high", "hiit"]] = Field(
         None, description="Exercise intensity"
     )
@@ -83,24 +63,12 @@ class AerobicExercise(BaseModel):
 class WorkoutData(BaseModel):
     """Complete workout session data model"""
 
-    body_weight_kg: Optional[float] = Field(
-        None, gt=0, le=500, description="Body weight in kg"
-    )
-    energy_level: Optional[int] = Field(
-        None, ge=1, le=10, description="Energy level 1-10"
-    )
-    start_time: Optional[str] = Field(
-        None, pattern=r"^\d{2}:\d{2}$", description="Start time HH:MM"
-    )
-    end_time: Optional[str] = Field(
-        None, pattern=r"^\d{2}:\d{2}$", description="End time HH:MM"
-    )
-    resistance_exercises: List[ResistanceExercise] = Field(
-        default_factory=list, description="Resistance exercises"
-    )
-    aerobic_exercises: List[AerobicExercise] = Field(
-        default_factory=list, description="Aerobic exercises"
-    )
+    body_weight_kg: Optional[float] = Field(None, gt=0, le=500, description="Body weight in kg")
+    energy_level: Optional[int] = Field(None, ge=1, le=10, description="Energy level 1-10")
+    start_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$", description="Start time HH:MM")
+    end_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$", description="End time HH:MM")
+    resistance_exercises: List[ResistanceExercise] = Field(default_factory=list, description="Resistance exercises")
+    aerobic_exercises: List[AerobicExercise] = Field(default_factory=list, description="Aerobic exercises")
     notes: Optional[str] = Field(None, max_length=1000, description="Session notes")
 
     @field_validator("start_time", "end_time")
@@ -153,15 +121,9 @@ class LLMParseResult(BaseModel):
     success: bool = Field(..., description="Whether parsing was successful")
     workout_data: Optional[WorkoutData] = Field(None, description="Parsed workout data")
     raw_text: str = Field(..., description="Original transcription text")
-    parsing_notes: Optional[str] = Field(
-        None, description="Notes about parsing process"
-    )
-    confidence: Optional[float] = Field(
-        None, ge=0, le=1, description="Parsing confidence score"
-    )
-    errors: List[str] = Field(
-        default_factory=list, description="List of parsing errors"
-    )
+    parsing_notes: Optional[str] = Field(None, description="Notes about parsing process")
+    confidence: Optional[float] = Field(None, ge=0, le=1, description="Parsing confidence score")
+    errors: List[str] = Field(default_factory=list, description="List of parsing errors")
 
     @model_validator(mode="after")
     def validate_result_consistency(self):
@@ -195,6 +157,4 @@ class WorkoutValidationError(BaseModel):
     error_type: str = Field(..., description="Type of validation error")
     message: str = Field(..., description="Human-readable error message")
     value: Optional[Any] = Field(None, description="Value that caused the error")
-    exercise_index: Optional[int] = Field(
-        None, description="Index of exercise if applicable"
-    )
+    exercise_index: Optional[int] = Field(None, description="Index of exercise if applicable")

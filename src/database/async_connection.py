@@ -43,9 +43,7 @@ class AsyncDatabaseConnection:
 
                 # Convert SQLite URL to async version
                 if database_url.startswith("sqlite:///"):
-                    async_url = database_url.replace(
-                        "sqlite:///", "sqlite+aiosqlite:///"
-                    )
+                    async_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
                 else:
                     # For other databases, you might need different async drivers
                     # PostgreSQL: postgresql+asyncpg://

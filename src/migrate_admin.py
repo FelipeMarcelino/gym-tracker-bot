@@ -68,9 +68,7 @@ async def create_first_admin():
                 print(f"✅ Usuário {admin_id} já é administrador!")
                 print(f"   Nome: {existing_user.first_name or 'N/A'}")
                 print(f"   Username: @{existing_user.username or 'não definido'}")
-                print(
-                    f"   Criado em: {existing_user.created_at.strftime('%d/%m/%Y %H:%M')}"
-                )
+                print(f"   Criado em: {existing_user.created_at.strftime('%d/%m/%Y %H:%M')}")
                 return
             else:
                 # Promover usuário existente a admin
@@ -94,9 +92,7 @@ async def create_first_admin():
         print(f"   Ativo: {user.is_active}")
         print()
         print("🎉 Agora você pode usar o bot!")
-        print(
-            "💡 Use os comandos /adduser e /removeuser para gerenciar outros usuários."
-        )
+        print("💡 Use os comandos /adduser e /removeuser para gerenciar outros usuários.")
 
     except (ValidationError, DatabaseError) as e:
         print(f"❌ Erro ao criar administrador: {e.message}")

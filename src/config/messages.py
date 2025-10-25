@@ -176,19 +176,11 @@ _Em breve vou processar essa informação com IA!_ 🤖"""
 
 🔄 Processando..."""
 
-    AUDIO_SUCCESS_NEW_SESSION = (
-        "✅ **Nova sessão criada e áudio/texto processado!**\n\n"
-    )
-    AUDIO_SUCCESS_EXISTING_SESSION = (
-        "✅ **Áudio/Texto #{audio_count} adicionado à sessão!**\n\n"
-    )
+    AUDIO_SUCCESS_NEW_SESSION = "✅ **Nova sessão criada e áudio/texto processado!**\n\n"
+    AUDIO_SUCCESS_EXISTING_SESSION = "✅ **Áudio/Texto #{audio_count} adicionado à sessão!**\n\n"
 
-    AUDIO_SUCCESS_FOOTER_NEW = (
-        "💡 _Envie mais áudios ou texto para adicionar exercícios a esta sessão_"
-    )
-    AUDIO_SUCCESS_FOOTER_CONTINUE = (
-        "💡 _Continue enviando áudios ou texto ou aguarde 3h para iniciar nova sessão_"
-    )
+    AUDIO_SUCCESS_FOOTER_NEW = "💡 _Envie mais áudios ou texto para adicionar exercícios a esta sessão_"
+    AUDIO_SUCCESS_FOOTER_CONTINUE = "💡 _Continue enviando áudios ou texto ou aguarde 3h para iniciar nova sessão_"
 
     # Status messages
     STATUS_NO_SESSION = """📊 **Status**
@@ -244,12 +236,8 @@ Envie um áudio para começar!"""
     # Error messages
     ERROR_INVALID_DATA = "❌ **Dados inválidos detectados**\n\n{errors}"
     ERROR_PROCESSING = "❌ **Erro no processamento**\n\n{error_details}"
-    ERROR_STATUS_FETCH = (
-        "❌ **Erro ao buscar status**\n\n{error_message}\n\n🔄 _Tente novamente_"
-    )
-    ERROR_UNEXPECTED = (
-        "❌ **Erro inesperado**\n\n{error_message}\n\n🔄 _Tente novamente_"
-    )
+    ERROR_STATUS_FETCH = "❌ **Erro ao buscar status**\n\n{error_message}\n\n🔄 _Tente novamente_"
+    ERROR_UNEXPECTED = "❌ **Erro inesperado**\n\n{error_message}\n\n🔄 _Tente novamente_"
     ERROR_FINISH_SESSION = "❌ Erro: {error}"
     ERROR_SESSION_NOT_FOUND = """❌ Você não tem nenhuma sessão ativa para finalizar.
 
@@ -264,9 +252,7 @@ Envie um áudio de treino para iniciar uma nova sessão!"""
     ERROR_AUDIO_PROCESSING = "🎤 **Erro na transcrição**\n\n{message}{rate_limit_note}"
     ERROR_LLM_PARSING = "🤖 **Erro na análise**\n\n{message}\n\n💡 _Tente descrever o treino de forma mais clara_"
     ERROR_SERVICE_UNAVAILABLE = "🔌 **Serviço indisponível**\n\n{message}{details}"
-    ERROR_DATABASE = (
-        "💾 **Erro interno**\n\n{message}\n\n🔄 _Tente novamente em alguns instantes_"
-    )
+    ERROR_DATABASE = "💾 **Erro interno**\n\n{message}\n\n🔄 _Tente novamente em alguns instantes_"
 
     # Rate limit messages
     RATE_LIMIT_GENERAL = """⏰ **Rate limit atingido**
@@ -301,9 +287,7 @@ Você não tem autorização para utilizá-lo.
 _Seu ID: `{user_id}`_"""
 
     # Unknown command
-    UNKNOWN_COMMAND = (
-        "❓ Comando não reconhecido.\nUse /help para ver os comandos disponíveis."
-    )
+    UNKNOWN_COMMAND = "❓ Comando não reconhecido.\nUse /help para ver os comandos disponíveis."
 
     @classmethod
     def format_transcription_response(cls, transcription: str) -> str:
@@ -312,7 +296,9 @@ _Seu ID: `{user_id}`_"""
 
     @classmethod
     def format_exercise_section(
-        cls, resistance_exercises: list, aerobic_exercises: list
+        cls,
+        resistance_exercises: list,
+        aerobic_exercises: list,
     ) -> str:
         """Format the exercises section of success messages"""
         response = ""
@@ -348,7 +334,7 @@ _Seu ID: `{user_id}`_"""
             for i in range(exercises.get("sets", 0)):
                 rep = reps[i] if i < len(reps) else "?"
                 weight = weights[i] if i < len(weights) else "?"
-                response += f"  └ Série {i+1}: {rep} reps × {weight}kg\n"
+                response += f"  └ Série {i + 1}: {rep} reps × {weight}kg\n"
         else:  # Same weight for all sets
             reps_str = ", ".join(map(str, reps))
             weight = weights[0] if weights else "?"
@@ -403,7 +389,7 @@ _Seu ID: `{user_id}`_"""
         intensity = exercises.get("intensity_level")
         if intensity:
             intensity_emoji, intensity_desc = cls._get_intensity_emoji_and_desc(
-                intensity
+                intensity,
             )
             response += f"  └ {intensity_emoji} Intensidade: {intensity_desc}\n"
 

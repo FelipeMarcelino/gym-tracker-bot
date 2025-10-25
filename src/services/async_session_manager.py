@@ -62,29 +62,21 @@ class AsyncSessionManager:
             async with get_async_session_context() as session:
                 # Look for active session
                 now = datetime.now()
-                timeout_threshold = now - timedelta(
-                    hours=settings.SESSION_TIMEOUT_HOURS
-                )
+                timeout_threshold = now - timedelta(hours=settings.SESSION_TIMEOUT_HOURS)
 
                 # Find the most recent session for this user
                 stmt = (
                     select(WorkoutSession)
                     .where(WorkoutSession.user_id == user_id)
-                    .order_by(
-                        WorkoutSession.date.desc(), WorkoutSession.start_time.desc()
-                    )
+                    .order_by(WorkoutSession.date.desc(), WorkoutSession.start_time.desc())
                     .limit(1)
                 )
                 result = await session.execute(stmt)
                 last_session = result.scalar_one_or_none()
 
                 # Check if we can reuse the last session
-                if last_session and self._is_session_active(
-                    last_session, timeout_threshold
-                ):
-                    logger.info(
-                        f"Reusing active session {last_session.session_id} for user {user_id}"
-                    )
+                if last_session and self._is_session_active(last_session, timeout_threshold):
+                    logger.info(f"Reusing active session {last_session.session_id} for user {user_id}")
                     return last_session, False
 
                 # Create new session
@@ -100,14 +92,10 @@ class AsyncSessionManager:
                 await session.commit()
                 await session.refresh(new_session)
 
-                logger.info(
-                    f"Created new session {new_session.session_id} for user {user_id}"
-                )
+                logger.info(f"Created new session {new_session.session_id} for user {user_id}")
                 return new_session, True
 
-    def _is_session_active(
-        self, session: WorkoutSession, timeout_threshold: datetime
-    ) -> bool:
+    def _is_session_active(self, session: WorkoutSession, timeout_threshold: datetime) -> bool:
         """Check if a session is still active based on timeout"""
         if session.status == SessionStatus.FINALIZADA:
             return False
@@ -165,11 +153,7 @@ class AsyncSessionManager:
                     return True  # Nothing to update
 
                 # Perform update
-                stmt = (
-                    update(WorkoutSession)
-                    .where(WorkoutSession.session_id == session_id)
-                    .values(**update_values)
-                )
+                stmt = update(WorkoutSession).where(WorkoutSession.session_id == session_id).values(**update_values)
                 result = await session.execute(stmt)
                 await session.commit()
 
@@ -180,9 +164,7 @@ class AsyncSessionManager:
                 return success
 
         except SQLAlchemyError as e:
-            logger.exception(
-                f"Error updating session metadata for session {session_id}"
-            )
+            logger.exception(f"Error updating session metadata for session {session_id}")
             raise DatabaseError(
                 message=f"Failed to update session {session_id} metadata",
                 operation="update_session_metadata",
@@ -203,19 +185,14 @@ class AsyncSessionManager:
                 from sqlalchemy import func
 
                 now = datetime.now()
-                timeout_threshold = now - timedelta(
-                    hours=settings.SESSION_TIMEOUT_HOURS
-                )
+                timeout_threshold = now - timedelta(hours=settings.SESSION_TIMEOUT_HOURS)
 
                 # Count sessions that are either:
                 # 1. Explicitly marked as ATIVA, OR
                 # 2. Not explicitly finished AND within timeout window
                 stmt = select(func.count(WorkoutSession.session_id)).where(
                     (WorkoutSession.status == SessionStatus.ATIVA)
-                    & (
-                        func.datetime(WorkoutSession.date, WorkoutSession.start_time)
-                        > timeout_threshold
-                    ),
+                    & (func.datetime(WorkoutSession.date, WorkoutSession.start_time) > timeout_threshold),
                 )
 
                 result = await session.execute(stmt)
@@ -235,17 +212,12 @@ class AsyncSessionManager:
         try:
             async with get_async_session_context() as session:
                 now = datetime.now()
-                timeout_threshold = now - timedelta(
-                    hours=settings.SESSION_TIMEOUT_HOURS
-                )
+                timeout_threshold = now - timedelta(hours=settings.SESSION_TIMEOUT_HOURS)
 
                 # First, find stale sessions to calculate their durations
                 find_stmt = select(WorkoutSession).where(
                     (WorkoutSession.status == SessionStatus.ATIVA)
-                    & (
-                        func.datetime(WorkoutSession.date, WorkoutSession.start_time)
-                        < timeout_threshold
-                    ),
+                    & (func.datetime(WorkoutSession.date, WorkoutSession.start_time) < timeout_threshold),
                 )
 
                 result = await session.execute(find_stmt)
@@ -258,13 +230,9 @@ class AsyncSessionManager:
                 cleaned_count = 0
                 for stale_session in stale_sessions:
                     # Calculate duration from start_time to timeout_threshold
-                    start_datetime = datetime.combine(
-                        stale_session.date, stale_session.start_time
-                    )
+                    start_datetime = datetime.combine(stale_session.date, stale_session.start_time)
                     # Use timeout_threshold as end time (when session should have ended)
-                    duration_minutes = int(
-                        (timeout_threshold - start_datetime).total_seconds() // 60
-                    )
+                    duration_minutes = int((timeout_threshold - start_datetime).total_seconds() // 60)
 
                     # Ensure duration is not negative
                     duration_minutes = max(0, duration_minutes)
@@ -294,9 +262,7 @@ class AsyncSessionManager:
                 cause=e,
             )
 
-    async def get_session_by_id(
-        self, session_id: int, user_id: str = None
-    ) -> Optional[WorkoutSession]:
+    async def get_session_by_id(self, session_id: int, user_id: str = None) -> Optional[WorkoutSession]:
         """Get a specific session by ID with optional user validation (async)
 
         Args:
@@ -309,9 +275,7 @@ class AsyncSessionManager:
         """
         try:
             async with get_async_session_context() as session:
-                stmt = select(WorkoutSession).where(
-                    WorkoutSession.session_id == session_id
-                )
+                stmt = select(WorkoutSession).where(WorkoutSession.session_id == session_id)
 
                 if user_id:
                     stmt = stmt.where(WorkoutSession.user_id == user_id)
@@ -351,9 +315,7 @@ class AsyncSessionManager:
                 stmt = (
                     select(WorkoutSession)
                     .where(WorkoutSession.user_id == user_id)
-                    .order_by(
-                        WorkoutSession.date.desc(), WorkoutSession.start_time.desc()
-                    )
+                    .order_by(WorkoutSession.date.desc(), WorkoutSession.start_time.desc())
                     .limit(limit)
                 )
 

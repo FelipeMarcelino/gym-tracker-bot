@@ -26,9 +26,7 @@ class AsyncUserService:
         """
         try:
             async with get_async_session_context() as session:
-                stmt = select(User).where(
-                    User.user_id == user_id, User.is_active == True
-                )
+                stmt = select(User).where(User.user_id == user_id, User.is_active == True)
                 result = await session.execute(stmt)
                 user = result.scalar_one_or_none()
                 return user is not None
@@ -212,9 +210,7 @@ class AsyncUserService:
                     return await self.get_user(user_id)
 
                 # Update user
-                stmt = (
-                    update(User).where(User.user_id == user_id).values(**update_values)
-                )
+                stmt = update(User).where(User.user_id == user_id).values(**update_values)
                 result = await session.execute(stmt)
                 await session.commit()
 
@@ -248,9 +244,7 @@ class AsyncUserService:
         """
         try:
             async with get_async_session_context() as session:
-                stmt = (
-                    update(User).where(User.user_id == user_id).values(is_active=False)
-                )
+                stmt = update(User).where(User.user_id == user_id).values(is_active=False)
                 result = await session.execute(stmt)
                 await session.commit()
 
@@ -360,11 +354,7 @@ class AsyncUserService:
                     if not user_id:
                         continue
 
-                    stmt = (
-                        update(User)
-                        .where(User.user_id == user_id)
-                        .values(**user_update)
-                    )
+                    stmt = update(User).where(User.user_id == user_id).values(**user_update)
                     result = await session.execute(stmt)
                     if result.rowcount > 0:
                         updated_count += 1

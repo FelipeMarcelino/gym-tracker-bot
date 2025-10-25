@@ -35,30 +35,16 @@ class ValidationRule(BaseModel):
 
     field: str = Field(..., min_length=1, description="Field name to validate")
     required: bool = Field(default=True, description="Whether the field is required")
-    min_length: Optional[int] = Field(
-        default=None, ge=0, description="Minimum length for string fields"
-    )
-    max_length: Optional[int] = Field(
-        default=None, ge=1, description="Maximum length for string fields"
-    )
-    pattern: Optional[str] = Field(
-        default=None, description="Regex pattern for validation"
-    )
-    validator: Optional[Callable] = Field(
-        default=None, description="Custom validator function"
-    )
-    error_message: Optional[str] = Field(
-        default=None, description="Custom error message"
-    )
+    min_length: Optional[int] = Field(default=None, ge=0, description="Minimum length for string fields")
+    max_length: Optional[int] = Field(default=None, ge=1, description="Maximum length for string fields")
+    pattern: Optional[str] = Field(default=None, description="Regex pattern for validation")
+    validator: Optional[Callable] = Field(default=None, description="Custom validator function")
+    error_message: Optional[str] = Field(default=None, description="Custom error message")
 
     @model_validator(mode="after")
     def validate_lengths(self):
         """Validate that min_length <= max_length"""
-        if (
-            self.min_length is not None
-            and self.max_length is not None
-            and self.min_length > self.max_length
-        ):
+        if self.min_length is not None and self.max_length is not None and self.min_length > self.max_length:
             raise ValueError("min_length cannot be greater than max_length")
         return self
 
@@ -218,11 +204,7 @@ class UserIdValidator(BaseValidator):
         """Validate Telegram user ID"""
         result = ValidationUtils.validate_user_id(value)
         # Ensure the validated ID is a string
-        validated_id = (
-            str(result.get("validated_id"))
-            if result.get("validated_id") is not None
-            else None
-        )
+        validated_id = str(result.get("validated_id")) if result.get("validated_id") is not None else None
 
         return {
             "is_valid": result["is_valid"],
@@ -235,9 +217,7 @@ class UserIdValidator(BaseValidator):
 class AudioValidator(BaseValidator):
     """Validator for audio files"""
 
-    def __init__(
-        self, max_duration: Optional[int] = None, max_size_mb: Optional[int] = None
-    ):
+    def __init__(self, max_duration: Optional[int] = None, max_size_mb: Optional[int] = None):
         self.max_duration = max_duration or settings.MAX_AUDIO_DURATION_SECONDS
         self.max_size_mb = max_size_mb or settings.MAX_VOICE_FILE_SIZE_MB
 
@@ -261,7 +241,7 @@ class AudioValidator(BaseValidator):
                 return {
                     "is_valid": False,
                     "value": value,
-                    "error": f"Audio too long (maximum {self.max_duration//60} minutes)",
+                    "error": f"Audio too long (maximum {self.max_duration // 60} minutes)",
                     "error_code": ErrorCode.AUDIO_TOO_LONG,
                 }
         except (TypeError, AttributeError):
@@ -335,7 +315,7 @@ class CommandArgsValidator(BaseValidator):
                     return {
                         "is_valid": False,
                         "value": args,
-                        "error": f"Argument {i+1}: {result['error']}",
+                        "error": f"Argument {i + 1}: {result['error']}",
                         "error_code": result.get("error_code", ErrorCode.INVALID_INPUT),
                     }
                 validated_args.append(result["value"])
@@ -348,30 +328,18 @@ class CommandArgsValidator(BaseValidator):
 class ValidationSchema(BaseModel):
     """Schema for validating inputs"""
 
-    user_required: bool = Field(
-        default=True, description="Whether user information is required"
-    )
-    message_required: bool = Field(
-        default=True, description="Whether message is required"
-    )
-    text_validator: Optional[TextValidator] = Field(
-        default=None, description="Text validation rules"
-    )
-    audio_validator: Optional[AudioValidator] = Field(
-        default=None, description="Audio validation rules"
-    )
+    user_required: bool = Field(default=True, description="Whether user information is required")
+    message_required: bool = Field(default=True, description="Whether message is required")
+    text_validator: Optional[TextValidator] = Field(default=None, description="Text validation rules")
+    audio_validator: Optional[AudioValidator] = Field(default=None, description="Audio validation rules")
     command_args_validator: Optional[CommandArgsValidator] = Field(
         default=None, description="Command arguments validation"
     )
     custom_validators: Optional[Dict[str, BaseValidator]] = Field(
         default_factory=dict, description="Custom field validators"
     )
-    level: ValidationLevel = Field(
-        default=ValidationLevel.STRICT, description="Validation strictness level"
-    )
-    fields: Dict[str, BaseValidator] = Field(
-        default_factory=dict, description="Dynamic field validators"
-    )
+    level: ValidationLevel = Field(default=ValidationLevel.STRICT, description="Validation strictness level")
+    fields: Dict[str, BaseValidator] = Field(default_factory=dict, description="Dynamic field validators")
 
     def add_field(self, name: str, validator: BaseValidator):
         """Add a field validator to the schema"""
@@ -397,10 +365,7 @@ class ValidationSchema(BaseModel):
                         errors[field_name] = validation_result["error"]
                 else:
                     # Check if field is required based on validator properties
-                    if (
-                        hasattr(validator, "allow_empty")
-                        and not getattr(validator, "allow_empty", True)
-                    ) or (
+                    if (hasattr(validator, "allow_empty") and not getattr(validator, "allow_empty", True)) or (
                         not hasattr(validator, "allow_empty")
                         and hasattr(validator, "min_length")
                         and getattr(validator, "min_length", 0) > 0
@@ -480,9 +445,7 @@ class ValidationMiddleware:
             return result
 
         if update.message:
-            message_validation = ValidationMiddleware._validate_message(
-                update.message, schema
-            )
+            message_validation = ValidationMiddleware._validate_message(update.message, schema)
             if not message_validation["is_valid"]:
                 if schema.level == ValidationLevel.STRICT:
                     result["is_valid"] = False
@@ -533,9 +496,7 @@ class ValidationMiddleware:
                 result["data"]["last_name"] = name_result["value"]
 
         if user.username:
-            username_validator = TextValidator(
-                max_length=settings.MAX_NAME_LENGTH, pattern=r"^[a-zA-Z0-9_]+$"
-            )
+            username_validator = TextValidator(max_length=settings.MAX_NAME_LENGTH, pattern=r"^[a-zA-Z0-9_]+$")
             username_result = username_validator.validate(user.username)
             if username_result["is_valid"]:
                 result["data"]["username"] = username_result["value"]
@@ -578,11 +539,7 @@ class ValidationMiddleware:
                 result["data"]["voice"] = audio_result["value"]
 
         # Validate command arguments
-        if (
-            message.text
-            and message.text.startswith("/")
-            and schema.command_args_validator
-        ):
+        if message.text and message.text.startswith("/") and schema.command_args_validator:
             # Extract command arguments
             args = message.text.split()[1:]  # Skip the command itself
             args_result = schema.command_args_validator.validate(args)
@@ -610,14 +567,10 @@ def validate_input(schema: ValidationSchema):
 
     def decorator(func):
         @wraps(func)
-        async def wrapper(
-            update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs
-        ):
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
             try:
                 # Validate input
-                validation_result = await ValidationMiddleware.validate_update(
-                    update, schema, context
-                )
+                validation_result = await ValidationMiddleware.validate_update(update, schema, context)
 
                 if not validation_result["is_valid"]:
                     # Create validation error
@@ -656,14 +609,10 @@ class CommonSchemas:
     """Pre-defined validation schemas for common use cases"""
 
     @staticmethod
-    def text_message(
-        min_length: int = 1, max_length: Optional[int] = None
-    ) -> ValidationSchema:
+    def text_message(min_length: int = 1, max_length: Optional[int] = None) -> ValidationSchema:
         """Schema for text message handlers"""
         return ValidationSchema(
-            text_validator=TextValidator(
-                min_length=min_length, max_length=max_length or settings.MAX_TEXT_LENGTH
-            ),
+            text_validator=TextValidator(min_length=min_length, max_length=max_length or settings.MAX_TEXT_LENGTH),
             audio_validator=None,
         )
 
@@ -672,28 +621,18 @@ class CommonSchemas:
         """Schema for voice message handlers"""
         return ValidationSchema(
             text_validator=None,
-            audio_validator=AudioValidator(
-                max_duration=max_duration or settings.MAX_AUDIO_DURATION_SECONDS
-            ),
+            audio_validator=AudioValidator(max_duration=max_duration or settings.MAX_AUDIO_DURATION_SECONDS),
         )
 
     @staticmethod
-    def command_with_args(
-        min_args: int, max_args: Optional[int] = None
-    ) -> ValidationSchema:
+    def command_with_args(min_args: int, max_args: Optional[int] = None) -> ValidationSchema:
         """Schema for command handlers that require arguments"""
-        return ValidationSchema(
-            command_args_validator=CommandArgsValidator(
-                min_args=min_args, max_args=max_args
-            )
-        )
+        return ValidationSchema(command_args_validator=CommandArgsValidator(min_args=min_args, max_args=max_args))
 
     @staticmethod
     def admin_command() -> ValidationSchema:
         """Schema for admin commands"""
-        return ValidationSchema(
-            user_required=True, message_required=True, level=ValidationLevel.STRICT
-        )
+        return ValidationSchema(user_required=True, message_required=True, level=ValidationLevel.STRICT)
 
     @staticmethod
     def flexible_input() -> ValidationSchema:
@@ -709,7 +648,5 @@ class CommonSchemas:
         """Schema for audio message handlers"""
         return ValidationSchema(
             text_validator=None,
-            audio_validator=AudioValidator(
-                max_duration=max_duration or settings.MAX_AUDIO_DURATION_SECONDS
-            ),
+            audio_validator=AudioValidator(max_duration=max_duration or settings.MAX_AUDIO_DURATION_SECONDS),
         )

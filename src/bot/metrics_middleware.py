@@ -21,9 +21,7 @@ def track_command_metrics(command_name: str = None):
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        async def wrapper(
-            update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs
-        ) -> Any:
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs) -> Any:
             # Determine command name
             cmd_name = command_name or getattr(func, "__name__", "unknown_command")
 
@@ -49,9 +47,7 @@ def track_command_metrics(command_name: str = None):
                 health_service.record_command(response_time_ms, is_error)
 
                 # Log performance metrics
-                logger.debug(
-                    f"Command {cmd_name} completed in {response_time_ms:.2f}ms (error: {is_error})"
-                )
+                logger.debug(f"Command {cmd_name} completed in {response_time_ms:.2f}ms (error: {is_error})")
 
         return wrapper
 
@@ -67,13 +63,9 @@ def track_audio_metrics(operation_name: str = None):
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        async def wrapper(
-            update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs
-        ) -> Any:
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs) -> Any:
             # Determine operation name
-            op_name = operation_name or getattr(
-                func, "__name__", "unknown_audio_operation"
-            )
+            op_name = operation_name or getattr(func, "__name__", "unknown_audio_operation")
 
             # Start timing
             start_time = time.time()
@@ -97,9 +89,7 @@ def track_audio_metrics(operation_name: str = None):
                 health_service.record_audio_processing(processing_time_ms, is_error)
 
                 # Log performance metrics
-                logger.debug(
-                    f"Audio operation {op_name} completed in {processing_time_ms:.2f}ms (error: {is_error})"
-                )
+                logger.debug(f"Audio operation {op_name} completed in {processing_time_ms:.2f}ms (error: {is_error})")
 
         return wrapper
 

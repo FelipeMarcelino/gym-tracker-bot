@@ -44,9 +44,7 @@ class ColoredFormatter(logging.Formatter):
     def format(self, record):
         # Add color to the log level
         if record.levelno in self.COLORS:
-            record.levelname = (
-                f"{self.COLORS[record.levelno]}{record.levelname}{LogColors.RESET}"
-            )
+            record.levelname = f"{self.COLORS[record.levelno]}{record.levelname}{LogColors.RESET}"
 
         # Format the message
         formatted = super().format(record)
@@ -132,10 +130,7 @@ def setup_logging(
     file_handler.setLevel(file_level_int)
 
     # File format - detailed with full context
-    file_format = (
-        "%(asctime)s | %(levelname)-8s | %(name)-30s | "
-        "%(funcName)-20s:%(lineno)-4d | %(message)s"
-    )
+    file_format = "%(asctime)s | %(levelname)-8s | %(name)-30s | %(funcName)-20s:%(lineno)-4d | %(message)s"
     file_formatter = logging.Formatter(fmt=file_format, datefmt="%Y-%m-%d %H:%M:%S")
     file_handler.setFormatter(file_formatter)
     root_logger.addHandler(file_handler)
@@ -217,8 +212,7 @@ def setup_session_logging(session_id: Optional[str] = None) -> str:
         log_filename=session_filename,
         max_file_size_mb=int(os.getenv("LOG_MAX_FILE_SIZE_MB", "10")),
         backup_count=int(os.getenv("LOG_BACKUP_COUNT", "5")),
-        enable_colors=os.getenv("LOG_ENABLE_COLORS", "true").lower()
-        in ("true", "1", "yes"),
+        enable_colors=os.getenv("LOG_ENABLE_COLORS", "true").lower() in ("true", "1", "yes"),
         include_timestamp=False,  # Already included in session filename
     )
 
@@ -364,10 +358,8 @@ def setup_default_logging() -> None:
         log_filename=os.getenv("LOG_FILENAME", "gym_tracker_bot.log"),
         max_file_size_mb=int(os.getenv("LOG_MAX_FILE_SIZE_MB", "10")),
         backup_count=int(os.getenv("LOG_BACKUP_COUNT", "5")),
-        enable_colors=os.getenv("LOG_ENABLE_COLORS", "true").lower()
-        in ("true", "1", "yes"),
-        include_timestamp=os.getenv("LOG_INCLUDE_TIMESTAMP", "true").lower()
-        in ("true", "1", "yes"),
+        enable_colors=os.getenv("LOG_ENABLE_COLORS", "true").lower() in ("true", "1", "yes"),
+        include_timestamp=os.getenv("LOG_INCLUDE_TIMESTAMP", "true").lower() in ("true", "1", "yes"),
     )
 
 

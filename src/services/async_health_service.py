@@ -18,9 +18,7 @@ logger = get_logger(__name__)
 class HealthStatus(BaseModel):
     """Health status data model"""
 
-    model_config = ConfigDict(
-        json_encoders={datetime: lambda v: v.isoformat()}, validate_assignment=True
-    )
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()}, validate_assignment=True)
 
     status: str = Field(
         ...,
@@ -29,12 +27,8 @@ class HealthStatus(BaseModel):
     )
     timestamp: datetime = Field(..., description="Timestamp of health check")
     uptime_seconds: int = Field(..., ge=0, description="System uptime in seconds")
-    checks: Dict[str, Any] = Field(
-        default_factory=dict, description="Individual health check results"
-    )
-    metrics: Dict[str, Any] = Field(
-        default_factory=dict, description="System and application metrics"
-    )
+    checks: Dict[str, Any] = Field(default_factory=dict, description="Individual health check results")
+    metrics: Dict[str, Any] = Field(default_factory=dict, description="System and application metrics")
 
 
 class SystemMetrics(BaseModel):
@@ -43,9 +37,7 @@ class SystemMetrics(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     cpu_percent: float = Field(..., ge=0, le=100, description="CPU usage percentage")
-    memory_percent: float = Field(
-        ..., ge=0, le=100, description="Memory usage percentage"
-    )
+    memory_percent: float = Field(..., ge=0, le=100, description="Memory usage percentage")
     memory_used_mb: float = Field(..., ge=0, description="Memory used in MB")
     memory_total_mb: float = Field(..., ge=0, description="Total memory in MB")
     disk_percent: float = Field(..., ge=0, le=100, description="Disk usage percentage")
@@ -63,19 +55,11 @@ class DatabaseMetrics(BaseModel):
         pattern="^(connected|disconnected|error)$",
         description="Database connection status",
     )
-    response_time_ms: float = Field(
-        ..., ge=0, description="Database response time in milliseconds"
-    )
-    active_connections: int = Field(
-        ..., ge=0, description="Number of active database connections"
-    )
+    response_time_ms: float = Field(..., ge=0, description="Database response time in milliseconds")
+    active_connections: int = Field(..., ge=0, description="Number of active database connections")
     total_users: int = Field(..., ge=0, description="Total number of users in database")
-    total_sessions: int = Field(
-        ..., ge=0, description="Total number of workout sessions"
-    )
-    sessions_today: int = Field(
-        ..., ge=0, description="Number of sessions created today"
-    )
+    total_sessions: int = Field(..., ge=0, description="Total number of workout sessions")
+    sessions_today: int = Field(..., ge=0, description="Number of sessions created today")
 
 
 class BotMetrics(BaseModel):
@@ -83,24 +67,12 @@ class BotMetrics(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
-    total_commands_processed: int = Field(
-        ..., ge=0, description="Total commands processed by bot"
-    )
-    total_audio_processed: int = Field(
-        ..., ge=0, description="Total audio files processed"
-    )
-    average_response_time_ms: float = Field(
-        ..., ge=0, description="Average response time in milliseconds"
-    )
-    percentile_response_time_ms: float = Field(
-        ..., ge=0, description="95th percentile response time in milliseconds"
-    )
-    error_rate_percent: float = Field(
-        ..., ge=0, le=100, description="Error rate percentage"
-    )
-    active_sessions: int = Field(
-        ..., ge=0, description="Number of active workout sessions"
-    )
+    total_commands_processed: int = Field(..., ge=0, description="Total commands processed by bot")
+    total_audio_processed: int = Field(..., ge=0, description="Total audio files processed")
+    average_response_time_ms: float = Field(..., ge=0, description="Average response time in milliseconds")
+    percentile_response_time_ms: float = Field(..., ge=0, description="95th percentile response time in milliseconds")
+    error_rate_percent: float = Field(..., ge=0, le=100, description="Error rate percentage")
+    active_sessions: int = Field(..., ge=0, description="Number of active workout sessions")
 
 
 class HealthService:
@@ -471,9 +443,7 @@ class HealthService:
 
             async with get_async_session_context() as session:
                 # Query some basic stats
-                user_count_stmt = select(func.count(User.user_id)).where(
-                    User.is_active == True
-                )
+                user_count_stmt = select(func.count(User.user_id)).where(User.is_active == True)
                 user_result = await session.execute(user_count_stmt)
                 user_count = user_result.scalar()
 
@@ -483,9 +453,7 @@ class HealthService:
 
                 # Sessions today
                 today = datetime.now().date()
-                sessions_today_stmt = select(
-                    func.count(WorkoutSession.session_id)
-                ).where(
+                sessions_today_stmt = select(func.count(WorkoutSession.session_id)).where(
                     WorkoutSession.date == today,
                 )
                 today_result = await session.execute(sessions_today_stmt)
@@ -520,9 +488,7 @@ class HealthService:
 
         # Calculate error rate
         total_operations = self.command_count + self.audio_count
-        error_rate = (
-            (self.error_count / total_operations * 100) if total_operations > 0 else 0
-        )
+        error_rate = (self.error_count / total_operations * 100) if total_operations > 0 else 0
 
         # Get active sessions count from database
         active_sessions_count = await self._get_active_sessions_count()
@@ -546,9 +512,7 @@ class HealthService:
 
             async with get_async_session_context() as session:
                 # Count sessions with status 'ativa' (active)
-                active_sessions_stmt = select(
-                    func.count(WorkoutSession.session_id)
-                ).where(
+                active_sessions_stmt = select(func.count(WorkoutSession.session_id)).where(
                     WorkoutSession.status == SessionStatus.ATIVA,
                 )
                 result = await session.execute(active_sessions_stmt)

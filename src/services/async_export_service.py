@@ -154,12 +154,8 @@ class AsyncExportService:
                     )
 
                 # Calculate summary
-                completed_sessions = len(
-                    [s for s in sessions if s.status == SessionStatus.FINALIZADA]
-                )
-                active_sessions = len(
-                    [s for s in sessions if s.status == SessionStatus.ATIVA]
-                )
+                completed_sessions = len([s for s in sessions if s.status == SessionStatus.FINALIZADA])
+                active_sessions = len([s for s in sessions if s.status == SessionStatus.ATIVA])
 
                 total_resistance = sum(len(s.exercises) for s in sessions)
                 total_aerobic = sum(len(s.aerobics) for s in sessions)
@@ -210,12 +206,8 @@ class AsyncExportService:
                 WorkoutSession.user_id == user_id,
             )
             .options(
-                joinedload(WorkoutSession.exercises).joinedload(
-                    WorkoutExercise.exercise
-                ),
-                joinedload(WorkoutSession.aerobics).joinedload(
-                    AerobicExercise.exercise
-                ),
+                joinedload(WorkoutSession.exercises).joinedload(WorkoutExercise.exercise),
+                joinedload(WorkoutSession.aerobics).joinedload(AerobicExercise.exercise),
             )
         )
 
@@ -331,9 +323,7 @@ class AsyncExportService:
                     {
                         "exercise_type": "resistance",
                         "exercise_name": we.exercise.name if we.exercise else "Unknown",
-                        "muscle_group": (
-                            we.exercise.muscle_group if we.exercise else None
-                        ),
+                        "muscle_group": (we.exercise.muscle_group if we.exercise else None),
                         "equipment": we.exercise.equipment if we.exercise else None,
                         "sets": we.sets,
                         "reps": we.reps,
@@ -368,14 +358,10 @@ class AsyncExportService:
 
         return output.getvalue()
 
-    async def _calculate_export_summary(
-        self, sessions: List[WorkoutSession]
-    ) -> ExportSummary:
+    async def _calculate_export_summary(self, sessions: List[WorkoutSession]) -> ExportSummary:
         """Calculate summary statistics for exported data (async)"""
         total_sessions = len(sessions)
-        completed_sessions = len(
-            [s for s in sessions if s.status == SessionStatus.FINALIZADA]
-        )
+        completed_sessions = len([s for s in sessions if s.status == SessionStatus.FINALIZADA])
 
         total_resistance = sum(len(s.exercises) for s in sessions)
         total_aerobic = sum(len(s.aerobics) for s in sessions)
@@ -414,9 +400,7 @@ class AsyncExportService:
 
         total_exercises = sum(len(s.exercises) + len(s.aerobics) for s in sessions)
 
-        estimated_kb = (len(sessions) * base_size_per_session) + (
-            total_exercises * base_size_per_exercise
-        )
+        estimated_kb = (len(sessions) * base_size_per_session) + (total_exercises * base_size_per_exercise)
         estimated_mb = estimated_kb / 1024
 
         return round(estimated_mb, 2)

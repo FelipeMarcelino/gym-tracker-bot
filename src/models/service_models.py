@@ -22,12 +22,8 @@ class RateLimitCheckResult(BaseModel):
     """Result of a rate limit check operation"""
 
     is_allowed: bool = Field(description="Whether the request is allowed")
-    remaining_requests: int = Field(
-        ge=0, description="Number of remaining requests in the window"
-    )
-    reset_time: Optional[int] = Field(
-        default=None, ge=0, description="Seconds until rate limit resets"
-    )
+    remaining_requests: int = Field(ge=0, description="Number of remaining requests in the window")
+    reset_time: Optional[int] = Field(default=None, ge=0, description="Seconds until rate limit resets")
 
     model_config = {"frozen": True}  # Immutable result
 
@@ -95,15 +91,9 @@ class CleanupResult(BaseModel):
     def validate_total(cls, v: int, info) -> int:
         """Ensure total equals sum of individual counts"""
         if info.data:
-            expected = (
-                info.data.get("general", 0)
-                + info.data.get("voice", 0)
-                + info.data.get("commands", 0)
-            )
+            expected = info.data.get("general", 0) + info.data.get("voice", 0) + info.data.get("commands", 0)
             if v != expected:
-                raise ValueError(
-                    f"Total ({v}) must equal sum of individual counts ({expected})"
-                )
+                raise ValueError(f"Total ({v}) must equal sum of individual counts ({expected})")
         return v
 
     model_config = {"frozen": True}
@@ -117,35 +107,19 @@ class CleanupResult(BaseModel):
 class ErrorContext(BaseModel):
     """Structured context for error information"""
 
-    field: Optional[str] = Field(
-        default=None, description="Field that caused the error"
-    )
+    field: Optional[str] = Field(default=None, description="Field that caused the error")
     value: Optional[str] = Field(default=None, description="Value that was invalid")
-    operation: Optional[str] = Field(
-        default=None, description="Operation being performed"
-    )
-    service: Optional[str] = Field(
-        default=None, description="Service where error occurred"
-    )
-    session_id: Optional[str] = Field(
-        default=None, description="Session ID if applicable"
-    )
+    operation: Optional[str] = Field(default=None, description="Operation being performed")
+    service: Optional[str] = Field(default=None, description="Service where error occurred")
+    session_id: Optional[str] = Field(default=None, description="Session ID if applicable")
     user_id: Optional[str] = Field(default=None, description="User ID if applicable")
-    retry_after: Optional[int] = Field(
-        default=None, ge=0, description="Seconds to wait before retry"
-    )
+    retry_after: Optional[int] = Field(default=None, ge=0, description="Seconds to wait before retry")
     limit_type: Optional[str] = Field(default=None, description="Type of rate limit")
-    reset_time: Optional[int] = Field(
-        default=None, ge=0, description="Time until reset"
-    )
+    reset_time: Optional[int] = Field(default=None, ge=0, description="Time until reset")
     model: Optional[str] = Field(default=None, description="Model name for LLM errors")
-    response_preview: Optional[str] = Field(
-        default=None, description="Preview of response that failed"
-    )
+    response_preview: Optional[str] = Field(default=None, description="Preview of response that failed")
     stage: Optional[str] = Field(default=None, description="Processing stage")
-    duration: Optional[float] = Field(
-        default=None, ge=0, description="Duration in seconds"
-    )
+    duration: Optional[float] = Field(default=None, ge=0, description="Duration in seconds")
     format: Optional[str] = Field(default=None, description="Data format")
     backup_path: Optional[str] = Field(default=None, description="Backup file path")
 
@@ -187,19 +161,11 @@ class ExportSummary(BaseModel):
     total_sessions: int = Field(ge=0, description="Total number of sessions")
     completed_sessions: int = Field(ge=0, description="Number of completed sessions")
     active_sessions: int = Field(ge=0, description="Number of active sessions")
-    total_exercises: int = Field(
-        ge=0, description="Total exercises across all sessions"
-    )
-    resistance_exercises: int = Field(
-        ge=0, description="Number of resistance exercises"
-    )
+    total_exercises: int = Field(ge=0, description="Total exercises across all sessions")
+    resistance_exercises: int = Field(ge=0, description="Number of resistance exercises")
     aerobic_exercises: int = Field(ge=0, description="Number of aerobic exercises")
-    total_duration_minutes: int = Field(
-        ge=0, description="Total workout duration in minutes"
-    )
-    date_range: Optional[DateRange] = Field(
-        default=None, description="Date range of exported data"
-    )
+    total_duration_minutes: int = Field(ge=0, description="Total workout duration in minutes")
+    date_range: Optional[DateRange] = Field(default=None, description="Date range of exported data")
 
     @field_validator("active_sessions")
     @classmethod
@@ -210,9 +176,7 @@ class ExportSummary(BaseModel):
             completed = info.data.get("completed_sessions", 0)
             expected_active = total - completed
             if v != expected_active:
-                raise ValueError(
-                    f"Active sessions ({v}) must equal total ({total}) - completed ({completed})"
-                )
+                raise ValueError(f"Active sessions ({v}) must equal total ({total}) - completed ({completed})")
         return v
 
     @field_validator("total_exercises")
@@ -224,9 +188,7 @@ class ExportSummary(BaseModel):
             aerobic = info.data.get("aerobic_exercises", 0)
             expected_total = resistance + aerobic
             if v != expected_total:
-                raise ValueError(
-                    f"Total exercises ({v}) must equal resistance ({resistance}) + aerobic ({aerobic})"
-                )
+                raise ValueError(f"Total exercises ({v}) must equal resistance ({resistance}) + aerobic ({aerobic})")
         return v
 
     model_config = {"frozen": True}
@@ -265,9 +227,7 @@ class ExportPreview(BaseModel):
     total_exercises: int = Field(ge=0, description="Total exercises")
     resistance_exercises: int = Field(ge=0, description="Resistance exercises")
     aerobic_exercises: int = Field(ge=0, description="Aerobic exercises")
-    date_range: Optional[DateRange] = Field(
-        default=None, description="Date range of data"
-    )
+    date_range: Optional[DateRange] = Field(default=None, description="Date range of data")
     estimated_size_mb: float = Field(ge=0, description="Estimated export size in MB")
 
     model_config = {"frozen": True}

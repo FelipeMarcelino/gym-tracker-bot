@@ -19,7 +19,6 @@ class LLMParsingService:
     """Serviço para parsear transcrições usando Groq API"""
 
     def __init__(self) -> None:
-
         logger.info("Inicializando Groq LLM...")
 
         if not settings.GROQ_API_KEY:

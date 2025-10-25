@@ -82,9 +82,7 @@ def admin_only(
 
         # Verificar se é admin (async)
         if not await user_service.is_user_admin(user_id):
-            logger.warning(
-                f"Acesso admin negado para usuário {user_id} ({user.first_name} {user.last_name or ''})"
-            )
+            logger.warning(f"Acesso admin negado para usuário {user_id} ({user.first_name} {user.last_name or ''})")
 
             await update.message.reply_text(
                 "🚫 **Acesso Negado**\n\nApenas administradores podem usar este comando.",
@@ -108,9 +106,7 @@ async def log_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     # Determinar tipo de mensagem
     if message.text:
         msg_type = "TEXT"
-        content = message.text[
-            : settings.LOG_MESSAGE_PREVIEW_LENGTH
-        ]  # Primeiros caracteres configuráveis
+        content = message.text[: settings.LOG_MESSAGE_PREVIEW_LENGTH]  # Primeiros caracteres configuráveis
     elif message.voice:
         msg_type = "VOICE"
         content = f"{message.voice.duration}s"
@@ -119,6 +115,4 @@ async def log_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         content = "-"
 
     # Log formatado
-    logger.info(
-        f"Acesso do usuário {user.first_name} (ID: {user.id}) - Tipo: {msg_type}, Conteúdo: {content}"
-    )
+    logger.info(f"Acesso do usuário {user.first_name} (ID: {user.id}) - Tipo: {msg_type}, Conteúdo: {content}")

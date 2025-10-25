@@ -156,9 +156,7 @@ class ErrorHandler:
             # Fallback if message sending fails
             logger.error(f"Failed to send error message to user: {e}")
             try:
-                await update.message.reply_text(
-                    "❌ An error occurred. Please try again later."
-                )
+                await update.message.reply_text("❌ An error occurred. Please try again later.")
             except:
                 pass  # Give up if even basic message fails
 
@@ -178,9 +176,7 @@ class ErrorHandler:
             if error.error_code == ErrorCode.LLM_RATE_LIMIT_EXCEEDED:
                 rate_limit_note = "\n\n💡 _Try again in a few seconds_"
 
-            return messages.ERROR_AUDIO_PROCESSING.format(
-                message=error.user_message, rate_limit_note=rate_limit_note
-            )
+            return messages.ERROR_AUDIO_PROCESSING.format(message=error.user_message, rate_limit_note=rate_limit_note)
 
         elif isinstance(error, LLMParsingError):
             return messages.ERROR_LLM_PARSING.format(message=error.user_message)
@@ -190,9 +186,7 @@ class ErrorHandler:
             if error.context.get("retry_after"):
                 details = f"\n\n**Retry after:** {error.context['retry_after']} seconds"
 
-            return messages.ERROR_SERVICE_UNAVAILABLE.format(
-                message=error.user_message, details=details
-            )
+            return messages.ERROR_SERVICE_UNAVAILABLE.format(message=error.user_message, details=details)
 
         elif isinstance(error, DatabaseError):
             return messages.ERROR_DATABASE.format(message=error.user_message)
@@ -229,9 +223,7 @@ class ErrorHandler:
             return messages.ERROR_UNEXPECTED.format(error_message=error.user_message)
 
     @staticmethod
-    def _report_to_monitoring(
-        error: GymTrackerError, update: Update, operation: str
-    ) -> None:
+    def _report_to_monitoring(error: GymTrackerError, update: Update, operation: str) -> None:
         """Report error to monitoring systems (placeholder for future implementation)"""
         # TODO: Implement monitoring integration (e.g., Sentry, DataDog, etc.)
         pass
@@ -240,9 +232,7 @@ class ErrorHandler:
 class ErrorContext:
     """Context manager for handling errors in bot operations"""
 
-    def __init__(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE, operation: str
-    ):
+    def __init__(self, update: Update, context: ContextTypes.DEFAULT_TYPE, operation: str):
         self.update = update
         self.context = context
         self.operation = operation
@@ -252,9 +242,7 @@ class ErrorContext:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if exc_val:
-            await ErrorHandler.handle_error(
-                exc_val, self.update, self.context, self.operation
-            )
+            await ErrorHandler.handle_error(exc_val, self.update, self.context, self.operation)
             return True  # Suppress the exception
         return False
 
@@ -270,9 +258,7 @@ def error_handler(operation: str):
     """
 
     def decorator(func):
-        async def wrapper(
-            update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs
-        ):
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
             try:
                 return await func(update, context, *args, **kwargs)
             except Exception as e:
@@ -295,9 +281,7 @@ async def handle_validation_error(
     await ErrorHandler.handle_error(error, update, None, "validation")
 
 
-async def handle_database_error(
-    update: Update, operation: str, original_error: Exception
-) -> None:
+async def handle_database_error(update: Update, operation: str, original_error: Exception) -> None:
     """Quick helper for database errors"""
     from services.exceptions import handle_database_exception
 
@@ -305,9 +289,7 @@ async def handle_database_error(
     await ErrorHandler.handle_error(error, update, None, operation)
 
 
-async def handle_service_error(
-    update: Update, service: str, original_error: Exception
-) -> None:
+async def handle_service_error(update: Update, service: str, original_error: Exception) -> None:
     """Quick helper for external service errors"""
     from services.exceptions import handle_service_exception
 

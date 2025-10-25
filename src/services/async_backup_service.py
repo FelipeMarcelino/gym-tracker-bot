@@ -113,14 +113,10 @@ class BackupService:
                 cause=e,
             )
 
-    async def _copy_database_async(
-        self, source_conn: aiosqlite.Connection, backup_conn: aiosqlite.Connection
-    ):
+    async def _copy_database_async(self, source_conn: aiosqlite.Connection, backup_conn: aiosqlite.Connection):
         """Copy all tables from source to backup database"""
         # Get all table names
-        cursor = await source_conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )
+        cursor = await source_conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = await cursor.fetchall()
         await cursor.close()
 
@@ -129,9 +125,7 @@ class BackupService:
                 continue
 
             # Get table schema
-            cursor = await source_conn.execute(
-                f"SELECT sql FROM sqlite_master WHERE name='{table_name}'"
-            )
+            cursor = await source_conn.execute(f"SELECT sql FROM sqlite_master WHERE name='{table_name}'")
             schema = await cursor.fetchone()
             await cursor.close()
 
@@ -146,9 +140,7 @@ class BackupService:
 
                 if rows:
                     # Get column count for placeholders
-                    cursor = await source_conn.execute(
-                        f"PRAGMA table_info({table_name})"
-                    )
+                    cursor = await source_conn.execute(f"PRAGMA table_info({table_name})")
                     columns = await cursor.fetchall()
                     await cursor.close()
 
@@ -173,9 +165,7 @@ class BackupService:
         try:
             async with aiosqlite.connect(backup_path) as conn:
                 # Check if we can query basic tables
-                cursor = await conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table'"
-                )
+                cursor = await conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
                 tables = await cursor.fetchall()
                 await cursor.close()
 
@@ -189,9 +179,7 @@ class BackupService:
                 }
 
                 if not expected_tables.issubset(table_names):
-                    logger.warning(
-                        f"Backup missing expected tables: {expected_tables - table_names}"
-                    )
+                    logger.warning(f"Backup missing expected tables: {expected_tables - table_names}")
                     return False
 
                 # Verify we can query each table
@@ -236,9 +224,7 @@ class BackupService:
                 }
 
                 if not expected_tables.issubset(table_names):
-                    logger.warning(
-                        f"Backup missing expected tables: {expected_tables - table_names}"
-                    )
+                    logger.warning(f"Backup missing expected tables: {expected_tables - table_names}")
                     return False
 
                 # Verify we can query each table
@@ -294,9 +280,7 @@ class BackupService:
             logger.warning(f"Starting database restore from: {backup_path}")
 
             # Create a backup of current database before restore
-            current_backup = await self.create_backup(
-                f"pre_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
-            )
+            current_backup = await self.create_backup(f"pre_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
             logger.info(f"Current database backed up to: {current_backup}")
 
             # Perform restore using async file operations
@@ -329,9 +313,7 @@ class BackupService:
             backups = []
 
             # Use asyncio.to_thread for file operations that don't have async versions
-            backup_files = await asyncio.to_thread(
-                lambda: list(self.backup_dir.glob("*.db"))
-            )
+            backup_files = await asyncio.to_thread(lambda: list(self.backup_dir.glob("*.db")))
 
             for backup_file in backup_files:
                 try:
@@ -348,9 +330,7 @@ class BackupService:
                     backups.append(backup_info)
 
                 except Exception as e:
-                    logger.warning(
-                        f"Error reading backup info: {backup_file.name} - {e}"
-                    )
+                    logger.warning(f"Error reading backup info: {backup_file.name} - {e}")
                     continue
 
             # Sort by creation date (newest first)
@@ -372,9 +352,7 @@ class BackupService:
             backups = await self.list_backups()
 
             if len(backups) <= self.max_backups:
-                logger.debug(
-                    f"Backup cleanup not needed: {len(backups)}/{self.max_backups}"
-                )
+                logger.debug(f"Backup cleanup not needed: {len(backups)}/{self.max_backups}")
                 return
 
             # Remove oldest backups
@@ -387,9 +365,7 @@ class BackupService:
                 except Exception as e:
                     logger.warning(f"Failed to remove backup {backup['name']}: {e}")
 
-            logger.info(
-                f"Backup cleanup completed: removed {len(backups_to_remove)} old backups"
-            )
+            logger.info(f"Backup cleanup completed: removed {len(backups_to_remove)} old backups")
 
         except Exception:
             logger.exception("Backup cleanup failed")
@@ -450,19 +426,13 @@ class BackupService:
             else:
                 # Defer task creation until event loop is running
                 self.scheduler_task = None
-                logger.info(
-                    "Event loop not running, backup scheduler will start when loop is available"
-                )
+                logger.info("Event loop not running, backup scheduler will start when loop is available")
         except RuntimeError:
             # No event loop exists yet, defer task creation
             self.scheduler_task = None
-            logger.info(
-                "No event loop exists, backup scheduler will start when loop is available"
-            )
+            logger.info("No event loop exists, backup scheduler will start when loop is available")
 
-        logger.info(
-            f"Automated backups started: every {self.backup_frequency_hours} hours"
-        )
+        logger.info(f"Automated backups started: every {self.backup_frequency_hours} hours")
 
     def stop_automated_backups(self):
         """Stop automated backup scheduler"""
@@ -549,9 +519,7 @@ class BackupService:
 
                 if current_time >= next_backup_time:
                     await self._scheduled_backup()
-                    next_backup_time = current_time + timedelta(
-                        hours=self.backup_frequency_hours
-                    )
+                    next_backup_time = current_time + timedelta(hours=self.backup_frequency_hours)
                     logger.info(f"Next backup scheduled for: {next_backup_time}")
 
                 # Check every 5 seconds for faster shutdown response

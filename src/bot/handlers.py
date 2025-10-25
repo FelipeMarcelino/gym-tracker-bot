@@ -39,9 +39,7 @@ logger = get_logger(__name__)
 @track_command_metrics("start")
 @rate_limit_commands
 @validate_input(CommonSchemas.text_message(min_length=0, max_length=100))
-async def start(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /start - Mensagem de boas-vindas"""
     await log_access(update, context)
 
@@ -78,9 +76,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 @rate_limit_commands
 @validate_input(CommonSchemas.admin_command())
-async def myid_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def myid_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /myid - Mostra o user_id (útil para adicionar novos usuários)"""
     await log_access(update, context)
 
@@ -258,9 +254,7 @@ async def _process_workout_audio_optimized(
 
         await status_msg.edit_text(response, parse_mode="Markdown")
 
-        logger.info(
-            f"Processamento otimizado completo em {processing_time:.2f}s para usuário {user_id}"
-        )
+        logger.info(f"Processamento otimizado completo em {processing_time:.2f}s para usuário {user_id}")
 
     except ValidationError as e:
         details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
@@ -275,9 +269,7 @@ async def _process_workout_audio_optimized(
 
     except ServiceUnavailableError as e:
         details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
-        error_msg = messages.ERROR_SERVICE_UNAVAILABLE.format(
-            message=e.message, details=details
-        )
+        error_msg = messages.ERROR_SERVICE_UNAVAILABLE.format(message=e.message, details=details)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro de serviço: {e}")
 
@@ -290,9 +282,7 @@ async def _process_workout_audio_optimized(
         traceback.print_exc()
 
     except Exception as e:
-        error_msg = messages.ERROR_UNEXPECTED.format(
-            error_message="Ocorreu um erro interno."
-        )
+        error_msg = messages.ERROR_UNEXPECTED.format(error_message="Ocorreu um erro interno.")
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro inesperado: {e}")
         import traceback
@@ -309,9 +299,7 @@ async def _process_workout_message(
     source: str = "text",
 ) -> None:
     """Processa mensagem de treino (texto ou áudio transcrito)"""
-    logger.info(
-        f"Novo treino recebido ({source.upper()}) de {user_name} (ID: {user_id}): {workout_text[:100]}..."
-    )
+    logger.info(f"Novo treino recebido ({source.upper()}) de {user_name} (ID: {user_id}): {workout_text[:100]}...")
 
     start_time = time.time()
 
@@ -398,9 +386,7 @@ async def _process_workout_message(
 
         await status_msg.edit_text(response, parse_mode="Markdown")
 
-        logger.info(
-            f"Processamento completo em {processing_time:.2f}s para usuário {user_id}"
-        )
+        logger.info(f"Processamento completo em {processing_time:.2f}s para usuário {user_id}")
 
     except ValidationError as e:
         details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
@@ -415,9 +401,7 @@ async def _process_workout_message(
 
     except ServiceUnavailableError as e:
         details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
-        error_msg = messages.ERROR_SERVICE_UNAVAILABLE.format(
-            message=e.message, details=details
-        )
+        error_msg = messages.ERROR_SERVICE_UNAVAILABLE.format(message=e.message, details=details)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro de serviço: {e}")
 
@@ -430,9 +414,7 @@ async def _process_workout_message(
         traceback.print_exc()
 
     except Exception as e:
-        error_msg = messages.ERROR_UNEXPECTED.format(
-            error_message="Ocorreu um erro interno."
-        )
+        error_msg = messages.ERROR_UNEXPECTED.format(error_message="Ocorreu um erro interno.")
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro inesperado: {e}")
         import traceback
@@ -445,9 +427,7 @@ async def _process_workout_message(
 @track_command_metrics("text_message")
 @error_handler("processing text message")
 @validate_input(CommonSchemas.text_message(min_length=1, max_length=4000))
-async def handle_text(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Handler para mensagens de TEXTO"""
     # Usar dados validados
     user_data = validated_data["user"]
@@ -460,15 +440,13 @@ async def handle_text(
 
     # Printar no console (para debug)
     logger.info(
-        f"Mensagem de texto recebida de {user_name} (ID: {user_id}) - {timestamp}: {message_text[:settings.LOG_TEXT_PREVIEW_LENGTH]}..."
+        f"Mensagem de texto recebida de {user_name} (ID: {user_id}) - {timestamp}: {message_text[: settings.LOG_TEXT_PREVIEW_LENGTH]}..."
     )
 
     # Verificar se é mensagem de treino
     if _is_workout_message(message_text):
         logger.info("Detectado conteúdo de treino - processando como workout")
-        await _process_workout_message(
-            update, context, message_text, user_id, user_name, "text"
-        )
+        await _process_workout_message(update, context, message_text, user_id, user_name, "text")
     else:
         # Comportamento atual - apenas ecoar a mensagem
         response = messages.TEXT_RECEIVED.format(
@@ -484,9 +462,7 @@ async def handle_text(
 @track_audio_metrics("voice_processing")
 @error_handler("processing voice message")
 @validate_input(CommonSchemas.voice_message())
-async def handle_voice(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Handler para mensagens de VOZ/ÁUDIO
     Com AUTO-DETECÇÃO de sessão ativa
     """
@@ -558,21 +534,13 @@ async def handle_voice(
         )
 
     except AudioProcessingError as e:
-        rate_limit_note = (
-            "\n\n⏰ _Tente novamente em alguns segundos_"
-            if "rate_limit" in e.message.lower()
-            else ""
-        )
-        error_msg = messages.ERROR_AUDIO_PROCESSING.format(
-            message=e.message, rate_limit_note=rate_limit_note
-        )
+        rate_limit_note = "\n\n⏰ _Tente novamente em alguns segundos_" if "rate_limit" in e.message.lower() else ""
+        error_msg = messages.ERROR_AUDIO_PROCESSING.format(message=e.message, rate_limit_note=rate_limit_note)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro de áudio: {e}")
 
     except Exception as e:
-        error_msg = messages.ERROR_UNEXPECTED.format(
-            error_message="Ocorreu um erro interno."
-        )
+        error_msg = messages.ERROR_UNEXPECTED.format(error_message="Ocorreu um erro interno.")
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro inesperado: {e}")
         import traceback
@@ -592,9 +560,7 @@ def _format_success_response(
     if is_new_session:
         response = messages.AUDIO_SUCCESS_NEW_SESSION
     else:
-        response = messages.AUDIO_SUCCESS_EXISTING_SESSION.format(
-            audio_count=audio_count
-        )
+        response = messages.AUDIO_SUCCESS_EXISTING_SESSION.format(audio_count=audio_count)
 
     # Transcrição
     response += messages.format_transcription_response(transcription)
@@ -622,9 +588,7 @@ def _format_success_response(
 @authorized_only
 @rate_limit_commands
 @validate_input(CommonSchemas.admin_command())
-async def status_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /status - Mostra sessão ativa"""
     user_id = validated_data["user"].get("id", "N/A")
 
@@ -665,9 +629,7 @@ async def status_command(
                 session_id=session.session_id,
                 date=session.date.strftime("%d/%m/%Y"),
                 start_time=session.start_time.strftime("%H:%M"),
-                end_time=(
-                    session.end_time.strftime("%H:%M") if session.end_time else "N/A"
-                ),
+                end_time=(session.end_time.strftime("%H:%M") if session.end_time else "N/A"),
                 audio_count=session.audio_count,
                 resistance_count=resistance_count,
                 aerobic_count=aerobic_count,
@@ -685,9 +647,7 @@ async def status_command(
 
     except Exception as e:
         await update.message.reply_text(
-            messages.ERROR_UNEXPECTED.format(
-                error_message="Não foi possível buscar o status."
-            ),
+            messages.ERROR_UNEXPECTED.format(error_message="Não foi possível buscar o status."),
             parse_mode="Markdown",
         )
         logger.error(f"Erro inesperado no status: {e}")
@@ -700,9 +660,7 @@ async def status_command(
 @authorized_only
 @rate_limit_commands
 @validate_input(CommonSchemas.admin_command())
-async def finish_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Finaliza a sessão atual manualmente"""
     user_data = validated_data["user"]
     user_id = user_data.get("id", "N/A")
@@ -721,11 +679,7 @@ async def finish_command(
 
     if last_session.status == SessionStatus.FINALIZADA:
         # Handle None duration_minutes case
-        duration_str = (
-            f"{last_session.duration_minutes}"
-            if last_session.duration_minutes is not None
-            else "N/A"
-        )
+        duration_str = f"{last_session.duration_minutes}" if last_session.duration_minutes is not None else "N/A"
 
         # Handle potential date issues
         try:
@@ -746,9 +700,7 @@ async def finish_command(
     result = await workout_service.finish_session(last_session.session_id, user_id)
 
     if not result["success"]:
-        await update.message.reply_text(
-            messages.ERROR_FINISH_SESSION.format(error=result["error"])
-        )
+        await update.message.reply_text(messages.ERROR_FINISH_SESSION.format(error=result["error"]))
         return
 
     # Formatar resumo
@@ -790,18 +742,14 @@ async def finish_command(
 @rate_limit_commands
 @error_handler("exporting user data")
 @validate_input(CommonSchemas.command_with_args(min_args=0, max_args=1))
-async def export_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /export - Exporta dados do usuário"""
     user_id = validated_data["user"].get("id", "N/A")
     user_name = validated_data["user"].get("first_name", "Usuário")
 
     # Parse format from command args (default: json)
     args = context.args or []
-    format_type = (
-        args[0].lower() if args and args[0].lower() in ["json", "csv"] else "json"
-    )
+    format_type = args[0].lower() if args and args[0].lower() in ["json", "csv"] else "json"
 
     try:
         export_service = await get_async_export_service()
@@ -834,17 +782,14 @@ async def export_command(
 💾 Enviando arquivo...
         """
 
-        status_msg = await update.message.reply_text(
-            summary_text, parse_mode="Markdown"
-        )
+        status_msg = await update.message.reply_text(summary_text, parse_mode="Markdown")
 
         # Export data (async)
         result = await export_service.export_user_data(user_id, format=format_type)
 
         if not result.success or not result.data:
             await status_msg.edit_text(
-                "❌ **Erro na exportação**\n\n"
-                f"{result.message or 'Falha ao exportar dados'}",
+                f"❌ **Erro na exportação**\n\n{result.message or 'Falha ao exportar dados'}",
                 parse_mode="Markdown",
             )
             return
@@ -906,9 +851,7 @@ async def export_command(
 @authorized_only
 @rate_limit_commands
 @validate_input(CommonSchemas.command_with_args(min_args=0, max_args=1))
-async def stats_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /stats - Estatísticas e analytics do usuário"""
     user_id = validated_data["user"].get("id", "N/A")
     user_name = validated_data["user"].get("first_name", "Usuário")
@@ -969,9 +912,7 @@ async def stats_command(
 @authorized_only
 @rate_limit_commands
 @validate_input(CommonSchemas.command_with_args(min_args=1, max_args=10))
-async def progress_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /progress - Progresso de um exercício específico"""
     user_id = validated_data["user"].get("id", "N/A")
 
@@ -1040,9 +981,7 @@ async def progress_command(
 @authorized_only
 @rate_limit_commands
 @validate_input(CommonSchemas.admin_command())
-async def exercises_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /exercises - Lista todos os exercícios registrados no banco"""
     try:
         from sqlalchemy import select
@@ -1129,14 +1068,10 @@ def _format_analytics_message(analytics: Dict[str, Any], user_name: str) -> str:
     message += "📈 **Desempenho Geral:**\n"
     message += f"✅ Taxa de conclusão: {session_stats['completion_rate']:.1f}%\n"
     if session_stats["average_duration_minutes"] > 0:
-        message += (
-            f"⏱️ Duração média: {session_stats['average_duration_minutes']:.0f} min\n"
-        )
+        message += f"⏱️ Duração média: {session_stats['average_duration_minutes']:.0f} min\n"
     else:
         message += "⏱️ Duração média: N/A (finalize sessões com /finish)\n"
-    message += (
-        f"🎤 Áudios por sessão: {session_stats['average_audios_per_session']:.1f}\n"
-    )
+    message += f"🎤 Áudios por sessão: {session_stats['average_audios_per_session']:.1f}\n"
     if session_stats["average_energy_level"] > 0:
         message += f"⚡ Energia média: {session_stats['average_energy_level']:.1f}/10\n"
     message += "\n"
@@ -1149,9 +1084,7 @@ def _format_analytics_message(analytics: Dict[str, Any], user_name: str) -> str:
         message += f"📊 Séries: {resistance['total_sets']} séries\n"
         message += f"🏋️ Volume: {resistance['total_volume_kg']:,.0f}kg\n"
         if resistance["average_difficulty"] > 0:
-            message += (
-                f"😤 Dificuldade média: {resistance['average_difficulty']:.1f}/10\n"
-            )
+            message += f"😤 Dificuldade média: {resistance['average_difficulty']:.1f}/10\n"
         message += "\n"
 
     # Frequency
@@ -1164,9 +1097,7 @@ def _format_analytics_message(analytics: Dict[str, Any], user_name: str) -> str:
         workouts = frequency["unique_workout_days"]
         message += f"📊 {workouts} treino(s) em {days} dia(s)\n"
         if days > 1:
-            message += (
-                f"📈 Projeção: {frequency['frequency_per_week']:.1f} treinos/semana\n"
-            )
+            message += f"📈 Projeção: {frequency['frequency_per_week']:.1f} treinos/semana\n"
     message += f"🎯 Consistência: {frequency['consistency_score']:.1f}%\n"
     if frequency["longest_streak_days"] > 1:
         message += f"🔥 Maior sequência: {frequency['longest_streak_days']} dias\n"
@@ -1186,11 +1117,7 @@ def _format_analytics_message(analytics: Dict[str, Any], user_name: str) -> str:
 
     # Trends
     if trends.get("trend") and trends["trend"] != "insufficient_data":
-        trend_emoji = (
-            "📈"
-            if trends["trend"] == "improving"
-            else "📉" if trends["trend"] == "declining" else "➡️"
-        )
+        trend_emoji = "📈" if trends["trend"] == "improving" else "📉" if trends["trend"] == "declining" else "➡️"
         message += f"{trend_emoji} **Tendência:** {trends['trend'].title()}\n"
         if abs(trends["volume_change_percent"]) > 5:
             message += f"📊 Volume: {trends['volume_change_percent']:+.1f}%\n"
@@ -1246,9 +1173,7 @@ def _format_progress_message(progress: Dict[str, Any]) -> str:
 @admin_only
 @rate_limit_commands
 @validate_input(CommonSchemas.command_with_args(min_args=1, max_args=2))
-async def add_user_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def add_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /adduser - Adiciona usuário autorizado (ADMIN ONLY)"""
     admin_user_id = str(validated_data["user"].get("id"))
     admin_name = validated_data["user"].get("first_name", "Admin")
@@ -1313,9 +1238,7 @@ async def add_user_command(
             parse_mode="Markdown",
         )
 
-        logger.info(
-            f"Admin {admin_name} ({admin_user_id}) adicionou usuário {target_user_id} (admin: {is_admin})"
-        )
+        logger.info(f"Admin {admin_name} ({admin_user_id}) adicionou usuário {target_user_id} (admin: {is_admin})")
 
     except (ValidationError, DatabaseError) as e:
         await update.message.reply_text(
@@ -1335,9 +1258,7 @@ async def add_user_command(
 @admin_only
 @rate_limit_commands
 @validate_input(CommonSchemas.command_with_args(min_args=1, max_args=1))
-async def remove_user_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /removeuser - Remove usuário autorizado (ADMIN ONLY)"""
     admin_user_id = str(validated_data["user"].get("id"))
     admin_name = validated_data["user"].get("first_name", "Admin")
@@ -1372,7 +1293,7 @@ async def remove_user_command(
         existing_user = await user_service.get_user(target_user_id)
         if not existing_user or not existing_user.is_active:
             await update.message.reply_text(
-                f"❌ **Usuário não encontrado**\n\n" f"ID: `{target_user_id}`",
+                f"❌ **Usuário não encontrado**\n\nID: `{target_user_id}`",
                 parse_mode="Markdown",
             )
             return
@@ -1389,9 +1310,7 @@ async def remove_user_command(
             parse_mode="Markdown",
         )
 
-        logger.info(
-            f"Admin {admin_name} ({admin_user_id}) removeu usuário {target_user_id}"
-        )
+        logger.info(f"Admin {admin_name} ({admin_user_id}) removeu usuário {target_user_id}")
 
     except (ValidationError, DatabaseError) as e:
         await update.message.reply_text(
@@ -1410,9 +1329,7 @@ async def remove_user_command(
 
 @admin_only
 @rate_limit_commands
-async def list_users_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
+async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /listusers - Lista usuários autorizados (ADMIN ONLY)"""
     try:
         user_service = await get_async_user_service()
@@ -1420,7 +1337,7 @@ async def list_users_command(
 
         if not users:
             await update.message.reply_text(
-                "👥 **Lista de Usuários**\n\n" "❌ Nenhum usuário encontrado.",
+                "👥 **Lista de Usuários**\n\n❌ Nenhum usuário encontrado.",
                 parse_mode="Markdown",
             )
             return
@@ -1467,9 +1384,7 @@ async def list_users_command(
 
 @admin_only
 @rate_limit_commands
-async def ratelimit_cleanup_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
+async def ratelimit_cleanup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /ratelimit_cleanup - Limpa rate limiters inativos (ADMIN ONLY)"""
     try:
         from bot.rate_limiter import cleanup_all_inactive_users, get_rate_limiter_stats
@@ -1512,9 +1427,7 @@ async def ratelimit_cleanup_command(
 
 @admin_only
 @rate_limit_commands
-async def ratelimit_stats_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
+async def ratelimit_stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /ratelimit_stats - Mostra estatísticas de rate limiting (ADMIN ONLY)"""
     try:
         from bot.rate_limiter import get_rate_limiter_stats
@@ -1536,9 +1449,7 @@ async def ratelimit_stats_command(
         message += f"• Commands: {stats.active_users.commands}\n\n"
 
         message += "**Cleanup automático:**\n"
-        message += (
-            f"• Status: {'✅ Ativo' if cleanup_stats['is_running'] else '❌ Inativo'}\n"
-        )
+        message += f"• Status: {'✅ Ativo' if cleanup_stats['is_running'] else '❌ Inativo'}\n"
         message += f"• Frequência: {cleanup_stats['cleanup_frequency_hours']}h\n"
         message += f"• Inatividade máxima: {cleanup_stats['max_inactive_seconds']}s\n"
         message += f"• Scheduler: {'✅ Rodando' if cleanup_stats['scheduler_active'] else '❌ Parado'}\n"

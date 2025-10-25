@@ -187,9 +187,7 @@ def infer_muscle_group(exercise_name: str, exercise_type: str = "resistencia") -
 
     """
     exercise_lower = exercise_name.lower()
-    logger.info(
-        f"Exercício a ser inferido o musculo: {exercise_lower} (tipo: {exercise_type})"
-    )
+    logger.info(f"Exercício a ser inferido o musculo: {exercise_lower} (tipo: {exercise_type})")
 
     print(exercise_type)
     print(exercise_name)
@@ -218,9 +216,7 @@ def infer_equipment(exercise_name: str, exercise_type: str = "resistencia") -> s
     """
     exercise_lower = exercise_name.lower()
 
-    logger.info(
-        f"Exercício a ser inferido o equipamento: {exercise_lower} (tipo: {exercise_type})"
-    )
+    logger.info(f"Exercício a ser inferido o equipamento: {exercise_lower} (tipo: {exercise_type})")
 
     # Para exercícios aeróbicos, usar mapeamento específico
     if exercise_type.lower() == "aerobico":

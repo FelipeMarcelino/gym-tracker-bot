@@ -173,11 +173,7 @@ class ValidationError(GymTrackerError):
             error_code=kwargs.get("error_code", ErrorCode.INVALID_INPUT),
             user_message=kwargs.get("user_message", "Invalid input provided"),
             context=context,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["error_code", "user_message", "context"]
-            },
+            **{k: v for k, v in kwargs.items() if k not in ["error_code", "user_message", "context"]},
         )
 
 
@@ -197,11 +193,7 @@ class DatabaseError(GymTrackerError):
             error_code=kwargs.get("error_code", ErrorCode.DATABASE_QUERY_FAILED),
             user_message=kwargs.get("user_message", "Database operation failed"),
             context=context,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["error_code", "user_message", "context"]
-            },
+            **{k: v for k, v in kwargs.items() if k not in ["error_code", "user_message", "context"]},
         )
 
 
@@ -221,11 +213,7 @@ class SessionError(GymTrackerError):
             error_code=kwargs.get("error_code", ErrorCode.SESSION_NOT_FOUND),
             user_message=kwargs.get("user_message", "Session operation failed"),
             context=context,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["error_code", "user_message", "context"]
-            },
+            **{k: v for k, v in kwargs.items() if k not in ["error_code", "user_message", "context"]},
         )
 
 
@@ -253,11 +241,7 @@ class AudioProcessingError(GymTrackerError):
             error_code=kwargs.get("error_code", ErrorCode.AUDIO_TRANSCRIPTION_FAILED),
             user_message=kwargs.get("user_message", "Audio processing failed"),
             context=context,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["error_code", "user_message", "context"]
-            },
+            **{k: v for k, v in kwargs.items() if k not in ["error_code", "user_message", "context"]},
         )
 
 
@@ -278,23 +262,15 @@ class LLMParsingError(GymTrackerError):
                 context_dict["model"] = model
             if response:
                 # Truncate response for context
-                context_dict["response_preview"] = (
-                    response[:200] + "..." if len(response) > 200 else response
-                )
+                context_dict["response_preview"] = response[:200] + "..." if len(response) > 200 else response
             context = ErrorContext(**context_dict)
 
         super().__init__(
             message=message,
             error_code=kwargs.get("error_code", ErrorCode.LLM_PARSING_FAILED),
-            user_message=kwargs.get(
-                "user_message", "Failed to understand workout description"
-            ),
+            user_message=kwargs.get("user_message", "Failed to understand workout description"),
             context=context,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["error_code", "user_message", "context"]
-            },
+            **{k: v for k, v in kwargs.items() if k not in ["error_code", "user_message", "context"]},
         )
 
 
@@ -320,15 +296,9 @@ class ServiceUnavailableError(GymTrackerError):
         super().__init__(
             message=message,
             error_code=kwargs.get("error_code", ErrorCode.SERVICE_TIMEOUT),
-            user_message=kwargs.get(
-                "user_message", "External service temporarily unavailable"
-            ),
+            user_message=kwargs.get("user_message", "External service temporarily unavailable"),
             context=context,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["error_code", "user_message", "context"]
-            },
+            **{k: v for k, v in kwargs.items() if k not in ["error_code", "user_message", "context"]},
         )
 
 
@@ -348,11 +318,7 @@ class AuthenticationError(GymTrackerError):
             error_code=kwargs.get("error_code", ErrorCode.UNAUTHORIZED),
             user_message=kwargs.get("user_message", "Access denied"),
             context=context,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["error_code", "user_message", "context"]
-            },
+            **{k: v for k, v in kwargs.items() if k not in ["error_code", "user_message", "context"]},
         )
 
 
@@ -378,15 +344,9 @@ class RateLimitError(GymTrackerError):
         super().__init__(
             message=message,
             error_code=kwargs.get("error_code", ErrorCode.RATE_LIMIT_EXCEEDED),
-            user_message=kwargs.get(
-                "user_message", "Too many requests, please try again later"
-            ),
+            user_message=kwargs.get("user_message", "Too many requests, please try again later"),
             context=context,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["error_code", "user_message", "context"]
-            },
+            **{k: v for k, v in kwargs.items() if k not in ["error_code", "user_message", "context"]},
         )
 
 
@@ -406,11 +366,7 @@ class ExportError(GymTrackerError):
             error_code=kwargs.get("error_code", ErrorCode.EXPORT_FAILED),
             user_message=kwargs.get("user_message", "Export operation failed"),
             context=context,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["error_code", "user_message", "context"]
-            },
+            **{k: v for k, v in kwargs.items() if k not in ["error_code", "user_message", "context"]},
         )
 
 
@@ -438,11 +394,7 @@ class BackupError(GymTrackerError):
             error_code=kwargs.get("error_code", ErrorCode.BACKUP_FAILED),
             user_message=kwargs.get("user_message", "Backup operation failed"),
             context=context,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["error_code", "user_message", "context"]
-            },
+            **{k: v for k, v in kwargs.items() if k not in ["error_code", "user_message", "context"]},
         )
 
 
@@ -451,9 +403,7 @@ class BackupError(GymTrackerError):
 # =============================================================================
 
 
-def handle_database_exception(
-    e: Exception, operation: str = "unknown"
-) -> DatabaseError:
+def handle_database_exception(e: Exception, operation: str = "unknown") -> DatabaseError:
     """Convert generic database exceptions to DatabaseError"""
     from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
 
@@ -472,9 +422,7 @@ def handle_database_exception(
             cause=e,
         )
     elif isinstance(e, SQLAlchemyError):
-        return DatabaseError(
-            message=f"Database error during {operation}", operation=operation, cause=e
-        )
+        return DatabaseError(message=f"Database error during {operation}", operation=operation, cause=e)
     else:
         return DatabaseError(
             message=f"Unexpected database error during {operation}",
@@ -483,9 +431,7 @@ def handle_database_exception(
         )
 
 
-def handle_service_exception(
-    e: Exception, service: str = "unknown"
-) -> ServiceUnavailableError:
+def handle_service_exception(e: Exception, service: str = "unknown") -> ServiceUnavailableError:
     """Convert generic service exceptions to ServiceUnavailableError"""
     import requests
 
@@ -513,10 +459,6 @@ def handle_service_exception(
                 cause=e,
             )
         else:
-            return ServiceUnavailableError(
-                message=f"{service} HTTP error: {status_code}", service=service, cause=e
-            )
+            return ServiceUnavailableError(message=f"{service} HTTP error: {status_code}", service=service, cause=e)
     else:
-        return ServiceUnavailableError(
-            message=f"{service} service error", service=service, cause=e
-        )
+        return ServiceUnavailableError(message=f"{service} service error", service=service, cause=e)

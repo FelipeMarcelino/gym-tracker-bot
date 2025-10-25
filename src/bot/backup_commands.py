@@ -96,9 +96,7 @@ async def backup_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stats = await backup_service.get_backup_stats()
 
         if "error" in stats:
-            await update.message.reply_text(
-                f"❌ Error getting backup stats: {stats['error']}"
-            )
+            await update.message.reply_text(f"❌ Error getting backup stats: {stats['error']}")
             return
 
         message = "📊 **Backup Statistics**\n\n"
@@ -123,9 +121,7 @@ async def backup_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message += f"\n🔧 **Config:**\n"
         message += f"Max backups: {backup_service.max_backups}\n"
         message += f"Frequency: every {backup_service.backup_frequency_hours} hours\n"
-        message += (
-            f"Auto-backup: {'Running' if backup_service.is_running else 'Stopped'}"
-        )
+        message += f"Auto-backup: {'Running' if backup_service.is_running else 'Stopped'}"
 
         await update.message.reply_text(message, parse_mode="Markdown")
 
@@ -136,9 +132,7 @@ async def backup_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @admin_only
 @validate_input(CommonSchemas.text_message(min_length=5))
-async def backup_restore(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data=None
-):
+async def backup_restore(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data=None):
     """Restore database from backup (DANGEROUS OPERATION)"""
     try:
         # Parse backup name from message
@@ -178,8 +172,7 @@ async def backup_restore(
 
         if not backup_path:
             await update.message.reply_text(
-                f"❌ Backup not found: `{backup_name}`\n\n"
-                f"Use `/backup_list` to see available backups"
+                f"❌ Backup not found: `{backup_name}`\n\nUse `/backup_list` to see available backups"
             )
             return
 
@@ -194,9 +187,7 @@ async def backup_restore(
                 f"Restored from: `{backup_name}`\n"
                 f"⚠️ **Bot restart recommended**"
             )
-            logger.warning(
-                f"Database restored from {backup_name} by admin {update.effective_user.id}"
-            )
+            logger.warning(f"Database restored from {backup_name} by admin {update.effective_user.id}")
         else:
             await update.message.reply_text("❌ Database restore failed")
 
@@ -206,9 +197,7 @@ async def backup_restore(
         logger.error(f"Database restore failed: {e}")
 
     except Exception as e:
-        await update.message.reply_text(
-            "❌ An unexpected error occurred during restore"
-        )
+        await update.message.reply_text("❌ An unexpected error occurred during restore")
         logger.exception(f"Unexpected error in backup_restore: {e}")
 
 
@@ -237,9 +226,7 @@ async def backup_cleanup(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         await update.message.reply_text(message, parse_mode="Markdown")
-        logger.info(
-            f"Backup cleanup performed by admin {update.effective_user.id}: removed {removed} backups"
-        )
+        logger.info(f"Backup cleanup performed by admin {update.effective_user.id}: removed {removed} backups")
 
     except Exception as e:
         await update.message.reply_text("❌ Failed to cleanup backups")

@@ -37,9 +37,7 @@ class ShutdownService:
         """
         # Check for duplicate registration
         if handler in self.shutdown_handlers:
-            logger.debug(
-                f"Handler {description or handler.__name__} already registered, skipping"
-            )
+            logger.debug(f"Handler {description or handler.__name__} already registered, skipping")
             return
 
         if asyncio.iscoroutinefunction(handler):
@@ -49,9 +47,7 @@ class ShutdownService:
                     # Always create a new event loop for shutdown handlers
                     asyncio.run(asyncio.wait_for(handler(), timeout=10))
                 except Exception as e:
-                    logger.exception(
-                        f"Error in async shutdown handler {description or 'unknown'}: {e}"
-                    )
+                    logger.exception(f"Error in async shutdown handler {description or 'unknown'}: {e}")
 
             self.shutdown_handlers.append(wrapper)
         else:
@@ -64,9 +60,7 @@ class ShutdownService:
 
         def signal_handler(signum, frame):
             signal_name = signal.Signals(signum).name
-            logger.info(
-                f"Received {signal_name} signal, initiating graceful shutdown..."
-            )
+            logger.info(f"Received {signal_name} signal, initiating graceful shutdown...")
             self.initiate_shutdown()
 
         # Register handlers for common termination signals
@@ -123,9 +117,7 @@ class ShutdownService:
         for i, handler in enumerate(self.shutdown_handlers, 1):
             try:
                 handler_name = getattr(handler, "__name__", f"handler_{i}")
-                logger.info(
-                    f"Running shutdown handler {i}/{len(self.shutdown_handlers)}: {handler_name}"
-                )
+                logger.info(f"Running shutdown handler {i}/{len(self.shutdown_handlers)}: {handler_name}")
 
                 # Execute with timeout
                 if asyncio.iscoroutinefunction(handler):
@@ -138,9 +130,7 @@ class ShutdownService:
                     thread.join(timeout=10)
 
                     if thread.is_alive():
-                        logger.warning(
-                            f"Shutdown handler {handler_name} timed out after 10s"
-                        )
+                        logger.warning(f"Shutdown handler {handler_name} timed out after 10s")
 
                 logger.debug(f"✅ Shutdown handler {handler_name} completed")
 
@@ -192,9 +182,7 @@ class ShutdownService:
         timeout = timeout or self.shutdown_timeout
 
         def timeout_handler():
-            logger.error(
-                f"⏰ Graceful shutdown timeout ({timeout}s) exceeded, forcing exit"
-            )
+            logger.error(f"⏰ Graceful shutdown timeout ({timeout}s) exceeded, forcing exit")
             self.force_shutdown(1)
 
         # Start timeout timer
@@ -292,12 +280,6 @@ shutdown_service = ShutdownService()
 
 # Register default shutdown handlers
 shutdown_service.register_shutdown_handler(flush_logs, "Flush log buffers")
-shutdown_service.register_shutdown_handler(
-    save_pending_operations, "Save pending operations"
-)
-shutdown_service.register_shutdown_handler(
-    close_database_connections, "Close database connections"
-)
-shutdown_service.register_shutdown_handler(
-    cleanup_temp_files, "Clean up temporary files"
-)
+shutdown_service.register_shutdown_handler(save_pending_operations, "Save pending operations")
+shutdown_service.register_shutdown_handler(close_database_connections, "Close database connections")
+shutdown_service.register_shutdown_handler(cleanup_temp_files, "Clean up temporary files")

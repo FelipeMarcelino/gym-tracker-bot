@@ -11,9 +11,7 @@ class ValidationUtils:
     """Utility functions for input validation and sanitization"""
 
     # Regex patterns
-    SAFE_TEXT_PATTERN = re.compile(
-        r"^[a-zA-Z0-9\s\-_.,!?áéíóúâêîôûàèìòùãõçÁÉÍÓÚÂÊÎÔÛÀÈÌÒÙÃÕÇ]*$"
-    )
+    SAFE_TEXT_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-_.,!?áéíóúâêîôûàèìòùãõçÁÉÍÓÚÂÊÎÔÛÀÈÌÒÙÃÕÇ]*$")
 
     @staticmethod
     def sanitize_text(text: str) -> str:
@@ -92,7 +90,7 @@ class ValidationUtils:
             return {
                 "is_valid": False,
                 "file_info": None,
-                "error_message": f"Audio too long (maximum {settings.MAX_AUDIO_DURATION_SECONDS//60} minutes)",
+                "error_message": f"Audio too long (maximum {settings.MAX_AUDIO_DURATION_SECONDS // 60} minutes)",
             }
 
         # Check file size

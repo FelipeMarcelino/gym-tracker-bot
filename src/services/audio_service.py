@@ -67,9 +67,7 @@ class AudioTranscriptionService:
 
         max_size = settings.MAX_AUDIO_FILE_SIZE_MB * 1024 * 1024
         if len(file_bytes) > max_size:
-            raise ValidationError(
-                f"Arquivo de áudio muito grande (máximo {settings.MAX_AUDIO_FILE_SIZE_MB}MB)"
-            )
+            raise ValidationError(f"Arquivo de áudio muito grande (máximo {settings.MAX_AUDIO_FILE_SIZE_MB}MB)")
 
         temp_path: Optional[str] = None
 
@@ -87,9 +85,7 @@ class AudioTranscriptionService:
             temp_path = temp_file.name
             temp_file.close()  # Close the file descriptor
 
-            logger.info(
-                f"Transcrevendo áudio de {len(file_bytes)} bytes via Groq API..."
-            )
+            logger.info(f"Transcrevendo áudio de {len(file_bytes)} bytes via Groq API...")
 
             # Ler arquivo e enviar para Groq de forma assíncrona
             async with aiofiles.open(temp_path, "rb") as audio_file:
@@ -166,9 +162,7 @@ class AudioTranscriptionService:
                 try:
                     await aiofiles.os.remove(temp_path)
                 except Exception as e:
-                    logger.warning(
-                        f"Falha ao deletar arquivo temporário {temp_path}: {e}"
-                    )
+                    logger.warning(f"Falha ao deletar arquivo temporário {temp_path}: {e}")
 
 
 # Service instantiation moved to container.py

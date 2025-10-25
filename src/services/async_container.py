@@ -105,9 +105,7 @@ class AsyncServiceContainer:
             session_manager = self._services[AsyncSessionManager]
             cleaned_count = await session_manager.cleanup_stale_sessions()
             if cleaned_count > 0:
-                logger.info(
-                    f"🧹 Startup cleanup: {cleaned_count} stale sessions marked as finished"
-                )
+                logger.info(f"🧹 Startup cleanup: {cleaned_count} stale sessions marked as finished")
             else:
                 logger.info("🧹 Startup cleanup: No stale sessions found")
 

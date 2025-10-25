@@ -19,9 +19,7 @@ logger = get_logger(__name__)
 @rate_limit_commands
 @error_handler("health check command")
 @validate_input(CommonSchemas.admin_command())
-async def health_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /health - Health check básico (ADMIN ONLY)"""
     try:
         # Get simple health status
@@ -63,9 +61,7 @@ Use /healthfull for detailed report."""
 @rate_limit_commands
 @error_handler("full health check command")
 @validate_input(CommonSchemas.admin_command())
-async def health_full_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def health_full_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /healthfull - Health check completo (ADMIN ONLY)"""
     try:
         # Show loading message
@@ -105,9 +101,7 @@ async def health_full_command(
                 }.get(check_result["status"], "❓")
 
                 check_title = check_name.replace("_", " ").title()
-                response += (
-                    f"\n{check_emoji} **{check_title}:** {check_result['status']}"
-                )
+                response += f"\n{check_emoji} **{check_title}:** {check_result['status']}"
 
                 if "response_time_ms" in check_result:
                     response += f" ({check_result['response_time_ms']}ms)"
@@ -123,29 +117,29 @@ async def health_full_command(
             response += f"""
 
 **📊 System Metrics:**
-🖥️ CPU: {system['cpu_percent']:.1f}%
-💻 Memory: {system['memory_percent']:.1f}% ({system['memory_used_mb']}MB/{system['memory_total_mb']}MB)
-💾 Disk: {system['disk_percent']:.1f}% ({system['disk_used_gb']:.1f}GB/{system['disk_total_gb']:.1f}GB)"""
+🖥️ CPU: {system["cpu_percent"]:.1f}%
+💻 Memory: {system["memory_percent"]:.1f}% ({system["memory_used_mb"]}MB/{system["memory_total_mb"]}MB)
+💾 Disk: {system["disk_percent"]:.1f}% ({system["disk_used_gb"]:.1f}GB/{system["disk_total_gb"]:.1f}GB)"""
 
         if "database" in health_status.metrics:
             db = health_status.metrics["database"]
             response += f"""
 
 **🗄️ Database Metrics:**
-👥 Active Users: {db['total_users']}
-📊 Total Sessions: {db['total_sessions']}
-📅 Sessions Today: {db['sessions_today']}
-⚡ Response Time: {db['response_time_ms']}ms"""
+👥 Active Users: {db["total_users"]}
+📊 Total Sessions: {db["total_sessions"]}
+📅 Sessions Today: {db["sessions_today"]}
+⚡ Response Time: {db["response_time_ms"]}ms"""
 
         if "bot" in health_status.metrics:
             bot = health_status.metrics["bot"]
             response += f"""
 
 **🤖 Bot Metrics:**
-🎯 Commands Processed: {bot['total_commands_processed']}
-🎵 Audio Processed: {bot['total_audio_processed']}
-⚡ Avg Response Time: {bot['average_response_time_ms']}ms
-❌ Error Rate: {bot['error_rate_percent']}%"""
+🎯 Commands Processed: {bot["total_commands_processed"]}
+🎵 Audio Processed: {bot["total_audio_processed"]}
+⚡ Avg Response Time: {bot["average_response_time_ms"]}ms
+❌ Error Rate: {bot["error_rate_percent"]}%"""
 
         # Update the status message
         await status_msg.edit_text(response, parse_mode="Markdown")
@@ -162,9 +156,7 @@ async def health_full_command(
 @rate_limit_commands
 @error_handler("metrics command")
 @validate_input(CommonSchemas.admin_command())
-async def metrics_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def metrics_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /metrics - Métricas do sistema (ADMIN ONLY)"""
     try:
         # Get comprehensive health status for metrics
@@ -181,11 +173,11 @@ async def metrics_command(
             response += f"""
 
 **🖥️ System Performance:**
-• CPU Usage: {system['cpu_percent']:.1f}%
-• Memory Usage: {system['memory_percent']:.1f}%
-• Memory: {system['memory_used_mb']:,}MB / {system['memory_total_mb']:,}MB
-• Disk Usage: {system['disk_percent']:.1f}%
-• Disk: {system['disk_used_gb']:.1f}GB / {system['disk_total_gb']:.1f}GB"""
+• CPU Usage: {system["cpu_percent"]:.1f}%
+• Memory Usage: {system["memory_percent"]:.1f}%
+• Memory: {system["memory_used_mb"]:,}MB / {system["memory_total_mb"]:,}MB
+• Disk Usage: {system["disk_percent"]:.1f}%
+• Disk: {system["disk_used_gb"]:.1f}GB / {system["disk_total_gb"]:.1f}GB"""
 
         # Database metrics
         if "database" in health_status.metrics:
@@ -193,11 +185,11 @@ async def metrics_command(
             response += f"""
 
 **🗄️ Database Stats:**
-• Status: {db['connection_status']}
-• Response Time: {db['response_time_ms']}ms
-• Total Users: {db['total_users']:,}
-• Total Sessions: {db['total_sessions']:,}
-• Sessions Today: {db['sessions_today']:,}"""
+• Status: {db["connection_status"]}
+• Response Time: {db["response_time_ms"]}ms
+• Total Users: {db["total_users"]:,}
+• Total Sessions: {db["total_sessions"]:,}
+• Sessions Today: {db["sessions_today"]:,}"""
 
         # Bot metrics
         if "bot" in health_status.metrics:
@@ -205,11 +197,11 @@ async def metrics_command(
             response += f"""
 
 **🤖 Bot Performance:**
-• Commands Processed: {bot['total_commands_processed']:,}
-• Audio Files Processed: {bot['total_audio_processed']:,}
-• Average Response Time: {bot['average_response_time_ms']:.1f}ms
-• Error Rate: {bot['error_rate_percent']:.2f}%
-• Active Sessions: {bot['active_sessions']:,}"""
+• Commands Processed: {bot["total_commands_processed"]:,}
+• Audio Files Processed: {bot["total_audio_processed"]:,}
+• Average Response Time: {bot["average_response_time_ms"]:.1f}ms
+• Error Rate: {bot["error_rate_percent"]:.2f}%
+• Active Sessions: {bot["active_sessions"]:,}"""
 
         # Performance indicators
         response += """
@@ -219,36 +211,24 @@ async def metrics_command(
         # CPU status
         if "system" in health_status.metrics:
             cpu = health_status.metrics["system"]["cpu_percent"]
-            cpu_status = (
-                "🟢 Good" if cpu < 50 else "🟡 Moderate" if cpu < 80 else "🔴 High"
-            )
+            cpu_status = "🟢 Good" if cpu < 50 else "🟡 Moderate" if cpu < 80 else "🔴 High"
             response += f"\n• CPU Load: {cpu_status}"
 
             # Memory status
             mem = health_status.metrics["system"]["memory_percent"]
-            mem_status = (
-                "🟢 Good" if mem < 50 else "🟡 Moderate" if mem < 80 else "🔴 High"
-            )
+            mem_status = "🟢 Good" if mem < 50 else "🟡 Moderate" if mem < 80 else "🔴 High"
             response += f"\n• Memory Usage: {mem_status}"
 
         # Database performance
         if "database" in health_status.metrics:
             db_time = health_status.metrics["database"]["response_time_ms"]
-            db_status = (
-                "🟢 Fast"
-                if db_time < 50
-                else "🟡 Moderate" if db_time < 200 else "🔴 Slow"
-            )
+            db_status = "🟢 Fast" if db_time < 50 else "🟡 Moderate" if db_time < 200 else "🔴 Slow"
             response += f"\n• Database Speed: {db_status}"
 
         # Bot performance
         if "bot" in health_status.metrics:
             error_rate = health_status.metrics["bot"]["error_rate_percent"]
-            error_status = (
-                "🟢 Low"
-                if error_rate < 1
-                else "🟡 Moderate" if error_rate < 5 else "🔴 High"
-            )
+            error_status = "🟢 Low" if error_rate < 1 else "🟡 Moderate" if error_rate < 5 else "🔴 High"
             response += f"\n• Error Rate: {error_status}"
 
         await update.message.reply_text(response, parse_mode="Markdown")
@@ -265,9 +245,7 @@ async def metrics_command(
 @rate_limit_commands
 @error_handler("performance command")
 @validate_input(CommonSchemas.admin_command())
-async def performance_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None
-) -> None:
+async def performance_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
     """Comando /performance - Performance monitoring (ADMIN ONLY)"""
     try:
         # Get bot metrics
@@ -298,9 +276,7 @@ async def performance_command(
             recommendations.append("🟡 Moderate response times - consider optimization")
 
         if not recommendations:
-            recommendations.append(
-                "🟢 All performance metrics are within normal ranges"
-            )
+            recommendations.append("🟢 All performance metrics are within normal ranges")
 
         response = f"""⚡ **Performance Report**
 

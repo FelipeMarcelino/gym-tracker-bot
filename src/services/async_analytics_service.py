@@ -25,9 +25,7 @@ logger = logging.getLogger(__name__)
 class AsyncAnalyticsService:
     """Async service for generating workout analytics and statistics"""
 
-    async def get_workout_analytics(
-        self, user_id: str, days: int = 30, include_active: bool = True
-    ) -> Dict[str, Any]:
+    async def get_workout_analytics(self, user_id: str, days: int = 30, include_active: bool = True) -> Dict[str, Any]:
         """Get comprehensive workout analytics for a user (async)
 
         Args:
@@ -65,9 +63,7 @@ class AsyncAnalyticsService:
                         WorkoutSession.status.in_(allowed_statuses),
                     )
                     .options(
-                        joinedload(WorkoutSession.exercises).joinedload(
-                            WorkoutExercise.exercise
-                        ),
+                        joinedload(WorkoutSession.exercises).joinedload(WorkoutExercise.exercise),
                         joinedload(WorkoutSession.aerobics),
                     )
                     .order_by(desc(WorkoutSession.date))
@@ -85,21 +81,15 @@ class AsyncAnalyticsService:
                     }
 
                 # Calculate analytics
-                analytics = await self._calculate_comprehensive_analytics(
-                    sessions, days, start_date, end_date
-                )
+                analytics = await self._calculate_comprehensive_analytics(sessions, days, start_date, end_date)
 
                 return analytics
 
             except Exception as e:
-                logger.exception(
-                    f"Error calculating workout analytics for user {user_id}"
-                )
+                logger.exception(f"Error calculating workout analytics for user {user_id}")
                 raise DatabaseError(f"Failed to calculate analytics: {str(e)}")
 
-    async def get_exercise_progress(
-        self, user_id: str, exercise_name: str, days: int = 90
-    ) -> Dict[str, Any]:
+    async def get_exercise_progress(self, user_id: str, exercise_name: str, days: int = 90) -> Dict[str, Any]:
         """Get progress data for a specific exercise (async)
 
         Args:
@@ -123,9 +113,7 @@ class AsyncAnalyticsService:
                 start_date = end_date - timedelta(days=days)
 
                 # Find exercise
-                exercise_stmt = select(Exercise).where(
-                    func.lower(Exercise.name).like(f"%{exercise_name.lower()}%")
-                )
+                exercise_stmt = select(Exercise).where(func.lower(Exercise.name).like(f"%{exercise_name.lower()}%"))
                 result = await session.execute(exercise_stmt)
                 exercise = result.scalar_one_or_none()
 
@@ -161,16 +149,12 @@ class AsyncAnalyticsService:
                     }
 
                 # Calculate progress metrics
-                progress_data = await self._calculate_exercise_progress(
-                    workout_exercises, exercise, days
-                )
+                progress_data = await self._calculate_exercise_progress(workout_exercises, exercise, days)
 
                 return progress_data
 
             except Exception as e:
-                logger.exception(
-                    f"Error calculating exercise progress for {exercise_name}"
-                )
+                logger.exception(f"Error calculating exercise progress for {exercise_name}")
                 raise DatabaseError(f"Failed to calculate exercise progress: {str(e)}")
 
     async def _calculate_comprehensive_analytics(
@@ -184,17 +168,11 @@ class AsyncAnalyticsService:
 
         # Session statistics
         total_sessions = len(sessions)
-        completed_sessions = len(
-            [s for s in sessions if s.status == SessionStatus.FINALIZADA]
-        )
+        completed_sessions = len([s for s in sessions if s.status == SessionStatus.FINALIZADA])
 
         # Calculate total duration
-        total_duration = sum(
-            s.duration_minutes or 0 for s in sessions if s.duration_minutes
-        )
-        avg_duration = (
-            total_duration / completed_sessions if completed_sessions > 0 else 0
-        )
+        total_duration = sum(s.duration_minutes or 0 for s in sessions if s.duration_minutes)
+        avg_duration = total_duration / completed_sessions if completed_sessions > 0 else 0
 
         # Exercise statistics
         total_resistance = 0
@@ -254,13 +232,9 @@ class AsyncAnalyticsService:
             "progress_trends": progress_trends,
         }
 
-    async def _calculate_workout_frequency(
-        self, sessions: List[WorkoutSession], days: int
-    ) -> Dict[str, Any]:
+    async def _calculate_workout_frequency(self, sessions: List[WorkoutSession], days: int) -> Dict[str, Any]:
         """Calculate workout frequency metrics (async)"""
-        completed_sessions = [
-            s for s in sessions if s.status == SessionStatus.FINALIZADA
-        ]
+        completed_sessions = [s for s in sessions if s.status == SessionStatus.FINALIZADA]
 
         if not completed_sessions:
             return {
@@ -293,13 +267,9 @@ class AsyncAnalyticsService:
             "consistency_score": round(consistency_score * 100, 1),
         }
 
-    async def _calculate_progress_trends(
-        self, sessions: List[WorkoutSession]
-    ) -> Dict[str, Any]:
+    async def _calculate_progress_trends(self, sessions: List[WorkoutSession]) -> Dict[str, Any]:
         """Calculate progress trends over time (async)"""
-        completed_sessions = [
-            s for s in sessions if s.status == SessionStatus.FINALIZADA
-        ]
+        completed_sessions = [s for s in sessions if s.status == SessionStatus.FINALIZADA]
         completed_sessions.sort(key=lambda x: x.date)
 
         if len(completed_sessions) < 2:
@@ -318,49 +288,33 @@ class AsyncAnalyticsService:
         first_avg_volume = await self._calculate_avg_volume(first_half)
         second_avg_volume = await self._calculate_avg_volume(second_half)
 
-        first_avg_duration = sum(s.duration_minutes or 0 for s in first_half) / len(
+        first_avg_duration = sum(s.duration_minutes or 0 for s in first_half) / len(first_half)
+        second_avg_duration = sum(s.duration_minutes or 0 for s in second_half) / len(second_half)
+
+        first_avg_exercises = sum(len(s.workout_exercises) + len(s.aerobic_exercises) for s in first_half) / len(
             first_half
         )
-        second_avg_duration = sum(s.duration_minutes or 0 for s in second_half) / len(
+        second_avg_exercises = sum(len(s.workout_exercises) + len(s.aerobic_exercises) for s in second_half) / len(
             second_half
         )
-
-        first_avg_exercises = sum(
-            len(s.workout_exercises) + len(s.aerobic_exercises) for s in first_half
-        ) / len(first_half)
-        second_avg_exercises = sum(
-            len(s.workout_exercises) + len(s.aerobic_exercises) for s in second_half
-        ) / len(second_half)
 
         # Determine trends
         volume_trend = (
             "increasing"
             if second_avg_volume > first_avg_volume * 1.05
-            else (
-                "decreasing"
-                if second_avg_volume < first_avg_volume * 0.95
-                else "stable"
-            )
+            else ("decreasing" if second_avg_volume < first_avg_volume * 0.95 else "stable")
         )
 
         duration_trend = (
             "increasing"
             if second_avg_duration > first_avg_duration * 1.05
-            else (
-                "decreasing"
-                if second_avg_duration < first_avg_duration * 0.95
-                else "stable"
-            )
+            else ("decreasing" if second_avg_duration < first_avg_duration * 0.95 else "stable")
         )
 
         exercise_trend = (
             "increasing"
             if second_avg_exercises > first_avg_exercises * 1.05
-            else (
-                "decreasing"
-                if second_avg_exercises < first_avg_exercises * 0.95
-                else "stable"
-            )
+            else ("decreasing" if second_avg_exercises < first_avg_exercises * 0.95 else "stable")
         )
 
         return {
@@ -368,20 +322,12 @@ class AsyncAnalyticsService:
             "duration_trend": duration_trend,
             "exercise_count_trend": exercise_trend,
             "volume_change_percent": round(
-                (
-                    ((second_avg_volume - first_avg_volume) / first_avg_volume * 100)
-                    if first_avg_volume > 0
-                    else 0
-                ),
+                (((second_avg_volume - first_avg_volume) / first_avg_volume * 100) if first_avg_volume > 0 else 0),
                 1,
             ),
             "duration_change_percent": round(
                 (
-                    (
-                        (second_avg_duration - first_avg_duration)
-                        / first_avg_duration
-                        * 100
-                    )
+                    ((second_avg_duration - first_avg_duration) / first_avg_duration * 100)
                     if first_avg_duration > 0
                     else 0
                 ),
@@ -448,20 +394,15 @@ class AsyncAnalyticsService:
                 progress_trend = "stable"
 
         # Recent performance (last 3 workouts)
-        recent_workouts = (
-            workout_exercises[-3:] if len(workout_exercises) >= 3 else workout_exercises
-        )
+        recent_workouts = workout_exercises[-3:] if len(workout_exercises) >= 3 else workout_exercises
         recent_avg_weight = (
-            sum(we.weight for we in recent_workouts if we.weight)
-            / len([we for we in recent_workouts if we.weight])
+            sum(we.weight for we in recent_workouts if we.weight) / len([we for we in recent_workouts if we.weight])
             if any(we.weight for we in recent_workouts)
             else 0
         )
-        recent_avg_volume = sum(
-            we.weight * we.reps * we.sets
-            for we in recent_workouts
-            if we.weight and we.reps
-        ) / len(recent_workouts)
+        recent_avg_volume = sum(we.weight * we.reps * we.sets for we in recent_workouts if we.weight and we.reps) / len(
+            recent_workouts
+        )
 
         return {
             "exercise_name": exercise.name,
@@ -488,9 +429,7 @@ class AsyncAnalyticsService:
                     "weight": we.weight,
                     "sets": we.sets,
                     "reps": we.reps,
-                    "volume": (
-                        we.weight * we.reps * we.sets if we.weight and we.reps else 0
-                    ),
+                    "volume": (we.weight * we.reps * we.sets if we.weight and we.reps else 0),
                 }
                 for we in workout_exercises[-10:]  # Last 10 workouts
             ],
