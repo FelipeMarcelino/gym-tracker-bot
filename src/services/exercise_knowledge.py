@@ -128,7 +128,7 @@ EQUIPMENT_KEYWORDS = {
     "halteres": ["halteres", "halter", "dumbbell"],
     "maquina": ["maquina", "smith", "hack", "articulada"],
     "cabo": ["cabo", "polia", "crossover", "pulley"],
-    "peso corporal": ["peso corporal", "livre", "barra fixa", "flexao", "mergulho", "paralelas"],
+    "peso corporal": ["peso corporal", "livre", "barra fixa", "flexao", "mergulho", "paralelas", "prancha"],
     "kettlebell": ["kettlebell", "girya"],
     "elastico": ["elastico", "band"],
 }

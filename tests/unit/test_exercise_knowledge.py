@@ -258,6 +258,18 @@ class TestInferEquipment:
         # "hack" is in maquina keywords
         assert infer_equipment("agachamento hack", "resistencia") == "maquina"
 
+    def test_infer_equipment_isometric_exercises(self):
+        """Test that isometric exercises are recognized as body weight"""
+        # Test various plank variations
+        assert infer_equipment("prancha", "resistencia") == "peso corporal"
+        assert infer_equipment("prancha abdominal", "resistencia") == "peso corporal"
+        assert infer_equipment("prancha lateral", "resistencia") == "peso corporal"
+        assert infer_equipment("prancha frontal", "resistencia") == "peso corporal"
+        
+        # Test that it works with different cases
+        assert infer_equipment("PRANCHA", "resistencia") == "peso corporal"
+        assert infer_equipment("Prancha Abdominal", "resistencia") == "peso corporal"
+
 
 class TestDictionaryConsistency:
     """Test consistency across all dictionaries"""
