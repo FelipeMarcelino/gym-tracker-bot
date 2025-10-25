@@ -8,6 +8,37 @@ class ValidationError(Exception):
     pass
 
 
+# Isometric exercises (exercises where you hold a position for time)
+ISOMETRIC_EXERCISES = {
+    "prancha", "prancha abdominal", "prancha lateral", "prancha frontal",
+    "ponte", "ponte lateral", "isometria", "wall sit", "parede",
+    "superman", "bird dog", "hollow body", "dead bug"
+}
+
+
+def is_isometric_exercise(exercise_name: str) -> bool:
+    """
+    Check if an exercise is isometric (doesn't require weights).
+    
+    Args:
+        exercise_name: Name of the exercise
+        
+    Returns:
+        True if the exercise is isometric
+    """
+    if not exercise_name:
+        return False
+    
+    exercise_lower = exercise_name.lower()
+    
+    # Check if any isometric keyword is in the exercise name
+    for isometric_keyword in ISOMETRIC_EXERCISES:
+        if isometric_keyword in exercise_lower:
+            return True
+    
+    return False
+
+
 def infer_sets_from_reps(reps: Optional[List[int]]) -> int:
     """
     Infer the number of sets from the repetitions array.
@@ -57,19 +88,33 @@ def validate_exercise_data(exercise_data: Dict[str, Any], exercise_type: str = "
             f"Por favor, informe o número de repetições para cada série."
         )
     
-    # Check for weights
-    weights = exercise_data.get("weights_kg")
-    if not weights:
-        raise ValidationError(
-            f"Exercício '{exercise_name}' está sem os pesos. "
-            f"Por favor, informe os pesos (em kg) utilizados em cada série."
-        )
+    # Check if it's an isometric exercise (by name or explicit type)
+    is_isometric = (
+        exercise_data.get("exercise_type") == "isometric" or
+        is_isometric_exercise(exercise_name)
+    )
     
-    if not isinstance(weights, list) or len(weights) == 0:
-        raise ValidationError(
-            f"Exercício '{exercise_name}' está sem os pesos. "
-            f"Por favor, informe os pesos (em kg) utilizados em cada série."
-        )
+    # Check for weights (not required for isometric exercises)
+    weights = exercise_data.get("weights_kg")
+    
+    if not is_isometric:
+        # Only require weights for non-isometric exercises
+        if not weights:
+            raise ValidationError(
+                f"Exercício '{exercise_name}' está sem os pesos. "
+                f"Por favor, informe os pesos (em kg) utilizados em cada série."
+            )
+        
+        if not isinstance(weights, list) or len(weights) == 0:
+            raise ValidationError(
+                f"Exercício '{exercise_name}' está sem os pesos. "
+                f"Por favor, informe os pesos (em kg) utilizados em cada série."
+            )
+    else:
+        # For isometric exercises, if weights are not provided, create array of zeros
+        if not weights:
+            weights = [0] * len(reps)
+            exercise_data["weights_kg"] = weights
     
     # Validate reps and weights count match
     if len(reps) != len(weights):

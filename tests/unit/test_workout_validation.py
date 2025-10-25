@@ -253,3 +253,77 @@ class TestWorkoutValidation:
             validate_exercise_data(exercise_data)
         
         assert "número" in str(exc_info.value).lower() or "numérico" in str(exc_info.value).lower()
+
+    def test_validate_isometric_exercise_without_weights(self):
+        """Test that isometric exercises (like plank) don't require weights"""
+        exercise_data = {
+            "name": "prancha",
+            "sets": 3,
+            "reps": [60, 45, 30],  # Seconds held
+            "exercise_type": "isometric"
+        }
+        
+        # Should not raise exception even without weights
+        result = validate_exercise_data(exercise_data)
+        assert result is True
+
+    def test_validate_isometric_exercise_with_zero_weights(self):
+        """Test isometric exercises with explicit zero weights"""
+        exercise_data = {
+            "name": "prancha abdominal",
+            "sets": 3,
+            "reps": [60, 50, 40],
+            "weights_kg": [0, 0, 0],
+            "exercise_type": "isometric"
+        }
+        
+        result = validate_exercise_data(exercise_data)
+        assert result is True
+    
+    def test_validate_isometric_exercise_with_added_weight(self):
+        """Test isometric exercises with additional weight"""
+        exercise_data = {
+            "name": "prancha abdominal",
+            "sets": 3,
+            "reps": [45, 40, 35],
+            "weights_kg": [20, 20, 20]  # 20kg plate on back
+        }
+        
+        # Should pass validation - isometric can have weight
+        result = validate_exercise_data(exercise_data)
+        assert result is True
+
+    def test_validate_known_isometric_exercises(self):
+        """Test that known isometric exercises are automatically detected"""
+        isometric_exercises = [
+            "prancha", "prancha abdominal", "prancha lateral", 
+            "isometria", "ponte", "wall sit"
+        ]
+        
+        for exercise_name in isometric_exercises:
+            exercise_data = {
+                "name": exercise_name,
+                "sets": 3,
+                "reps": [45, 30, 30]  # No weights
+            }
+            
+            # Should not raise exception
+            result = validate_exercise_data(exercise_data)
+            assert result is True
+            # Check that weights were auto-filled
+            assert exercise_data["weights_kg"] == [0, 0, 0]
+    
+    def test_validate_bodyweight_exercise_not_isometric(self):
+        """Test that bodyweight exercises like push-ups are not treated as isometric"""
+        exercise_data = {
+            "name": "flexão de braço",
+            "sets": 3,
+            "reps": [20, 15, 12]
+            # No weights - should fail validation
+        }
+        
+        with pytest.raises(ValidationError) as exc_info:
+            validate_exercise_data(exercise_data)
+        
+        # Should require weights even for bodyweight exercises
+        assert "pesos" in str(exc_info.value).lower()

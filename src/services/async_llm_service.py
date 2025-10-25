@@ -289,10 +289,18 @@ INFERÊNCIAS DE EQUIPAMENTO por padrão:
 - "remada baixa" → "remada baixa no cabo"
 - "tríceps" → precisa especificar: "tríceps na polia", "tríceps testa com barra", etc
 
+IMPORTANTE sobre EXERCÍCIOS ISOMÉTRICOS (prancha, ponte, etc):
+- São exercícios de resistência onde você mantém uma posição
+- As "repetições" representam TEMPO EM SEGUNDOS
+- Podem ter peso adicional ou não (ex: prancha com anilha nas costas)
+- Se não mencionou peso adicional, use zeros: [0, 0, 0]
+- Exemplos: prancha, prancha abdominal, prancha lateral, ponte, isometria, wall sit
+
 IMPORTANTE sobre PESOS:
 - Se mencionou DIFERENTES pesos para cada série, use um array: "weights_kg": [10, 15, 20]
 - Se mencionou MESMO peso para todas as séries, repita no array: "weights_kg": [60, 60, 60]
 - O tamanho do array weights_kg DEVE ser igual ao número de séries
+- Para exercícios isométricos (prancha, ponte, etc), use pesos zero: [0, 0, 0]
 
 EXEMPLOS DE PARSING DE PESOS:
 
@@ -443,6 +451,15 @@ Saída: {{"name": "leg press 45 graus", "sets": 4, "reps": [15,15,15,15], "weigh
 
 Entrada: "Tríceps na polia 3x15"
 Saída: {{"name": "tríceps na polia com corda", "sets": 3, "reps": [15,15,15]}}
+
+Entrada: "Prancha abdominal 3 séries de 60, 45, 30 segundos"
+Saída: {{"name": "prancha abdominal", "sets": 3, "reps": [60,45,30], "weights_kg": [0,0,0]}}
+
+Entrada: "Fiz prancha 4x45 segundos"
+Saída: {{"name": "prancha abdominal", "sets": 4, "reps": [45,45,45,45], "weights_kg": [0,0,0,0]}}
+
+Entrada: "Prancha com 20kg nas costas, 3 séries de 30 segundos"
+Saída: {{"name": "prancha abdominal", "sets": 3, "reps": [30,30,30], "weights_kg": [20,20,20]}}
 
 EXEMPLOS DE EXERCÍCIOS AERÓBICOS:
 
