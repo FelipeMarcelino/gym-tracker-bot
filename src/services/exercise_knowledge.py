@@ -128,18 +128,26 @@ EQUIPMENT_KEYWORDS = {
     "halteres": ["halteres", "halter", "dumbbell"],
     "maquina": ["maquina", "smith", "hack", "articulada"],
     "cabo": ["cabo", "polia", "crossover", "pulley"],
-    "peso corporal": ["peso corporal", "livre", "barra fixa", "flexao", "mergulho", "paralelas"],
+    "peso corporal": ["peso corporal", "livre", "barra fixa", "flexao", "mergulho", "paralelas", "prancha"],
     "kettlebell": ["kettlebell", "girya"],
     "elastico": ["elastico", "band"],
 }
 
 # Mapeamento: Exercício Aeróbico → Equipamento
 AEROBIC_TO_EQUIPMENT = {
-    # ESTEIRA
+    # AMBIENTE EXTERNO (verificar primeiro - mais específicos)
     "corrida de rua": "ambiente externo",
     "caminhada de rua": "ambiente externo",
+    "corri na rua": "ambiente externo",
+    "correndo na rua": "ambiente externo",
+    "na rua": "ambiente externo",
+    
+    # ESTEIRA (menos específicos)
     "corrida": "esteira",
+    "corri": "esteira",
+    "correndo": "esteira",
     "caminhada": "esteira",
+    "caminhando": "esteira",
     "trote": "esteira",
     "running": "esteira",
 
@@ -234,17 +242,43 @@ def infer_equipment(exercise_name: str, exercise_type: str = "resistencia") -> s
 
     # Para exercícios aeróbicos, usar mapeamento específico
     if exercise_type.lower() == "aerobico":
+        # Primeiro, verificar matches mais específicos (compostos)
+        matches = []
         for keyword, equipment in AEROBIC_TO_EQUIPMENT.items():
             if keyword in exercise_lower:
-                return equipment
+                matches.append((len(keyword), keyword, equipment))
+        
+        # Se encontrou matches, retornar o mais específico (mais longo)
+        if matches:
+            matches.sort(reverse=True)  # Ordenar por tamanho, maior primeiro
+            return matches[0][2]
+        
         return "atividade_livre"  # Fallback para aeróbicos
 
     # Para exercícios de resistência, usar mapeamento original
-    # Verificar palavras-chave explícitas
-    for equipment, keywords in EQUIPMENT_KEYWORDS.items():
-        for keyword in keywords:
-            if keyword in exercise_lower:
-                return equipment
+    # Primeiro, verificar casos especiais compostos
+    if "barra fixa" in exercise_lower:
+        return "peso corporal"
+    
+    # Verificar palavras-chave explícitas com prioridade
+    # Ordem de prioridade: equipamentos específicos primeiro
+    priority_order = ["halteres", "barra", "cabo", "maquina", "kettlebell", "elastico", "peso corporal"]
+    
+    for equipment in priority_order:
+        if equipment in EQUIPMENT_KEYWORDS:
+            keywords = EQUIPMENT_KEYWORDS[equipment]
+            for keyword in keywords:
+                if keyword in exercise_lower:
+                    # Verificação especial para evitar conflitos
+                    if keyword == "livre":
+                        # "livre" só deve indicar "barra" se não houver outro equipamento mencionado
+                        if not any(equip_word in exercise_lower for equip_word in ["halteres", "maquina", "smith", "hack", "cabo", "kettlebell", "elastico"]):
+                            return "barra"
+                    elif keyword == "barra fixa":
+                        # Já foi tratado acima
+                        continue
+                    else:
+                        return equipment
 
     # Inferências baseadas em padrões
     if "cadeira" in exercise_lower or "leg press" in exercise_lower:
@@ -252,6 +286,26 @@ def infer_equipment(exercise_name: str, exercise_type: str = "resistencia") -> s
 
     if "livre" in exercise_lower or "olimpico" in exercise_lower:
         return "barra"
+    
+    # Exercícios clássicos que são tradicionalmente feitos com barra
+    classic_barbell_exercises = [
+        "levantamento terra", "terra",
+        "desenvolvimento militar",
+        "remada curvada",
+        "agachamento frontal",
+        "agachamento costas",
+        "supino reto",
+        "remada cavalinho",
+        "barra fixa",
+        "encolhimento"
+    ]
+    
+    for classic_exercise in classic_barbell_exercises:
+        if classic_exercise in exercise_lower:
+            # Caso especial: barra fixa é peso corporal
+            if classic_exercise == "barra fixa":
+                return "peso corporal"
+            return "barra"
 
     # Fallback: se não tem indicação, provavelmente é máquina
     return "maquina"

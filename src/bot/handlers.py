@@ -219,8 +219,12 @@ async def _process_workout_audio_optimized(
         logger.info(f"Processamento otimizado completo em {processing_time:.2f}s para usuário {user_id}")
 
     except ValidationError as e:
-        details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
-        error_msg = messages.ERROR_VALIDATION.format(message=e.message, details=details)
+        # Use user_message if available (for workout validation errors)
+        if hasattr(e, 'user_message') and e.user_message:
+            error_msg = e.user_message
+        else:
+            details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
+            error_msg = messages.ERROR_VALIDATION.format(message=e.message, details=details)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro de validação: {e}")
 
@@ -340,8 +344,12 @@ async def _process_workout_message(
         logger.info(f"Processamento completo em {processing_time:.2f}s para usuário {user_id}")
 
     except ValidationError as e:
-        details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
-        error_msg = messages.ERROR_VALIDATION.format(message=e.message, details=details)
+        # Use user_message if available (for workout validation errors)
+        if hasattr(e, 'user_message') and e.user_message:
+            error_msg = e.user_message
+        else:
+            details = f"\n\n_Detalhes: {e.details}_" if e.details else ""
+            error_msg = messages.ERROR_VALIDATION.format(message=e.message, details=details)
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro de validação: {e}")
 

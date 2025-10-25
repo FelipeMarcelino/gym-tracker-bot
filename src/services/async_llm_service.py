@@ -6,6 +6,7 @@ from groq import AsyncGroq
 from config.logging_config import get_logger
 from config.settings import settings
 from services.exceptions import ErrorCode, LLMParsingError, ServiceUnavailableError, ValidationError
+from services.workout_validation import validate_workout_data, get_user_friendly_error_message
 
 logger = get_logger(__name__)
 
@@ -21,6 +22,7 @@ class LLMParsingService:
             raise ServiceUnavailableError(
                 "GROQ_API_KEY não configurada",
                 "Configure a variável de ambiente GROQ_API_KEY",
+                error_code=ErrorCode.GROQ_API_ERROR,
             )
 
         try:
@@ -31,6 +33,7 @@ class LLMParsingService:
             raise ServiceUnavailableError(
                 "Falha ao inicializar cliente Groq LLM",
                 f"Erro: {e!s}",
+                error_code=ErrorCode.GROQ_API_ERROR,
             )
 
     async def parse_workout(self, transcription: str) -> Dict[str, Any]:
@@ -130,6 +133,26 @@ class LLMParsingService:
                 )
 
             logger.info("Groq API parseou com sucesso!")
+            
+            # Validate the parsed workout data
+            validation_result = validate_workout_data(parsed_data)
+            
+            if not validation_result["is_valid"]:
+                # Generate user-friendly error message
+                error_message = get_user_friendly_error_message(validation_result["errors"])
+                
+                logger.warning(f"Validação falhou: {len(validation_result['errors'])} erros encontrados")
+                
+                # Raise ValidationError with user-friendly message
+                raise ValidationError(
+                    message="Dados incompletos no treino parseado",
+                    field="workout_data",
+                    value=None,  # Don't include full data in error for privacy
+                    error_code=ErrorCode.MISSING_REQUIRED_FIELD,
+                    user_message=error_message
+                )
+            
+            logger.info("Dados do treino validados com sucesso!")
             return parsed_data
 
         except (ValidationError, LLMParsingError):
@@ -266,10 +289,18 @@ INFERÊNCIAS DE EQUIPAMENTO por padrão:
 - "remada baixa" → "remada baixa no cabo"
 - "tríceps" → precisa especificar: "tríceps na polia", "tríceps testa com barra", etc
 
+IMPORTANTE sobre EXERCÍCIOS ISOMÉTRICOS (prancha, ponte, etc):
+- São exercícios de resistência onde você mantém uma posição
+- As "repetições" representam TEMPO EM SEGUNDOS
+- Podem ter peso adicional ou não (ex: prancha com anilha nas costas)
+- Se não mencionou peso adicional, use zeros: [0, 0, 0]
+- Exemplos: prancha, prancha abdominal, prancha lateral, ponte, isometria, wall sit
+
 IMPORTANTE sobre PESOS:
 - Se mencionou DIFERENTES pesos para cada série, use um array: "weights_kg": [10, 15, 20]
 - Se mencionou MESMO peso para todas as séries, repita no array: "weights_kg": [60, 60, 60]
 - O tamanho do array weights_kg DEVE ser igual ao número de séries
+- Para exercícios isométricos (prancha, ponte, etc), use pesos zero: [0, 0, 0]
 
 EXEMPLOS DE PARSING DE PESOS:
 
@@ -420,6 +451,15 @@ Saída: {{"name": "leg press 45 graus", "sets": 4, "reps": [15,15,15,15], "weigh
 
 Entrada: "Tríceps na polia 3x15"
 Saída: {{"name": "tríceps na polia com corda", "sets": 3, "reps": [15,15,15]}}
+
+Entrada: "Prancha abdominal 3 séries de 60, 45, 30 segundos"
+Saída: {{"name": "prancha abdominal", "sets": 3, "reps": [60,45,30], "weights_kg": [0,0,0]}}
+
+Entrada: "Fiz prancha 4x45 segundos"
+Saída: {{"name": "prancha abdominal", "sets": 4, "reps": [45,45,45,45], "weights_kg": [0,0,0,0]}}
+
+Entrada: "Prancha com 20kg nas costas, 3 séries de 30 segundos"
+Saída: {{"name": "prancha abdominal", "sets": 3, "reps": [30,30,30], "weights_kg": [20,20,20]}}
 
 EXEMPLOS DE EXERCÍCIOS AERÓBICOS:
 

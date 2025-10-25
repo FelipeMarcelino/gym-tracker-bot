@@ -1,0 +1,32 @@
+codecov:
+  require_ci_to_pass: false
+  notify:
+    wait_for_ci: false
+
+coverage:
+  status:
+    project:
+      default:
+        target: 70%
+        threshold: 5%
+        if_not_found: failure
+        if_ci_failed: error
+        only_pulls: false
+    patch:
+      default:
+        target: 60%
+        threshold: 5%
+        only_pulls: true
+
+comment:
+  layout: "header, diff, files, footer"
+  behavior: default
+  require_changes: false
+
+ignore:
+  - "tests/"
+  - "**/__pycache__/"
+  - "**/test_*.py"
+  - "**/conftest.py"
+  - "run_tests.py"
+  - "run_bot.py"

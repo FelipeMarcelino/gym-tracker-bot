@@ -2,6 +2,8 @@
 
 from typing import Any, Dict
 
+from services.workout_validation import is_isometric_exercise
+
 
 class Messages:
     """Container for all user-facing messages"""
@@ -317,7 +319,7 @@ _Seu ID: `{user_id}`_"""
         """Format a single resistance exercise"""
         weights = exercises.get("weights_kg", [])
         if not weights and exercises.get("weight_kg"):
-            weights = [exercises.get("weight_kg")] * ex.get("sets", 1)
+            weights = [exercises.get("weight_kg")] * exercises.get("sets", 1)
 
         reps = exercises.get("reps", [])
         rest_seconds = exercises.get("rest_seconds")
@@ -325,8 +327,20 @@ _Seu ID: `{user_id}`_"""
 
         response = f"• **{exercises['name'].title()}**:\n"
 
+        # Check if it's an isometric exercise by name
+        is_isometric = is_isometric_exercise(exercises.get("name", ""))
+
         # Show series details
-        if len(set(weights)) > 1:  # Different weights
+        if is_isometric:
+            # Format time-based exercises (isometric)
+            for idx,i in enumerate(range(exercises.get("sets", 0))):
+                rep = reps[i] if i < len(reps) else "?"
+                response += f"  └ Série {i+1}: {rep} segundos"
+                if weights:
+                    if weights[idx] != 0:
+                        response += f" com {weights[idx]} kgs "
+                response += "\n"
+        elif len(set(weights)) > 1:  # Different weights
             for i in range(exercises.get("sets", 0)):
                 rep = reps[i] if i < len(reps) else "?"
                 weight = weights[i] if i < len(weights) else "?"
