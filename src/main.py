@@ -41,7 +41,12 @@ from bot.handlers import (
     stats_command,
     status_command,
 )
-from bot.health_endpoints import health_command, health_full_command, metrics_command, performance_command
+from bot.health_endpoints import (
+    health_command,
+    health_full_command,
+    metrics_command,
+    performance_command,
+)
 from config.settings import settings
 from services.async_backup_service import backup_service
 from services.async_container import initialize_async_services, shutdown_async_services
@@ -204,12 +209,7 @@ def main() -> NoReturn:
         pool_timeout=10.0,
     )
 
-    application = (
-        Application.builder()
-        .token(settings.TELEGRAM_BOT_TOKEN)
-        .request(request)
-        .build()
-    )
+    application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).request(request).build()
 
     # Setup signal handlers
     setup_signal_handlers(application)
@@ -256,7 +256,6 @@ def main() -> NoReturn:
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     application.add_handler(MessageHandler(filters.COMMAND, handle_unknown))
-
 
     logger.info("✅ All handlers registered")
 

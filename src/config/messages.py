@@ -295,7 +295,11 @@ _Seu ID: `{user_id}`_"""
         return f"📝 **Você disse:**\n_{transcription}_\n\n"
 
     @classmethod
-    def format_exercise_section(cls, resistance_exercises: list, aerobic_exercises: list) -> str:
+    def format_exercise_section(
+        cls,
+        resistance_exercises: list,
+        aerobic_exercises: list,
+    ) -> str:
         """Format the exercises section of success messages"""
         response = ""
 
@@ -330,7 +334,7 @@ _Seu ID: `{user_id}`_"""
             for i in range(exercises.get("sets", 0)):
                 rep = reps[i] if i < len(reps) else "?"
                 weight = weights[i] if i < len(weights) else "?"
-                response += f"  └ Série {i+1}: {rep} reps × {weight}kg\n"
+                response += f"  └ Série {i + 1}: {rep} reps × {weight}kg\n"
         else:  # Same weight for all sets
             reps_str = ", ".join(map(str, reps))
             weight = weights[0] if weights else "?"
@@ -384,7 +388,9 @@ _Seu ID: `{user_id}`_"""
         # Intensity
         intensity = exercises.get("intensity_level")
         if intensity:
-            intensity_emoji, intensity_desc = cls._get_intensity_emoji_and_desc(intensity)
+            intensity_emoji, intensity_desc = cls._get_intensity_emoji_and_desc(
+                intensity,
+            )
             response += f"  └ {intensity_emoji} Intensidade: {intensity_desc}\n"
 
         response += "\n"
@@ -417,4 +423,3 @@ _Seu ID: `{user_id}`_"""
 
 # Global messages instance
 messages = Messages()
-

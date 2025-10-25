@@ -32,13 +32,13 @@ class AsyncSessionManager:
 
     async def get_or_create_session(self, user_id: int) -> Tuple[WorkoutSession, bool]:
         """Get existing active session or create a new one (async)
-        
+
         Args:
             user_id: User ID
-            
+
         Returns:
             Tuple of (WorkoutSession, is_new_session)
-            
+
         Raises:
             ValidationError: If user_id is invalid
             DatabaseError: If database operation fails
@@ -112,17 +112,17 @@ class AsyncSessionManager:
         **kwargs,
     ) -> bool:
         """Update session metadata efficiently (async)
-        
+
         Args:
             session_id: Session ID
             transcription: Latest transcription text
             processing_time: Processing time for this operation
             model_used: Model used for processing
             **kwargs: Additional metadata fields
-            
+
         Returns:
             True if successful
-            
+
         Raises:
             DatabaseError: If database operation fails
 
@@ -153,11 +153,7 @@ class AsyncSessionManager:
                     return True  # Nothing to update
 
                 # Perform update
-                stmt = (
-                    update(WorkoutSession)
-                    .where(WorkoutSession.session_id == session_id)
-                    .values(**update_values)
-                )
+                stmt = update(WorkoutSession).where(WorkoutSession.session_id == session_id).values(**update_values)
                 result = await session.execute(stmt)
                 await session.commit()
 
@@ -179,7 +175,7 @@ class AsyncSessionManager:
 
     async def get_active_sessions_count(self) -> int:
         """Get count of currently active sessions (async)
-        
+
         Returns:
             Number of active sessions
 
@@ -195,8 +191,8 @@ class AsyncSessionManager:
                 # 1. Explicitly marked as ATIVA, OR
                 # 2. Not explicitly finished AND within timeout window
                 stmt = select(func.count(WorkoutSession.session_id)).where(
-                    (WorkoutSession.status == SessionStatus.ATIVA) &
-                    (func.datetime(WorkoutSession.date, WorkoutSession.start_time) > timeout_threshold),
+                    (WorkoutSession.status == SessionStatus.ATIVA)
+                    & (func.datetime(WorkoutSession.date, WorkoutSession.start_time) > timeout_threshold),
                 )
 
                 result = await session.execute(stmt)
@@ -208,7 +204,7 @@ class AsyncSessionManager:
 
     async def cleanup_stale_sessions(self) -> int:
         """Mark stale sessions as finished (async)
-        
+
         Returns:
             Number of sessions cleaned up
 
@@ -219,12 +215,9 @@ class AsyncSessionManager:
                 timeout_threshold = now - timedelta(hours=settings.SESSION_TIMEOUT_HOURS)
 
                 # First, find stale sessions to calculate their durations
-                find_stmt = (
-                    select(WorkoutSession)
-                    .where(
-                        (WorkoutSession.status == SessionStatus.ATIVA) &
-                        (func.datetime(WorkoutSession.date, WorkoutSession.start_time) < timeout_threshold),
-                    )
+                find_stmt = select(WorkoutSession).where(
+                    (WorkoutSession.status == SessionStatus.ATIVA)
+                    & (func.datetime(WorkoutSession.date, WorkoutSession.start_time) < timeout_threshold),
                 )
 
                 result = await session.execute(find_stmt)
@@ -271,11 +264,11 @@ class AsyncSessionManager:
 
     async def get_session_by_id(self, session_id: int, user_id: str = None) -> Optional[WorkoutSession]:
         """Get a specific session by ID with optional user validation (async)
-        
+
         Args:
             session_id: Session ID
             user_id: Optional user ID for access control
-            
+
         Returns:
             WorkoutSession if found, None otherwise
 
@@ -307,12 +300,12 @@ class AsyncSessionManager:
         include_active: bool = True,
     ) -> list[WorkoutSession]:
         """Get user's session history (async)
-        
+
         Args:
             user_id: User ID
             limit: Maximum number of sessions to return
             include_active: Whether to include active sessions
-            
+
         Returns:
             List of WorkoutSession objects
 
@@ -344,10 +337,10 @@ class AsyncSessionManager:
 
     async def batch_finish_sessions(self, session_ids: list[int]) -> int:
         """Batch finish multiple sessions (async)
-        
+
         Args:
             session_ids: List of session IDs to finish
-            
+
         Returns:
             Number of sessions successfully finished
 
@@ -389,4 +382,3 @@ class AsyncSessionManager:
                 user_message="Failed to finish sessions",
                 cause=e,
             )
-

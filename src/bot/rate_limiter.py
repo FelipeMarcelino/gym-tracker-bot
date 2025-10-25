@@ -122,21 +122,24 @@ class RateLimiter:
 
 # Global rate limiters with configurable limits
 _general_limiter = RateLimiter(
-    max_requests=settings.RATE_LIMIT_GENERAL_REQUESTS, 
-    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS
+    max_requests=settings.RATE_LIMIT_GENERAL_REQUESTS,
+    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
 )
 _voice_limiter = RateLimiter(
-    max_requests=settings.RATE_LIMIT_VOICE_REQUESTS, 
-    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS
+    max_requests=settings.RATE_LIMIT_VOICE_REQUESTS,
+    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
 )
 _command_limiter = RateLimiter(
-    max_requests=settings.RATE_LIMIT_COMMAND_REQUESTS, 
-    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS
+    max_requests=settings.RATE_LIMIT_COMMAND_REQUESTS,
+    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
 )
 
 
-def rate_limit_general(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]) -> Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]:
+def rate_limit_general(
+    func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]],
+) -> Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]:
     """Rate limiter for general requests (20/min)"""
+
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
         user_id = update.effective_user.id
@@ -147,7 +150,7 @@ def rate_limit_general(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Await
             message = messages.RATE_LIMIT_GENERAL.format(
                 reset_time=reset_time,
                 max_requests=_general_limiter.max_requests,
-                window_seconds=_general_limiter.window_seconds
+                window_seconds=_general_limiter.window_seconds,
             )
             await update.message.reply_text(message)
             logger.warning(f"Rate limit geral: Usuário {user_id} bloqueado por {reset_time}s")
@@ -161,8 +164,11 @@ def rate_limit_general(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Await
     return wrapper
 
 
-def rate_limit_voice(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]) -> Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]:
+def rate_limit_voice(
+    func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]],
+) -> Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]:
     """Rate limiter for voice messages (5/min)"""
+
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
         user_id = update.effective_user.id
@@ -173,7 +179,7 @@ def rate_limit_voice(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitab
             message = messages.RATE_LIMIT_VOICE.format(
                 reset_time=reset_time,
                 max_requests=_voice_limiter.max_requests,
-                window_seconds=_voice_limiter.window_seconds
+                window_seconds=_voice_limiter.window_seconds,
             )
             await update.message.reply_text(message)
             logger.warning(f"Rate limit de voz: Usuário {user_id} bloqueado por {reset_time}s")
@@ -186,8 +192,11 @@ def rate_limit_voice(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitab
     return wrapper
 
 
-def rate_limit_commands(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]) -> Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]:
+def rate_limit_commands(
+    func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]],
+) -> Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[Any]]:
     """Rate limiter for commands (30/min)"""
+
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
         user_id = update.effective_user.id
@@ -198,7 +207,7 @@ def rate_limit_commands(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awai
             message = messages.RATE_LIMIT_COMMANDS.format(
                 reset_time=reset_time,
                 max_requests=_command_limiter.max_requests,
-                window_seconds=_command_limiter.window_seconds
+                window_seconds=_command_limiter.window_seconds,
             )
             await update.message.reply_text(message)
             logger.warning(f"Rate limit de comandos: Usuário {user_id} bloqueado por {reset_time}s")
@@ -261,15 +270,15 @@ def get_rate_limiter_stats() -> RateLimiterStats:
         limits={
             "general": RateLimitConfig(
                 requests=_general_limiter.max_requests,
-                window=_general_limiter.window_seconds
+                window=_general_limiter.window_seconds,
             ),
             "voice": RateLimitConfig(
                 requests=_voice_limiter.max_requests,
-                window=_voice_limiter.window_seconds
+                window=_voice_limiter.window_seconds,
             ),
             "commands": RateLimitConfig(
                 requests=_command_limiter.max_requests,
-                window=_command_limiter.window_seconds
+                window=_command_limiter.window_seconds,
             ),
         },
     )
@@ -302,4 +311,3 @@ def cleanup_all_inactive_users(max_inactive_seconds: int = 3600) -> CleanupResul
         commands=commands_cleaned,
         total=total_cleaned,
     )
-

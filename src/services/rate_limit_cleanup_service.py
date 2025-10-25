@@ -57,7 +57,7 @@ class RateLimitCleanupService:
         self.is_running = False
 
         # Set the stop event to wake up the scheduler
-        if hasattr(self, '_stop_event') and self._stop_event is not None:
+        if hasattr(self, "_stop_event") and self._stop_event is not None:
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
@@ -81,7 +81,7 @@ class RateLimitCleanupService:
         self.is_running = False
 
         # Set the stop event to wake up the scheduler immediately
-        if hasattr(self, '_stop_event'):
+        if hasattr(self, "_stop_event"):
             self._stop_event.set()
 
         if hasattr(self, "scheduler_task") and self.scheduler_task is not None:
@@ -139,7 +139,13 @@ class RateLimitCleanupService:
 
         except Exception as e:
             logger.exception("Rate limit cleanup failed")
-            return {"general": 0, "voice": 0, "commands": 0, "total": 0, "error": str(e)}
+            return {
+                "general": 0,
+                "voice": 0,
+                "commands": 0,
+                "total": 0,
+                "error": str(e),
+            }
 
     async def _scheduled_cleanup(self):
         """Perform scheduled cleanup"""
@@ -181,7 +187,7 @@ class RateLimitCleanupService:
             "is_running": self.is_running,
             "cleanup_frequency_hours": self.cleanup_frequency_hours,
             "max_inactive_seconds": self.max_inactive_seconds,
-            "scheduler_active": self.scheduler_task is not None and not self.scheduler_task.done()
+            "scheduler_active": self.scheduler_task is not None and not self.scheduler_task.done(),
         }
 
 

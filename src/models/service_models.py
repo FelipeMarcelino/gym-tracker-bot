@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, field_validator
 # RATE LIMITER MODELS
 # =============================================================================
 
+
 class RateLimitCheckResult(BaseModel):
     """Result of a rate limit check operation"""
 
@@ -85,12 +86,12 @@ class CleanupResult(BaseModel):
     commands: int = Field(ge=0, description="Users cleaned from commands limiter")
     total: int = Field(ge=0, description="Total users cleaned")
 
-    @field_validator('total')
+    @field_validator("total")
     @classmethod
     def validate_total(cls, v: int, info) -> int:
         """Ensure total equals sum of individual counts"""
         if info.data:
-            expected = info.data.get('general', 0) + info.data.get('voice', 0) + info.data.get('commands', 0)
+            expected = info.data.get("general", 0) + info.data.get("voice", 0) + info.data.get("commands", 0)
             if v != expected:
                 raise ValueError(f"Total ({v}) must equal sum of individual counts ({expected})")
         return v
@@ -101,6 +102,7 @@ class CleanupResult(BaseModel):
 # =============================================================================
 # ERROR CONTEXT MODELS
 # =============================================================================
+
 
 class ErrorContext(BaseModel):
     """Structured context for error information"""
@@ -133,13 +135,14 @@ class ErrorContext(BaseModel):
 # EXPORT SERVICE MODELS
 # =============================================================================
 
+
 class DateRange(BaseModel):
     """Date range for exports"""
 
     start: str = Field(description="Start date in DD/MM/YYYY format")
     end: str = Field(description="End date in DD/MM/YYYY format")
 
-    @field_validator('start', 'end')
+    @field_validator("start", "end")
     @classmethod
     def validate_date_format(cls, v: str) -> str:
         """Validate date format is DD/MM/YYYY"""
@@ -164,32 +167,28 @@ class ExportSummary(BaseModel):
     total_duration_minutes: int = Field(ge=0, description="Total workout duration in minutes")
     date_range: Optional[DateRange] = Field(default=None, description="Date range of exported data")
 
-    @field_validator('active_sessions')
+    @field_validator("active_sessions")
     @classmethod
     def validate_active_sessions(cls, v: int, info) -> int:
         """Ensure active + completed = total"""
         if info.data:
-            total = info.data.get('total_sessions', 0)
-            completed = info.data.get('completed_sessions', 0)
+            total = info.data.get("total_sessions", 0)
+            completed = info.data.get("completed_sessions", 0)
             expected_active = total - completed
             if v != expected_active:
-                raise ValueError(
-                    f"Active sessions ({v}) must equal total ({total}) - completed ({completed})"
-                )
+                raise ValueError(f"Active sessions ({v}) must equal total ({total}) - completed ({completed})")
         return v
 
-    @field_validator('total_exercises')
+    @field_validator("total_exercises")
     @classmethod
     def validate_total_exercises(cls, v: int, info) -> int:
         """Ensure total exercises = resistance + aerobic"""
         if info.data:
-            resistance = info.data.get('resistance_exercises', 0)
-            aerobic = info.data.get('aerobic_exercises', 0)
+            resistance = info.data.get("resistance_exercises", 0)
+            aerobic = info.data.get("aerobic_exercises", 0)
             expected_total = resistance + aerobic
             if v != expected_total:
-                raise ValueError(
-                    f"Total exercises ({v}) must equal resistance ({resistance}) + aerobic ({aerobic})"
-                )
+                raise ValueError(f"Total exercises ({v}) must equal resistance ({resistance}) + aerobic ({aerobic})")
         return v
 
     model_config = {"frozen": True}
@@ -206,7 +205,7 @@ class ExportResult(BaseModel):
     user_id: str = Field(description="User ID for the export")
     message: Optional[str] = Field(default=None, description="Error or info message")
 
-    @field_validator('export_date')
+    @field_validator("export_date")
     @classmethod
     def validate_iso_format(cls, v: str) -> str:
         """Ensure export_date is valid ISO format"""

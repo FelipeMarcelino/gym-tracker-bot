@@ -20,12 +20,14 @@ logger = get_logger(__name__)
 class BackupService:
     """Service for automated database backups"""
 
-    def __init__(self,
-                 backup_dir: str = None,
-                 max_backups: int = 30,
-                 backup_frequency_hours: int = 6):
+    def __init__(
+        self,
+        backup_dir: str = None,
+        max_backups: int = 30,
+        backup_frequency_hours: int = 6,
+    ):
         """Initialize backup service
-        
+
         Args:
             backup_dir: Directory to store backups (default: ./backups)
             max_backups: Maximum number of backups to keep
@@ -50,13 +52,13 @@ class BackupService:
 
     async def create_backup(self, backup_name: str = None) -> str:
         """Create a backup of the database
-        
+
         Args:
             backup_name: Optional custom name for backup
-            
+
         Returns:
             Path to created backup file
-            
+
         Raises:
             BackupError: If backup creation fails
 
@@ -152,10 +154,10 @@ class BackupService:
 
     async def _verify_backup_async(self, backup_path: str) -> bool:
         """Verify backup integrity (async version)
-        
+
         Args:
             backup_path: Path to backup file
-            
+
         Returns:
             True if backup is valid, False otherwise
 
@@ -169,7 +171,12 @@ class BackupService:
 
                 # Verify we have expected tables
                 table_names = {table[0] for table in tables}
-                expected_tables = {"users", "exercises", "workout_sessions", "workout_exercises"}
+                expected_tables = {
+                    "users",
+                    "exercises",
+                    "workout_sessions",
+                    "workout_exercises",
+                }
 
                 if not expected_tables.issubset(table_names):
                     logger.warning(f"Backup missing expected tables: {expected_tables - table_names}")
@@ -191,10 +198,10 @@ class BackupService:
 
     def _verify_backup(self, backup_path: str) -> bool:
         """Verify backup integrity (sync version for compatibility)
-        
+
         Args:
             backup_path: Path to backup file
-            
+
         Returns:
             True if backup is valid, False otherwise
 
@@ -209,7 +216,12 @@ class BackupService:
 
                 # Verify we have expected tables
                 table_names = {table[0] for table in tables}
-                expected_tables = {"users", "exercises", "workout_sessions", "workout_exercises"}
+                expected_tables = {
+                    "users",
+                    "exercises",
+                    "workout_sessions",
+                    "workout_exercises",
+                }
 
                 if not expected_tables.issubset(table_names):
                     logger.warning(f"Backup missing expected tables: {expected_tables - table_names}")
@@ -232,14 +244,14 @@ class BackupService:
 
     async def restore_backup(self, backup_path: str, confirm: bool = False) -> bool:
         """Restore database from backup
-        
+
         Args:
             backup_path: Path to backup file
             confirm: Must be True to proceed (safety measure)
-            
+
         Returns:
             True if restore successful
-            
+
         Raises:
             BackupError: If restore fails
 
@@ -292,7 +304,7 @@ class BackupService:
 
     async def list_backups(self) -> List[Dict[str, Any]]:
         """List all available backups
-        
+
         Returns:
             List of backup information dictionaries
 
@@ -344,7 +356,7 @@ class BackupService:
                 return
 
             # Remove oldest backups
-            backups_to_remove = backups[self.max_backups:]
+            backups_to_remove = backups[self.max_backups :]
 
             for backup in backups_to_remove:
                 try:
@@ -361,7 +373,7 @@ class BackupService:
 
     async def get_backup_stats(self) -> Dict[str, Any]:
         """Get backup statistics
-        
+
         Returns:
             Dictionary with backup statistics
 
@@ -428,9 +440,9 @@ class BackupService:
             return
 
         self.is_running = False
-        
+
         # Set the stop event to wake up the scheduler
-        if hasattr(self, '_stop_event') and self._stop_event is not None:
+        if hasattr(self, "_stop_event") and self._stop_event is not None:
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
@@ -452,9 +464,9 @@ class BackupService:
             return
 
         self.is_running = False
-        
+
         # Set the stop event to wake up the scheduler immediately
-        if hasattr(self, '_stop_event'):
+        if hasattr(self, "_stop_event"):
             self._stop_event.set()
 
         if hasattr(self, "scheduler_task") and self.scheduler_task is not None:
@@ -524,7 +536,5 @@ class BackupService:
                 await asyncio.sleep(60)  # Wait 1 minute on error
 
 
-
 # Global backup service instance
 backup_service = BackupService()
-

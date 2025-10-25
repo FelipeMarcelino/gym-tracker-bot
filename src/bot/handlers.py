@@ -117,14 +117,50 @@ def _is_workout_message(text: str) -> bool:
     """Detecta se o texto contém conteúdo de treino"""
     # Palavras-chave relacionadas a exercícios e treino
     workout_keywords = [
-        "supino", "agachamento", "levantamento", "leg press", "cadeira extensora",
-        "cadeira flexora", "rosca", "tríceps", "desenvolvimento", "elevação",
-        "remada", "pulldown", "puxada", "flexão", "barra fixa", "paralelas",
-        "abdominal", "prancha", "burpee", "corrida", "esteira", "bicicleta",
-        "elíptico", "crossfit", "hiit", "aeróbico", "cardio", "musculação",
-        "repetições", "reps", "séries", "sets", "quilos", "kg", "carga",
-        "treino", "exercício", "academia", "ginástica", "peso", "minutos",
-        "tempo", "descanso", "intervalo",
+        "supino",
+        "agachamento",
+        "levantamento",
+        "leg press",
+        "cadeira extensora",
+        "cadeira flexora",
+        "rosca",
+        "tríceps",
+        "desenvolvimento",
+        "elevação",
+        "remada",
+        "pulldown",
+        "puxada",
+        "flexão",
+        "barra fixa",
+        "paralelas",
+        "abdominal",
+        "prancha",
+        "burpee",
+        "corrida",
+        "esteira",
+        "bicicleta",
+        "elíptico",
+        "crossfit",
+        "hiit",
+        "aeróbico",
+        "cardio",
+        "musculação",
+        "repetições",
+        "reps",
+        "séries",
+        "sets",
+        "quilos",
+        "kg",
+        "carga",
+        "treino",
+        "exercício",
+        "academia",
+        "ginástica",
+        "peso",
+        "minutos",
+        "tempo",
+        "descanso",
+        "intervalo",
     ]
 
     text_lower = text.lower()
@@ -176,7 +212,9 @@ async def _process_workout_audio_optimized(
 
         # Por enquanto aguardamos LLM, mas futuramente podemos preparar caches aqui
         parsed_data = await llm_task
-        logger.info(f"LLM parsing concluído: {len(parsed_data.get('resistance_exercises', []))} resistência, {len(parsed_data.get('aerobic_exercises', []))} aeróbico")
+        logger.info(
+            f"LLM parsing concluído: {len(parsed_data.get('resistance_exercises', []))} resistência, {len(parsed_data.get('aerobic_exercises', []))} aeróbico"
+        )
 
         # ===== ETAPA 3: SALVAR NO BANCO =====
         await status_msg.edit_text(
@@ -240,6 +278,7 @@ async def _process_workout_audio_optimized(
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro de banco/sessão: {e}")
         import traceback
+
         traceback.print_exc()
 
     except Exception as e:
@@ -247,8 +286,8 @@ async def _process_workout_audio_optimized(
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro inesperado: {e}")
         import traceback
-        traceback.print_exc()
 
+        traceback.print_exc()
 
 
 async def _process_workout_message(
@@ -270,20 +309,28 @@ async def _process_workout_message(
 
     # Mensagem inicial diferente se for nova ou continuação
     if is_new:
-        initial_msg = messages.TEXT_PROCESSING_NEW_SESSION.format(
-            session_id=workout_session.session_id,
-        ) if source == "text" else messages.AUDIO_PROCESSING_NEW_SESSION.format(
-            session_id=workout_session.session_id,
-            duration=0,  # Will be overridden by audio handler
+        initial_msg = (
+            messages.TEXT_PROCESSING_NEW_SESSION.format(
+                session_id=workout_session.session_id,
+            )
+            if source == "text"
+            else messages.AUDIO_PROCESSING_NEW_SESSION.format(
+                session_id=workout_session.session_id,
+                duration=0,  # Will be overridden by audio handler
+            )
         )
     else:
-        initial_msg = messages.TEXT_PROCESSING_EXISTING_SESSION.format(
-            session_id=workout_session.session_id,
-            message_count=workout_session.audio_count + 1,
-        ) if source == "text" else messages.AUDIO_PROCESSING_EXISTING_SESSION.format(
-            session_id=workout_session.session_id,
-            audio_count=workout_session.audio_count + 1,
-            duration=0,  # Will be overridden by audio handler
+        initial_msg = (
+            messages.TEXT_PROCESSING_EXISTING_SESSION.format(
+                session_id=workout_session.session_id,
+                message_count=workout_session.audio_count + 1,
+            )
+            if source == "text"
+            else messages.AUDIO_PROCESSING_EXISTING_SESSION.format(
+                session_id=workout_session.session_id,
+                audio_count=workout_session.audio_count + 1,
+                duration=0,  # Will be overridden by audio handler
+            )
         )
 
     status_msg = await update.message.reply_text(initial_msg, parse_mode="Markdown")
@@ -298,7 +345,9 @@ async def _process_workout_message(
         llm_service = await get_async_llm_service()
         parsed_data = await llm_service.parse_workout(workout_text)
 
-        logger.info(f"LLM parsing completo: {len(parsed_data.get('resistance_exercises', []))} resistência, {len(parsed_data.get('aerobic_exercises', []))} aeróbico")
+        logger.info(
+            f"LLM parsing completo: {len(parsed_data.get('resistance_exercises', []))} resistência, {len(parsed_data.get('aerobic_exercises', []))} aeróbico"
+        )
 
         # ===== PASSO 2: SALVAR NO BANCO =====
         await status_msg.edit_text(
@@ -361,6 +410,7 @@ async def _process_workout_message(
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro de banco/sessão: {e}")
         import traceback
+
         traceback.print_exc()
 
     except Exception as e:
@@ -368,6 +418,7 @@ async def _process_workout_message(
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro inesperado: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -388,7 +439,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE, valida
     timestamp = update.message.date
 
     # Printar no console (para debug)
-    logger.info(f"Mensagem de texto recebida de {user_name} (ID: {user_id}) - {timestamp}: {message_text[:settings.LOG_TEXT_PREVIEW_LENGTH]}...")
+    logger.info(
+        f"Mensagem de texto recebida de {user_name} (ID: {user_id}) - {timestamp}: {message_text[: settings.LOG_TEXT_PREVIEW_LENGTH]}..."
+    )
 
     # Verificar se é mensagem de treino
     if _is_workout_message(message_text):
@@ -425,7 +478,9 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE, valid
     duration = voice.duration
     file_size = voice.file_size
 
-    logger.info(f"Novo áudio recebido de {user_name} (ID: {user_id}) - Duração: {duration}s, Tamanho: {file_size / 1024:.2f} KB")
+    logger.info(
+        f"Novo áudio recebido de {user_name} (ID: {user_id}) - Duração: {duration}s, Tamanho: {file_size / 1024:.2f} KB"
+    )
 
     start_time = time.time()
 
@@ -467,8 +522,15 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE, valid
 
         # Processar transcrição e LLM em paralelo usando a função otimizada
         await _process_workout_audio_optimized(
-            update, context, status_msg, initial_msg,
-            bytes(file_bytes), workout_session, is_new, start_time, user_id,
+            update,
+            context,
+            status_msg,
+            initial_msg,
+            bytes(file_bytes),
+            workout_session,
+            is_new,
+            start_time,
+            user_id,
         )
 
     except AudioProcessingError as e:
@@ -482,6 +544,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE, valid
         await status_msg.edit_text(error_msg, parse_mode="Markdown")
         logger.error(f"Erro inesperado: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -566,7 +629,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
                 session_id=session.session_id,
                 date=session.date.strftime("%d/%m/%Y"),
                 start_time=session.start_time.strftime("%H:%M"),
-                end_time=session.end_time.strftime("%H:%M") if session.end_time else "N/A",
+                end_time=(session.end_time.strftime("%H:%M") if session.end_time else "N/A"),
                 audio_count=session.audio_count,
                 resistance_count=resistance_count,
                 aerobic_count=aerobic_count,
@@ -589,7 +652,9 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         )
         logger.error(f"Erro inesperado no status: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 @track_command_metrics("finish")
 @authorized_only
@@ -603,7 +668,6 @@ async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
 
     logger.info(f"Comando /finish executado por {user_name} (ID: {user_id})")
 
-
     workout_service = await get_async_workout_service()
 
     # Buscar sessão ativa (async)
@@ -616,13 +680,13 @@ async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
     if last_session.status == SessionStatus.FINALIZADA:
         # Handle None duration_minutes case
         duration_str = f"{last_session.duration_minutes}" if last_session.duration_minutes is not None else "N/A"
-        
+
         # Handle potential date issues
         try:
             date_str = last_session.date.strftime("%d/%m/%Y")
         except (AttributeError, ValueError):
             date_str = "Data inválida"
-        
+
         await update.message.reply_text(
             messages.ERROR_SESSION_ALREADY_FINISHED.format(
                 session_id=last_session.session_id,
@@ -672,6 +736,7 @@ async def finish_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
     await update.message.reply_text(response, parse_mode="Markdown")
 
     logger.info("Sessão finalizada com sucesso")
+
 
 @authorized_only
 @rate_limit_commands
@@ -724,8 +789,7 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
 
         if not result.success or not result.data:
             await status_msg.edit_text(
-                "❌ **Erro na exportação**\n\n"
-                f"{result.message or 'Falha ao exportar dados'}",
+                f"❌ **Erro na exportação**\n\n{result.message or 'Falha ao exportar dados'}",
                 parse_mode="Markdown",
             )
             return
@@ -737,6 +801,7 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         # Prepare file content
         if format_type == "json":
             import json
+
             # result.data is already a JSON string, so we need to parse it first
             file_content = result.data.encode("utf-8")
             mime_type = "application/json"
@@ -746,6 +811,7 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
 
         # Send file
         from io import BytesIO
+
         file_obj = BytesIO(file_content)
         file_obj.name = filename
 
@@ -753,9 +819,9 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
             document=file_obj,
             filename=filename,
             caption=f"✅ **Exportação concluída!**\n\n"
-                   f"📁 **Arquivo:** `{filename}`\n"
-                   f"📊 **{summary['total_sessions']} sessões exportadas**\n"
-                   f"📄 **Formato:** {format_type.upper()}",
+            f"📁 **Arquivo:** `{filename}`\n"
+            f"📊 **{summary['total_sessions']} sessões exportadas**\n"
+            f"📄 **Formato:** {format_type.upper()}",
             parse_mode="Markdown",
         )
 
@@ -777,6 +843,7 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
         )
         logger.error(f"Erro inesperado no export: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -838,6 +905,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE, vali
         )
         logger.error(f"Erro inesperado nas stats: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -905,6 +973,7 @@ async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE, v
         )
         logger.error(f"Erro inesperado no progresso: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -978,6 +1047,7 @@ async def exercises_command(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         )
         logger.error(f"Erro inesperado no exercises: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -1223,8 +1293,7 @@ async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         existing_user = await user_service.get_user(target_user_id)
         if not existing_user or not existing_user.is_active:
             await update.message.reply_text(
-                f"❌ **Usuário não encontrado**\n\n"
-                f"ID: `{target_user_id}`",
+                f"❌ **Usuário não encontrado**\n\nID: `{target_user_id}`",
                 parse_mode="Markdown",
             )
             return
@@ -1268,8 +1337,7 @@ async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         if not users:
             await update.message.reply_text(
-                "👥 **Lista de Usuários**\n\n"
-                "❌ Nenhum usuário encontrado.",
+                "👥 **Lista de Usuários**\n\n❌ Nenhum usuário encontrado.",
                 parse_mode="Markdown",
             )
             return
@@ -1299,7 +1367,7 @@ async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         await update.message.reply_text(message, parse_mode="Markdown")
 
-    except (DatabaseError) as e:
+    except DatabaseError as e:
         await update.message.reply_text(
             f"❌ **Erro ao listar usuários**\n\n{e.message}",
             parse_mode="Markdown",
@@ -1345,7 +1413,9 @@ async def ratelimit_cleanup_command(update: Update, context: ContextTypes.DEFAUL
         message += f"✅ Cleanup concluído!"
 
         await update.message.reply_text(message, parse_mode="Markdown")
-        logger.info(f"Rate limit cleanup executado por admin {update.effective_user.id}: {cleanup_stats.total} usuários removidos")
+        logger.info(
+            f"Rate limit cleanup executado por admin {update.effective_user.id}: {cleanup_stats.total} usuários removidos"
+        )
 
     except Exception as e:
         await update.message.reply_text(
@@ -1398,5 +1468,3 @@ async def ratelimit_stats_command(update: Update, context: ContextTypes.DEFAULT_
 async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handler para comandos desconhecidos"""
     await update.message.reply_text(messages.UNKNOWN_COMMAND)
-
-

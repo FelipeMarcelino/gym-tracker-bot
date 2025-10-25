@@ -117,29 +117,29 @@ async def health_full_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             response += f"""
 
 **📊 System Metrics:**
-🖥️ CPU: {system['cpu_percent']:.1f}%
-💻 Memory: {system['memory_percent']:.1f}% ({system['memory_used_mb']}MB/{system['memory_total_mb']}MB)
-💾 Disk: {system['disk_percent']:.1f}% ({system['disk_used_gb']:.1f}GB/{system['disk_total_gb']:.1f}GB)"""
+🖥️ CPU: {system["cpu_percent"]:.1f}%
+💻 Memory: {system["memory_percent"]:.1f}% ({system["memory_used_mb"]}MB/{system["memory_total_mb"]}MB)
+💾 Disk: {system["disk_percent"]:.1f}% ({system["disk_used_gb"]:.1f}GB/{system["disk_total_gb"]:.1f}GB)"""
 
         if "database" in health_status.metrics:
             db = health_status.metrics["database"]
             response += f"""
 
 **🗄️ Database Metrics:**
-👥 Active Users: {db['total_users']}
-📊 Total Sessions: {db['total_sessions']}
-📅 Sessions Today: {db['sessions_today']}
-⚡ Response Time: {db['response_time_ms']}ms"""
+👥 Active Users: {db["total_users"]}
+📊 Total Sessions: {db["total_sessions"]}
+📅 Sessions Today: {db["sessions_today"]}
+⚡ Response Time: {db["response_time_ms"]}ms"""
 
         if "bot" in health_status.metrics:
             bot = health_status.metrics["bot"]
             response += f"""
 
 **🤖 Bot Metrics:**
-🎯 Commands Processed: {bot['total_commands_processed']}
-🎵 Audio Processed: {bot['total_audio_processed']}
-⚡ Avg Response Time: {bot['average_response_time_ms']}ms
-❌ Error Rate: {bot['error_rate_percent']}%"""
+🎯 Commands Processed: {bot["total_commands_processed"]}
+🎵 Audio Processed: {bot["total_audio_processed"]}
+⚡ Avg Response Time: {bot["average_response_time_ms"]}ms
+❌ Error Rate: {bot["error_rate_percent"]}%"""
 
         # Update the status message
         await status_msg.edit_text(response, parse_mode="Markdown")
@@ -173,11 +173,11 @@ async def metrics_command(update: Update, context: ContextTypes.DEFAULT_TYPE, va
             response += f"""
 
 **🖥️ System Performance:**
-• CPU Usage: {system['cpu_percent']:.1f}%
-• Memory Usage: {system['memory_percent']:.1f}%
-• Memory: {system['memory_used_mb']:,}MB / {system['memory_total_mb']:,}MB
-• Disk Usage: {system['disk_percent']:.1f}%
-• Disk: {system['disk_used_gb']:.1f}GB / {system['disk_total_gb']:.1f}GB"""
+• CPU Usage: {system["cpu_percent"]:.1f}%
+• Memory Usage: {system["memory_percent"]:.1f}%
+• Memory: {system["memory_used_mb"]:,}MB / {system["memory_total_mb"]:,}MB
+• Disk Usage: {system["disk_percent"]:.1f}%
+• Disk: {system["disk_used_gb"]:.1f}GB / {system["disk_total_gb"]:.1f}GB"""
 
         # Database metrics
         if "database" in health_status.metrics:
@@ -185,11 +185,11 @@ async def metrics_command(update: Update, context: ContextTypes.DEFAULT_TYPE, va
             response += f"""
 
 **🗄️ Database Stats:**
-• Status: {db['connection_status']}
-• Response Time: {db['response_time_ms']}ms
-• Total Users: {db['total_users']:,}
-• Total Sessions: {db['total_sessions']:,}
-• Sessions Today: {db['sessions_today']:,}"""
+• Status: {db["connection_status"]}
+• Response Time: {db["response_time_ms"]}ms
+• Total Users: {db["total_users"]:,}
+• Total Sessions: {db["total_sessions"]:,}
+• Sessions Today: {db["sessions_today"]:,}"""
 
         # Bot metrics
         if "bot" in health_status.metrics:
@@ -197,11 +197,11 @@ async def metrics_command(update: Update, context: ContextTypes.DEFAULT_TYPE, va
             response += f"""
 
 **🤖 Bot Performance:**
-• Commands Processed: {bot['total_commands_processed']:,}
-• Audio Files Processed: {bot['total_audio_processed']:,}
-• Average Response Time: {bot['average_response_time_ms']:.1f}ms
-• Error Rate: {bot['error_rate_percent']:.2f}%
-• Active Sessions: {bot['active_sessions']:,}"""
+• Commands Processed: {bot["total_commands_processed"]:,}
+• Audio Files Processed: {bot["total_audio_processed"]:,}
+• Average Response Time: {bot["average_response_time_ms"]:.1f}ms
+• Error Rate: {bot["error_rate_percent"]:.2f}%
+• Active Sessions: {bot["active_sessions"]:,}"""
 
         # Performance indicators
         response += """
@@ -307,4 +307,3 @@ async def performance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             "❌ **Performance Report Failed**\n\nUnable to generate performance report.",
             parse_mode="Markdown",
         )
-

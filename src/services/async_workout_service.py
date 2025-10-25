@@ -10,7 +10,14 @@ from sqlalchemy.orm import selectinload
 from config.logging_config import get_logger
 from config.settings import settings
 from database.async_connection import get_async_session_context
-from database.models import AerobicExercise, Exercise, ExerciseType, SessionStatus, WorkoutExercise, WorkoutSession
+from database.models import (
+    AerobicExercise,
+    Exercise,
+    ExerciseType,
+    SessionStatus,
+    WorkoutExercise,
+    WorkoutSession,
+)
 from services.exceptions import DatabaseError, ErrorCode, ValidationError
 from services.exercise_knowledge import infer_equipment, infer_muscle_group
 
@@ -27,15 +34,15 @@ class AsyncWorkoutService:
         user_id: str,
     ) -> bool:
         """Optimized async version that handles all operations in a single transaction
-        
+
         Args:
             session_id: Session ID
             parsed_data: Parsed data from LLM
             user_id: User ID for validation
-            
+
         Returns:
             True if successful
-            
+
         Raises:
             ValidationError: If data is invalid
             DatabaseError: If database operation fails
@@ -108,14 +115,19 @@ class AsyncWorkoutService:
                     resistance_exercises = parsed_data.get("resistance_exercises", [])
                     if resistance_exercises:
                         await self._process_resistance_exercises_async(
-                            session, session_id, resistance_exercises, existing_resistance,
+                            session,
+                            session_id,
+                            resistance_exercises,
+                            existing_resistance,
                         )
 
                     # 5. Process aerobic exercises in batch
                     aerobic_exercises = parsed_data.get("aerobic_exercises", [])
                     if aerobic_exercises:
                         await self._process_aerobic_exercises_async(
-                            session, session_id, aerobic_exercises,
+                            session,
+                            session_id,
+                            aerobic_exercises,
                         )
 
                     # Commit is automatic with begin() context manager
@@ -295,10 +307,10 @@ class AsyncWorkoutService:
 
     async def get_user_session_status(self, user_id: str) -> Dict[str, Any]:
         """Get user's current session status with optimized query (async)
-        
+
         Args:
             user_id: User ID
-            
+
         Returns:
             Dict with session status information
 
@@ -336,7 +348,6 @@ class AsyncWorkoutService:
                 is_active = SessionStatus.ATIVA if minutes_passed < (timeout_hours * 60) else SessionStatus.FINALIZADA
 
                 expired_minutes = minutes_passed - (timeout_hours * 60)
-
 
                 # Count exercises
                 resistance_count = len(last_session.exercises)
@@ -378,11 +389,11 @@ class AsyncWorkoutService:
 
     async def finish_session(self, session_id: int, user_id: str) -> Dict[str, Any]:
         """Finish a workout session with optimized stats calculation (async)
-        
+
         Args:
             session_id: Session ID to finish
             user_id: User ID for validation
-            
+
         Returns:
             Dict with session finish results and stats
 
@@ -421,16 +432,16 @@ class AsyncWorkoutService:
                     now = datetime.now()
                     end_time = now.time()
                     start_datetime = datetime.combine(workout_session.date, workout_session.start_time)
-                    
-                    # Handle cross-midnight sessions: if end_time is before start_time, 
+
+                    # Handle cross-midnight sessions: if end_time is before start_time,
                     # assume we crossed midnight and the session ended the next day
                     if end_time < workout_session.start_time:
                         end_datetime = datetime.combine(workout_session.date + timedelta(days=1), end_time)
                     else:
                         end_datetime = datetime.combine(workout_session.date, end_time)
-                    
+
                     duration_minutes = int((end_datetime - start_datetime).total_seconds() // 60)
-                    
+
                     # Ensure duration is not negative (safety check)
                     duration_minutes = max(0, duration_minutes)
 
@@ -472,21 +483,16 @@ class AsyncWorkoutService:
         # Calculate resistance stats
         total_sets = sum(ex.sets for ex in workout_session.exercises)
         total_volume_kg = sum(
-            sum(weights) for ex in workout_session.exercises
-            if ex.weights_kg for weights in [ex.weights_kg]
+            sum(weights) for ex in workout_session.exercises if ex.weights_kg for weights in [ex.weights_kg]
         )
 
         # Calculate aerobic stats
-        cardio_minutes = sum(
-            ex.duration_minutes for ex in workout_session.aerobics
-            if ex.duration_minutes
-        )
+        cardio_minutes = sum(ex.duration_minutes for ex in workout_session.aerobics if ex.duration_minutes)
 
         # Get muscle groups
-        muscle_groups = list(set(
-            ex.exercise.muscle_group for ex in workout_session.exercises
-            if ex.exercise.muscle_group
-        ))
+        muscle_groups = list(
+            set(ex.exercise.muscle_group for ex in workout_session.exercises if ex.exercise.muscle_group)
+        )
 
         return {
             "audio_count": workout_session.audio_count,
@@ -504,11 +510,11 @@ class AsyncWorkoutService:
         days: int = 30,
     ) -> Dict[str, Any]:
         """Get comprehensive workout analytics for a user (async)
-        
+
         Args:
             user_id: User ID
             days: Number of days to analyze
-            
+
         Returns:
             Dict with analytics data
 
@@ -578,13 +584,12 @@ class AsyncWorkoutService:
 
         total_resistance_exercises = len(all_resistance)
         total_sets = sum(ex.sets for ex in all_resistance)
-        total_volume = sum(
-            sum(weights) for ex in all_resistance
-            if ex.weights_kg for weights in [ex.weights_kg]
-        )
+        total_volume = sum(sum(weights) for ex in all_resistance if ex.weights_kg for weights in [ex.weights_kg])
 
         # Difficulty levels
-        difficulties = [ex.difficulty for s in sessions for ex in s.exercises if hasattr(ex, "difficulty") and ex.difficulty]
+        difficulties = [
+            ex.difficulty for s in sessions for ex in s.exercises if hasattr(ex, "difficulty") and ex.difficulty
+        ]
         avg_difficulty = sum(difficulties) / len(difficulties) if difficulties else 0
 
         # Frequency calculation
@@ -608,7 +613,7 @@ class AsyncWorkoutService:
         muscle_distribution = {
             muscle: {
                 "count": count,
-                "percentage": count / total_muscle_exercises * 100 if total_muscle_exercises > 0 else 0,
+                "percentage": (count / total_muscle_exercises * 100 if total_muscle_exercises > 0 else 0),
             }
             for muscle, count in muscle_groups.items()
         }
@@ -619,12 +624,18 @@ class AsyncWorkoutService:
 
         if recent_sessions and older_sessions:
             recent_volume = sum(
-                sum(weights) for s in recent_sessions for ex in s.exercises
-                if ex.weights_kg for weights in [ex.weights_kg]
+                sum(weights)
+                for s in recent_sessions
+                for ex in s.exercises
+                if ex.weights_kg
+                for weights in [ex.weights_kg]
             )
             older_volume = sum(
-                sum(weights) for s in older_sessions for ex in s.exercises
-                if ex.weights_kg for weights in [ex.weights_kg]
+                sum(weights)
+                for s in older_sessions
+                for ex in s.exercises
+                if ex.weights_kg
+                for weights in [ex.weights_kg]
             )
 
             if older_volume > 0:
@@ -669,7 +680,7 @@ class AsyncWorkoutService:
                 "frequency_per_week": frequency_per_week,
                 "is_extrapolated": is_extrapolated,
                 "analysis_period_days": days,
-                "consistency_score": unique_workout_days / days * 100 if days > 0 else 0,
+                "consistency_score": (unique_workout_days / days * 100 if days > 0 else 0),
                 "longest_streak_days": 1,  # Simplified for now
             },
             "muscle_group_distribution": {
@@ -680,4 +691,3 @@ class AsyncWorkoutService:
                 "volume_change_percent": volume_change_percent,
             },
         }
-

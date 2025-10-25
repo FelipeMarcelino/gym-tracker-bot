@@ -17,12 +17,14 @@ logger = get_logger(__name__)
 
 class HealthStatus(BaseModel):
     """Health status data model"""
-    model_config = ConfigDict(
-        json_encoders={datetime: lambda v: v.isoformat()},
-        validate_assignment=True
-    )
 
-    status: str = Field(..., pattern="^(healthy|degraded|unhealthy)$", description="Overall health status")
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()}, validate_assignment=True)
+
+    status: str = Field(
+        ...,
+        pattern="^(healthy|degraded|unhealthy)$",
+        description="Overall health status",
+    )
     timestamp: datetime = Field(..., description="Timestamp of health check")
     uptime_seconds: int = Field(..., ge=0, description="System uptime in seconds")
     checks: Dict[str, Any] = Field(default_factory=dict, description="Individual health check results")
@@ -31,6 +33,7 @@ class HealthStatus(BaseModel):
 
 class SystemMetrics(BaseModel):
     """System performance metrics"""
+
     model_config = ConfigDict(validate_assignment=True)
 
     cpu_percent: float = Field(..., ge=0, le=100, description="CPU usage percentage")
@@ -44,9 +47,14 @@ class SystemMetrics(BaseModel):
 
 class DatabaseMetrics(BaseModel):
     """Database performance metrics"""
+
     model_config = ConfigDict(validate_assignment=True)
 
-    connection_status: str = Field(..., pattern="^(connected|disconnected|error)$", description="Database connection status")
+    connection_status: str = Field(
+        ...,
+        pattern="^(connected|disconnected|error)$",
+        description="Database connection status",
+    )
     response_time_ms: float = Field(..., ge=0, description="Database response time in milliseconds")
     active_connections: int = Field(..., ge=0, description="Number of active database connections")
     total_users: int = Field(..., ge=0, description="Total number of users in database")
@@ -56,6 +64,7 @@ class DatabaseMetrics(BaseModel):
 
 class BotMetrics(BaseModel):
     """Bot-specific metrics"""
+
     model_config = ConfigDict(validate_assignment=True)
 
     total_commands_processed: int = Field(..., ge=0, description="Total commands processed by bot")
@@ -472,7 +481,6 @@ class HealthService:
                 sessions_today=0,
             )
 
-
     async def _get_bot_metrics_async(self) -> BotMetrics:
         """Get bot-specific metrics with async database queries"""
         # Calculate average response time
@@ -480,10 +488,7 @@ class HealthService:
 
         # Calculate error rate
         total_operations = self.command_count + self.audio_count
-        error_rate = (
-            (self.error_count / total_operations * 100)
-            if total_operations > 0 else 0
-        )
+        error_rate = (self.error_count / total_operations * 100) if total_operations > 0 else 0
 
         # Get active sessions count from database
         active_sessions_count = await self._get_active_sessions_count()
@@ -549,6 +554,7 @@ class HealthService:
                 from sqlalchemy import text
 
                 from database.async_connection import get_async_session_context
+
                 async with get_async_session_context() as session:
                     await session.execute(text("SELECT 1"))
                 db_status = "healthy"
@@ -585,4 +591,3 @@ class HealthService:
 
 # Global health service instance
 health_service = HealthService()
-

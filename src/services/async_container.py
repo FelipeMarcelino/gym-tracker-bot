@@ -137,7 +137,6 @@ async def get_async_container() -> AsyncServiceContainer:
     return _async_container
 
 
-
 # Convenience functions for async services
 async def get_async_user_service() -> AsyncUserService:
     """Get async user service"""
@@ -214,7 +213,6 @@ async def shutdown_async_services() -> None:
     _async_container = None
 
 
-
 @asynccontextmanager
 async def async_service_context():
     """Context manager for async services lifecycle"""
@@ -223,4 +221,3 @@ async def async_service_context():
         yield
     finally:
         await shutdown_async_services()
-

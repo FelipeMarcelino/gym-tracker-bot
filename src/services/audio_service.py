@@ -8,7 +8,11 @@ import aiofiles.os
 from groq import AsyncGroq
 
 from config.settings import settings
-from services.exceptions import AudioProcessingError, ServiceUnavailableError, ValidationError
+from services.exceptions import (
+    AudioProcessingError,
+    ServiceUnavailableError,
+    ValidationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +49,13 @@ class AudioTranscriptionService:
 
     async def transcribe_telegram_voice(self, file_bytes: bytes) -> str:
         """Transcreve um áudio do Telegram usando Groq API
-        
+
         Args:
             file_bytes: Bytes do arquivo de áudio
-            
+
         Returns:
             Texto transcrito
-            
+
         Raises:
             ValidationError: Se os dados de entrada são inválidos
             AudioProcessingError: Se a transcrição falhar
@@ -99,10 +103,10 @@ class AudioTranscriptionService:
                     # Check for rate limit errors (HTTP 429 or rate_limit in message)
                     error_str = str(e).lower()
                     is_rate_limit = (
-                        "rate_limit" in error_str or
-                        "429" in error_str or
-                        "too many requests" in error_str or
-                        (hasattr(e, "status_code") and e.status_code == 429)
+                        "rate_limit" in error_str
+                        or "429" in error_str
+                        or "too many requests" in error_str
+                        or (hasattr(e, "status_code") and e.status_code == 429)
                     )
 
                     if is_rate_limit:
@@ -113,10 +117,10 @@ class AudioTranscriptionService:
 
                     # Check for authentication errors (HTTP 401)
                     is_auth_error = (
-                        "unauthorized" in error_str or
-                        "401" in error_str or
-                        ("invalid" in error_str and "key" in error_str) or
-                        (hasattr(e, "status_code") and e.status_code == 401)
+                        "unauthorized" in error_str
+                        or "401" in error_str
+                        or ("invalid" in error_str and "key" in error_str)
+                        or (hasattr(e, "status_code") and e.status_code == 401)
                     )
 
                     if is_auth_error:
@@ -159,6 +163,7 @@ class AudioTranscriptionService:
                     await aiofiles.os.remove(temp_path)
                 except Exception as e:
                     logger.warning(f"Falha ao deletar arquivo temporário {temp_path}: {e}")
+
 
 # Service instantiation moved to container.py
 # This module only defines the service class
