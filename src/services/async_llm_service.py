@@ -6,6 +6,7 @@ from groq import AsyncGroq
 from config.logging_config import get_logger
 from config.settings import settings
 from services.exceptions import ErrorCode, LLMParsingError, ServiceUnavailableError, ValidationError
+from services.workout_validation import validate_workout_data, get_user_friendly_error_message
 
 logger = get_logger(__name__)
 
@@ -132,6 +133,26 @@ class LLMParsingService:
                 )
 
             logger.info("Groq API parseou com sucesso!")
+            
+            # Validate the parsed workout data
+            validation_result = validate_workout_data(parsed_data)
+            
+            if not validation_result["is_valid"]:
+                # Generate user-friendly error message
+                error_message = get_user_friendly_error_message(validation_result["errors"])
+                
+                logger.warning(f"Validação falhou: {len(validation_result['errors'])} erros encontrados")
+                
+                # Raise ValidationError with user-friendly message
+                raise ValidationError(
+                    message="Dados incompletos no treino parseado",
+                    field="workout_data",
+                    value=None,  # Don't include full data in error for privacy
+                    error_code=ErrorCode.MISSING_REQUIRED_FIELD,
+                    user_message=error_message
+                )
+            
+            logger.info("Dados do treino validados com sucesso!")
             return parsed_data
 
         except (ValidationError, LLMParsingError):
