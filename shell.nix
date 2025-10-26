@@ -22,6 +22,7 @@ pkgs-unfree.mkShell {
     pythonPackages.pydub
     pkgs.ffmpeg
     pkgs.sqlite
+    pkgs.postgresql
 
   ];
   venvDir = "./.venv";
