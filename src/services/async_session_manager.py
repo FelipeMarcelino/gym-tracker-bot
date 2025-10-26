@@ -196,7 +196,7 @@ class AsyncSessionManager:
                 # 2. Not explicitly finished AND within timeout window
                 stmt = select(func.count(WorkoutSession.session_id)).where(
                     (WorkoutSession.status == SessionStatus.ATIVA) &
-                    (func.datetime(WorkoutSession.date, WorkoutSession.start_time) > timeout_threshold),
+                    (WorkoutSession.last_update > timeout_threshold),
                 )
 
                 result = await session.execute(stmt)
@@ -223,7 +223,7 @@ class AsyncSessionManager:
                     select(WorkoutSession)
                     .where(
                         (WorkoutSession.status == SessionStatus.ATIVA) &
-                        (func.datetime(WorkoutSession.date, WorkoutSession.start_time) < timeout_threshold),
+                        (WorkoutSession.last_update < timeout_threshold),
                     )
                 )
 

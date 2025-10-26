@@ -7,7 +7,7 @@ from typing import Dict, Optional, Type, TypeVar
 from config.logging_config import get_logger
 from database.async_connection import async_db
 from services.async_analytics_service import AsyncAnalyticsService
-from services.async_backup_service import BackupService
+from services.backup_factory import BackupFactory
 from services.async_export_service import AsyncExportService
 from services.async_health_service import HealthService
 from services.async_llm_service import LLMParsingService
@@ -49,8 +49,8 @@ class AsyncServiceContainer:
                     instance = AsyncAnalyticsService()
                 elif service_type == AsyncExportService:
                     instance = AsyncExportService()
-                elif service_type == BackupService:
-                    instance = BackupService()
+                elif hasattr(service_type, '__name__') and 'backup' in service_type.__name__.lower():
+                    instance = BackupFactory.create_backup_service()
                 elif service_type == HealthService:
                     instance = HealthService()
                 elif service_type == LLMParsingService:
@@ -77,13 +77,15 @@ class AsyncServiceContainer:
             return
 
         # Create services outside the lock
+        backup_service = BackupFactory.create_backup_service()
+        
         services_to_create = {
             AsyncUserService: AsyncUserService(),
             AsyncWorkoutService: AsyncWorkoutService(),
             AsyncSessionManager: AsyncSessionManager(),
             AsyncAnalyticsService: AsyncAnalyticsService(),
             AsyncExportService: AsyncExportService(),
-            BackupService: BackupService(),
+            type(backup_service): backup_service,  # Dynamic type for backup service
             HealthService: HealthService(),
             LLMParsingService: LLMParsingService(),
             ShutdownService: ShutdownService(),
@@ -169,10 +171,18 @@ async def get_async_export_service() -> AsyncExportService:
     return await container.get_service(AsyncExportService)
 
 
-async def get_async_backup_service() -> BackupService:
-    """Get async backup service"""
+async def get_async_backup_service():
+    """Get async backup service (SQLite or PostgreSQL based on configuration)"""
     container = await get_async_container()
-    return await container.get_service(BackupService)
+    # Try to get the backup service, creating it if needed
+    backup_service = BackupFactory.create_backup_service()
+    service_type = type(backup_service)
+    
+    # Register if not already registered
+    if service_type not in container._services:
+        await container.register_service(service_type, backup_service)
+    
+    return await container.get_service(service_type)
 
 
 async def get_async_health_service() -> HealthService:

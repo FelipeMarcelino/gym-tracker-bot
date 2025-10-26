@@ -7,8 +7,8 @@ from typing import List, Callable, Any, Optional
 from datetime import datetime
 
 from config.logging_config import get_logger
-from services.async_backup_service import backup_service
 from services.async_health_service import health_service
+from services.backup_factory import BackupFactory
 
 logger = get_logger(__name__)
 
@@ -139,9 +139,27 @@ class ShutdownService:
             
         try:
             logger.info("📦 Creating emergency backup before shutdown...")
-            backup_name = f"emergency_shutdown_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
-            backup_path = await backup_service.create_backup(backup_name)
-            logger.info(f"✅ Emergency backup created: {backup_path}")
+            # Import here to avoid circular import
+            from services.async_container import get_async_backup_service
+            backup_service = await get_async_backup_service()
+            
+            # Use appropriate backup method based on database type
+            if BackupFactory.is_postgresql():
+                # For PostgreSQL, try SQL backup first, fallback to JSON
+                try:
+                    backup_path = await backup_service.create_backup_sql()
+                    backup_type = "SQL"
+                except Exception as e:
+                    logger.warning(f"Emergency SQL backup failed, trying JSON: {e}")
+                    backup_path = await backup_service.create_backup_json()
+                    backup_type = "JSON"
+            else:
+                # SQLite backup
+                backup_name = f"emergency_shutdown_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+                backup_path = await backup_service.create_backup(backup_name)
+                backup_type = "SQLite"
+            
+            logger.info(f"✅ Emergency backup created ({backup_type}): {backup_path}")
             
         except Exception as e:
             logger.exception(f"❌ Failed to create emergency backup: {e}")
@@ -151,10 +169,19 @@ class ShutdownService:
         try:
             logger.info("🛑 Stopping background services...")
             
-            # Stop automated backups
-            if backup_service.is_running:
-                backup_service.stop_automated_backups()
-                logger.info("✅ Automated backups stopped")
+            # Stop automated backups (if service supports it)
+            try:
+                # Use factory to get the appropriate backup service
+                backup_service = BackupFactory.create_backup_service()
+                if hasattr(backup_service, 'is_running') and backup_service.is_running:
+                    backup_service.stop_automated_backups()
+                    logger.info("✅ Automated backups stopped")
+                elif hasattr(backup_service, 'stop_automated_backups'):
+                    # Try to stop even if we can't check status
+                    backup_service.stop_automated_backups()
+                    logger.info("✅ Automated backups stopped")
+            except Exception as e:
+                logger.debug(f"No automated backups to stop or error stopping: {e}")
             
             # Stop health service background tasks (if any)
             # Note: health_service doesn't currently have background tasks

@@ -1,8 +1,9 @@
 """Async database connection for improved performance"""
 
-from typing import Optional, AsyncGenerator
 import asyncio
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -32,16 +33,19 @@ class AsyncDatabaseConnection:
         async with self._lock:
             if self._engine is None:
                 # Read DATABASE_URL from environment directly to support test overrides
-                import os
-                database_url = os.getenv("DATABASE_URL", "sqlite:///gym_tracker.db")
-                
-                # Convert SQLite URL to async version
+                database_url = settings.DATABASE_URL
+
+                # Convert database URL to async version if needed
                 if database_url.startswith("sqlite:///"):
                     async_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+                elif database_url.startswith("postgresql://"):
+                    # Railway provides postgresql:// but we need postgresql+asyncpg://
+                    async_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
+                elif database_url.startswith("postgres://"):
+                    # Some services use postgres:// instead of postgresql://
+                    async_url = database_url.replace("postgres://", "postgresql+asyncpg://")
                 else:
-                    # For other databases, you might need different async drivers
-                    # PostgreSQL: postgresql+asyncpg://
-                    # MySQL: mysql+aiomysql://
+                    # Already in async format or other database
                     async_url = database_url
 
                 # Configure engine based on database type
@@ -63,17 +67,17 @@ class AsyncDatabaseConnection:
                         pool_recycle=3600,      # Recycle connections after 1 hour
                         pool_timeout=30,        # Timeout for getting connection from pool
                     )
-                
+
                 self._session_factory = async_sessionmaker(
                     bind=self._engine,
                     class_=AsyncSession,
                     expire_on_commit=False,
                 )
-                
+
                 # Create tables if they don't exist
                 async with self._engine.begin() as conn:
                     await conn.run_sync(Base.metadata.create_all)
-                
+
                 logger.info(f"Async database initialized: {async_url}")
 
     async def get_session(self) -> AsyncSession:
@@ -118,3 +122,4 @@ async def get_async_session_context() -> AsyncGenerator[AsyncSession, None]:
     """Get an async session as a context manager"""
     async with async_db.get_session_context() as session:
         yield session
+
