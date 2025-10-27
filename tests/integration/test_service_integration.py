@@ -18,8 +18,8 @@ class TestServiceIntegration:
         """Test health service monitoring backup service"""
         from services.backup_factory import BackupFactory
         
-        # Set database path for SQLite services
-        if hasattr(test_backup_service, 'database_path'):
+        # Set database path for SQLite services only
+        if hasattr(test_backup_service, 'database_path') and BackupFactory.is_sqlite():
             test_backup_service.database_path = populated_test_database
             
         health_service = HealthService()
@@ -67,8 +67,8 @@ class TestServiceIntegration:
         """Test shutdown service creating emergency backup"""
         from services.backup_factory import BackupFactory
         
-        # Set database path for SQLite services
-        if hasattr(test_backup_service, 'database_path'):
+        # Set database path for SQLite services only
+        if hasattr(test_backup_service, 'database_path') and BackupFactory.is_sqlite():
             test_backup_service.database_path = populated_test_database
             
         shutdown_service = ShutdownService()
@@ -123,7 +123,11 @@ class TestServiceIntegration:
     @pytest.mark.asyncio
     async def test_health_service_comprehensive_check(self, test_backup_service, populated_test_database):
         """Test health service comprehensive check with real services"""
-        test_backup_service.database_path = populated_test_database
+        from services.backup_factory import BackupFactory
+        
+        # Set database path for SQLite services only
+        if hasattr(test_backup_service, 'database_path') and BackupFactory.is_sqlite():
+            test_backup_service.database_path = populated_test_database
         health_service = HealthService()
 
         # Record some metrics
@@ -160,7 +164,9 @@ class TestEndToEndWorkflow:
     @pytest.mark.asyncio
     async def test_startup_monitoring_shutdown_workflow(self, test_backup_service, populated_test_database, mock_pg_dump):
         """Test complete startup -> monitoring -> shutdown workflow"""
-        test_backup_service.database_path = populated_test_database
+        # Set database path for SQLite services only
+        if hasattr(test_backup_service, 'database_path') and BackupFactory.is_sqlite():
+            test_backup_service.database_path = populated_test_database
         health_service = HealthService()
         shutdown_service = ShutdownService()
         shutdown_service.emergency_backup_on_shutdown = True
@@ -250,7 +256,11 @@ class TestEndToEndWorkflow:
     @pytest.mark.asyncio
     async def test_error_recovery_workflow(self, test_backup_service, populated_test_database, mock_pg_dump):
         """Test error recovery and resilience"""
-        test_backup_service.database_path = populated_test_database
+        from services.backup_factory import BackupFactory
+        
+        # Set database path for SQLite services only
+        if hasattr(test_backup_service, 'database_path') and BackupFactory.is_sqlite():
+            test_backup_service.database_path = populated_test_database
         health_service = HealthService()
 
         # Simulate various error conditions
@@ -258,13 +268,20 @@ class TestEndToEndWorkflow:
 
         # 1. Backup service errors
         try:
-            test_backup_service.database_path = "/nonexistent/database.db"
-            await test_backup_service.create_backup("error_test.db")
+            # Only test with invalid database path for SQLite services
+            if hasattr(test_backup_service, 'database_path') and BackupFactory.is_sqlite():
+                test_backup_service.database_path = "/nonexistent/database.db"
+                await test_backup_service.create_backup("error_test.db")
+            else:
+                # For PostgreSQL, create a backup with invalid backup name to trigger error
+                # (passing an invalid path as backup name)
+                await test_backup_service.create_backup_sql("/invalid/path/that/will/fail.sql")
         except Exception:
             error_log.append("backup_error_handled")
 
-        # Restore working database
-        test_backup_service.database_path = populated_test_database
+        # Restore working database for SQLite
+        if hasattr(test_backup_service, 'database_path') and BackupFactory.is_sqlite():
+            test_backup_service.database_path = populated_test_database
 
         # 2. Health service with errors
         health_service.record_command(100, True)  # Error command
@@ -292,7 +309,11 @@ class TestEndToEndWorkflow:
     @pytest.mark.asyncio
     async def test_concurrent_operations(self, test_backup_service, populated_test_database, mock_pg_dump):
         """Test concurrent operations across services"""
-        test_backup_service.database_path = populated_test_database
+        from services.backup_factory import BackupFactory
+        
+        # Set database path for SQLite services only
+        if hasattr(test_backup_service, 'database_path') and BackupFactory.is_sqlite():
+            test_backup_service.database_path = populated_test_database
         health_service = HealthService()
 
         # Start automated backups (only if supported by SQLite service)
@@ -352,10 +373,13 @@ class TestServiceErrorPropagation:
     @pytest.mark.asyncio
     async def test_backup_service_error_in_health_check(self, test_backup_service):
         """Test backup service errors don't break health checks"""
+        from services.backup_factory import BackupFactory
+        
         health_service = HealthService()
 
-        # Break backup service
-        test_backup_service.database_path = "/nonexistent/database.db"
+        # Break backup service (only for SQLite)
+        if hasattr(test_backup_service, 'database_path') and BackupFactory.is_sqlite():
+            test_backup_service.database_path = "/nonexistent/database.db"
 
         # Health service should still work
         simple_health = await health_service.get_simple_health()
