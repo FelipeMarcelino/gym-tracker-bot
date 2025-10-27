@@ -85,8 +85,9 @@ def test_backup_service(test_backup_dir, test_db_path):
     service.max_backups = 5
     service.backup_frequency_hours = 1
     
-    # Set database path appropriately based on service type
-    if hasattr(service, 'database_path'):
+    # Set database path only for SQLite services
+    # PostgreSQL services use DATABASE_URL and don't need a local file path
+    if hasattr(service, 'database_path') and BackupFactory.is_sqlite():
         service.database_path = test_db_path
     
     return service
