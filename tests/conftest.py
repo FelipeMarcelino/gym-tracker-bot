@@ -7,6 +7,7 @@ import shutil
 # Add src to path for tests
 import sys
 import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -73,13 +74,21 @@ async def test_database(test_db_path):
 
 @pytest.fixture
 def test_backup_service(test_backup_dir, test_db_path):
-    """Create a test backup service"""
-    service = BackupService(
-        backup_dir=test_backup_dir,
-        max_backups=5,
-        backup_frequency_hours=1,
-    )
-    service.database_path = test_db_path
+    """Create a test backup service using the appropriate type"""
+    from services.backup_factory import BackupFactory
+    
+    # Create backup service using factory (PostgreSQL or SQLite based on DATABASE_URL)
+    service = BackupFactory.create_backup_service()
+    
+    # Configure the service for testing
+    service.backup_dir = Path(test_backup_dir)
+    service.max_backups = 5
+    service.backup_frequency_hours = 1
+    
+    # Set database path appropriately based on service type
+    if hasattr(service, 'database_path'):
+        service.database_path = test_db_path
+    
     return service
 
 
@@ -153,7 +162,7 @@ def sample_workout_data():
 def sample_user_data():
     """Sample user data for testing"""
     return {
-        "user_id": 12345,
+        "user_id": "12345",
         "first_name": "Test User",
         "username": "testuser",
         "is_admin": False,
@@ -171,26 +180,43 @@ async def create_test_database_with_data(db_path):
     """Create a test database with sample data"""
     from database.async_connection import get_async_session_context
     from database.models import Exercise, User, ExerciseType
+    from sqlalchemy import select
 
     async with get_async_session_context() as session:
         try:
-            # Add test user
-            user = User(
-                user_id=12345,
-                first_name="Test User",
-                username="testuser",
-                is_admin=False,
-                is_active=True,
+            # Add test user (check for duplicates)
+            existing_user = await session.execute(
+                select(User).where(User.user_id == "12345")
             )
-            session.add(user)
+            existing_user = existing_user.scalar_one_or_none()
+            
+            if not existing_user:
+                user = User(
+                    user_id="12345",
+                    first_name="Test User",
+                    username="testuser",
+                    is_admin=False,
+                    is_active=True,
+                )
+                session.add(user)
 
-            # Add test exercises
-            exercises = [
-                Exercise(name="supino reto", type=ExerciseType.RESISTENCIA, muscle_group="chest"),
-                Exercise(name="agachamento", type=ExerciseType.RESISTENCIA, muscle_group="legs"),
-                Exercise(name="deadlift", type=ExerciseType.RESISTENCIA, muscle_group="back"),
+            # Add test exercises (use merge to handle duplicates)
+            exercise_data = [
+                {"name": "supino reto", "type": ExerciseType.RESISTENCIA, "muscle_group": "chest"},
+                {"name": "agachamento", "type": ExerciseType.RESISTENCIA, "muscle_group": "legs"},
+                {"name": "deadlift", "type": ExerciseType.RESISTENCIA, "muscle_group": "back"},
             ]
-            session.add_all(exercises)
+            
+            for exercise_info in exercise_data:
+                # Check if exercise already exists
+                existing_exercise = await session.execute(
+                    select(Exercise).where(Exercise.name == exercise_info["name"])
+                )
+                existing_exercise = existing_exercise.scalar_one_or_none()
+                
+                if not existing_exercise:
+                    exercise = Exercise(**exercise_info)
+                    session.add(exercise)
 
             await session.commit()
             return db_path
@@ -281,23 +307,33 @@ def sync_populated_test_database(test_db_path):
         session = Session()
 
         try:
-            # Add test user
-            user = User(
-                user_id=12345,
-                first_name="Test User",
-                username="testuser",
-                is_admin=False,
-                is_active=True,
-            )
-            session.add(user)
+            # Add test user (check for duplicates)
+            existing_user = session.query(User).filter_by(user_id="12345").first()
+            
+            if not existing_user:
+                user = User(
+                    user_id="12345",
+                    first_name="Test User",
+                    username="testuser",
+                    is_admin=False,
+                    is_active=True,
+                )
+                session.add(user)
 
-            # Add test exercises
-            exercises = [
-                Exercise(name="supino reto", type=ExerciseType.RESISTENCIA, muscle_group="chest"),
-                Exercise(name="agachamento", type=ExerciseType.RESISTENCIA, muscle_group="legs"),
-                Exercise(name="deadlift", type=ExerciseType.RESISTENCIA, muscle_group="back"),
+            # Add test exercises (use merge to handle duplicates)
+            exercise_data = [
+                {"name": "supino reto", "type": ExerciseType.RESISTENCIA, "muscle_group": "chest"},
+                {"name": "agachamento", "type": ExerciseType.RESISTENCIA, "muscle_group": "legs"},
+                {"name": "deadlift", "type": ExerciseType.RESISTENCIA, "muscle_group": "back"},
             ]
-            session.add_all(exercises)
+            
+            for exercise_info in exercise_data:
+                # Check if exercise already exists
+                existing_exercise = session.query(Exercise).filter_by(name=exercise_info["name"]).first()
+                
+                if not existing_exercise:
+                    exercise = Exercise(**exercise_info)
+                    session.add(exercise)
 
             session.commit()
             yield test_db_path
@@ -312,6 +348,21 @@ def sync_populated_test_database(test_db_path):
             os.environ["DATABASE_URL"] = original_db_url
         else:
             os.environ.pop("DATABASE_URL", None)
+
+
+@pytest.fixture(scope="session")
+def mock_pg_dump():
+    """Add mock pg_dump to PATH for tests"""
+    test_utils_dir = Path(__file__).parent / "test_utils"
+    original_path = os.environ.get("PATH", "")
+    
+    # Add test_utils directory to PATH
+    os.environ["PATH"] = f"{test_utils_dir}:{original_path}"
+    
+    yield
+    
+    # Restore original PATH
+    os.environ["PATH"] = original_path
 
 
 # Test configuration

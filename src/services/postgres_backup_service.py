@@ -59,7 +59,7 @@ class PostgreSQLBackupService:
             except (subprocess.CalledProcessError, FileNotFoundError):
                 raise BackupError(
                     "pg_dump not found. Install PostgreSQL client tools.",
-                    error_code=ErrorCode.EXTERNAL_DEPENDENCY_ERROR
+                    error_code=ErrorCode.FILE_NOT_FOUND
                 )
             
             logger.info(f"Creating SQL backup: {backup_name}")
@@ -145,7 +145,7 @@ class PostgreSQLBackupService:
                     exercises.append({
                         "exercise_id": row.exercise_id,
                         "name": row.name,
-                        "type": row.type.value if row.type else None,
+                        "type": row.type.value if hasattr(row.type, 'value') else str(row.type) if row.type else None,
                         "muscle_group": row.muscle_group,
                         "equipment": row.equipment,
                         "description": row.description
@@ -248,7 +248,7 @@ class PostgreSQLBackupService:
             except (subprocess.CalledProcessError, FileNotFoundError):
                 raise BackupError(
                     "psql not found. Install PostgreSQL client tools.",
-                    error_code=ErrorCode.EXTERNAL_DEPENDENCY_ERROR
+                    error_code=ErrorCode.FILE_NOT_FOUND
                 )
             
             logger.warning(f"Starting database restore from SQL: {backup_path}")

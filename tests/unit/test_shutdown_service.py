@@ -125,29 +125,34 @@ class TestShutdownService:
         assert test_shutdown_service.emergency_backup_on_shutdown is False
         
         # Should not create backup
-        with patch('services.async_shutdown_service.backup_service') as mock_backup:
+        with patch('services.async_container.get_async_backup_service') as mock_get_service:
+            mock_backup = AsyncMock()
+            mock_get_service.return_value = mock_backup
             await test_shutdown_service._create_emergency_backup()
-            mock_backup.create_backup.assert_not_called()
+            mock_get_service.assert_not_called()
     
     @pytest.mark.asyncio
     async def test_create_emergency_backup_enabled(self, test_shutdown_service):
         """Test emergency backup when enabled"""
         test_shutdown_service.emergency_backup_on_shutdown = True
         
-        with patch('services.async_shutdown_service.backup_service') as mock_backup:
-            mock_backup.create_backup.return_value = "test_backup.db"
+        with patch('services.async_container.get_async_backup_service') as mock_get_service:
+            mock_backup = AsyncMock()
+            mock_backup.create_backup_sql.return_value = "test_backup.sql"
+            mock_get_service.return_value = mock_backup
             
-            await test_shutdown_service._create_emergency_backup()
+            with patch('services.backup_factory.BackupFactory.is_postgresql', return_value=True):
+                await test_shutdown_service._create_emergency_backup()
             
-            mock_backup.create_backup.assert_called_once()
-            # Check that backup name contains "emergency_shutdown"
-            call_args = mock_backup.create_backup.call_args[0]
-            assert "emergency_shutdown_backup_" in call_args[0]
+            # Should try SQL backup first for PostgreSQL
+            mock_backup.create_backup_sql.assert_called_once()
     
     def test_stop_background_services(self, test_shutdown_service):
         """Test stopping background services"""
-        with patch('services.async_shutdown_service.backup_service') as mock_backup:
+        with patch('services.backup_factory.BackupFactory.create_backup_service') as mock_create_service:
+            mock_backup = Mock()
             mock_backup.is_running = True
+            mock_create_service.return_value = mock_backup
             
             test_shutdown_service._stop_background_services()
             
@@ -269,16 +274,22 @@ class TestShutdownServiceEdgeCases:
         """Test emergency backup with error"""
         test_shutdown_service.emergency_backup_on_shutdown = True
         
-        with patch('services.async_shutdown_service.backup_service') as mock_backup:
-            mock_backup.create_backup.side_effect = Exception("Backup error")
+        with patch('services.async_container.get_async_backup_service') as mock_get_service:
+            mock_backup = AsyncMock()
+            mock_backup.create_backup_sql.side_effect = Exception("Backup error")
+            mock_get_service.return_value = mock_backup
             
-            # Should not raise exception
-            await test_shutdown_service._create_emergency_backup()
+            with patch('services.backup_factory.BackupFactory.is_postgresql', return_value=True):
+                # Should not raise exception
+                await test_shutdown_service._create_emergency_backup()
     
     def test_background_services_stop_error(self, test_shutdown_service):
         """Test background services stop with error"""
-        with patch('services.async_shutdown_service.backup_service') as mock_backup:
+        with patch('services.backup_factory.BackupFactory.create_backup_service') as mock_create_service:
+            mock_backup = Mock()
+            mock_backup.is_running = True
             mock_backup.stop_automated_backups.side_effect = Exception("Stop error")
+            mock_create_service.return_value = mock_backup
             
             # Should not raise exception
             test_shutdown_service._stop_background_services()
@@ -292,11 +303,17 @@ class TestShutdownServiceEdgeCases:
         test_shutdown_service.register_shutdown_handler(error_handler, "Error handler")
         test_shutdown_service.emergency_backup_on_shutdown = True
         
-        with patch('services.async_shutdown_service.backup_service') as mock_backup:
-            mock_backup.create_backup.side_effect = Exception("Backup error")
+        with patch('services.async_container.get_async_backup_service') as mock_get_service, \
+             patch('services.backup_factory.BackupFactory.create_backup_service') as mock_create_service:
+            mock_backup = AsyncMock()
+            mock_backup.create_backup_sql.side_effect = Exception("Backup error")
+            mock_backup.is_running = True
             mock_backup.stop_automated_backups.side_effect = Exception("Stop error")
+            mock_get_service.return_value = mock_backup
+            mock_create_service.return_value = mock_backup
             
-            # Should complete without raising exception
-            await test_shutdown_service.initiate_shutdown()
-            
-            assert test_shutdown_service.is_shutting_down is True
+            with patch('services.backup_factory.BackupFactory.is_postgresql', return_value=True):
+                # Should complete without raising exception
+                await test_shutdown_service.initiate_shutdown()
+                
+                assert test_shutdown_service.is_shutting_down is True

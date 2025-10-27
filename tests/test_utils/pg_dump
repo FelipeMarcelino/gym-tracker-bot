@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""Mock pg_dump for testing purposes"""
+import sys
+import os
+from pathlib import Path
+
+def main():
+    """Mock pg_dump behavior for tests"""
+    args = sys.argv[1:]
+    
+    # Handle --version check
+    if "--version" in args:
+        print("pg_dump (PostgreSQL) 15.3")
+        sys.exit(0)
+    
+    # Handle actual dump
+    if len(args) >= 2 and args[0] == "-f":
+        output_file = args[1]
+        # Create a simple SQL dump file
+        sql_content = """--
+-- PostgreSQL database dump (MOCK)
+--
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+
+-- Mock table data
+CREATE TABLE IF NOT EXISTS users (
+    user_id VARCHAR(50) PRIMARY KEY,
+    username VARCHAR(100),
+    first_name VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO users VALUES ('12345', 'testuser', 'Test User', '2025-01-01 00:00:00');
+
+-- End of dump
+"""
+        
+        # Write to output file
+        Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+        with open(output_file, 'w') as f:
+            f.write(sql_content)
+        
+        print(f"Mock pg_dump: Created {output_file}")
+        sys.exit(0)
+    
+    # Default success for other cases
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
