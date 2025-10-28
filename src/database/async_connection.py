@@ -32,8 +32,8 @@ class AsyncDatabaseConnection:
         """Initialize async database connection"""
         async with self._lock:
             if self._engine is None:
-                # Read DATABASE_URL from environment directly to support test overrides
-                database_url = settings.DATABASE_URL
+                # Use effective database URL (supports test environment override)
+                database_url = settings.effective_database_url
 
                 # Convert database URL to async version if needed
                 if database_url.startswith("sqlite:///"):

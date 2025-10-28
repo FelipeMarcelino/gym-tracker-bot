@@ -16,9 +16,13 @@ class Settings(BaseSettings):
     )
 
     # Core settings
+    ENVIRONMENT: str = Field(default="development", description="Environment (development, test, production)")
     TELEGRAM_BOT_TOKEN: Optional[str] = Field(None, description="Telegram bot token")
     AUTHORIZED_USER_IDS: str = Field(default="", description="Comma-separated string of authorized user IDs")
     DATABASE_URL: str = Field(default="sqlite:///gym_tracker.db", description="Database connection URL")
+    
+    # Test database override
+    TEST_DATABASE_URL: Optional[str] = Field(None, description="Test database URL (overrides DATABASE_URL in test environment)")
 
     # AI/ML settings
     WHISPER_MODEL: str = Field(default="whisper-large-v3", description="Whisper model to use for transcription")
@@ -103,11 +107,25 @@ class Settings(BaseSettings):
                 raise ValueError("Invalid Telegram bot token format")
         return v
 
+    @property
+    def effective_database_url(self) -> str:
+        """Get the effective database URL based on environment"""
+        if self.ENVIRONMENT == "test" and self.TEST_DATABASE_URL:
+            return self.TEST_DATABASE_URL
+        return self.DATABASE_URL
+
     @validator("DATABASE_URL")
     def validate_database_url(cls, v):
         """Validate database URL format"""
         if not v.startswith(("sqlite://", "postgresql://", "mysql://", "sqlite+aiosqlite://")):
             raise ValueError("Unsupported database URL format")
+        return v
+    
+    @validator("TEST_DATABASE_URL")
+    def validate_test_database_url(cls, v):
+        """Validate test database URL format"""
+        if v and not v.startswith(("sqlite://", "postgresql://", "mysql://", "sqlite+aiosqlite://")):
+            raise ValueError("Unsupported test database URL format")
         return v
 
     @validator("OLLAMA_HOST")
