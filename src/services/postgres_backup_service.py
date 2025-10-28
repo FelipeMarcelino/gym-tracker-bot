@@ -35,6 +35,22 @@ class PostgreSQLBackupService:
         logger.info(f"PostgreSQL backup service initialized: {self.backup_dir}")
         logger.info(f"Database URL: {self._safe_url()}")
         
+    def _safe_serialize_datetime(self, dt_value) -> Optional[str]:
+        """Safely serialize datetime/date/time objects to ISO format string"""
+        if dt_value is None:
+            return None
+        if hasattr(dt_value, 'isoformat'):
+            return dt_value.isoformat()
+        return str(dt_value)
+        
+    def _safe_serialize_enum(self, enum_value) -> Optional[str]:
+        """Safely serialize enum objects to string"""
+        if enum_value is None:
+            return None
+        if hasattr(enum_value, 'value'):
+            return enum_value.value
+        return str(enum_value)
+        
     def _safe_url(self) -> str:
         """Return database URL with password hidden"""
         if "@" in self.database_url:
@@ -132,8 +148,8 @@ class PostgreSQLBackupService:
                         "last_name": row.last_name,
                         "is_admin": row.is_admin,
                         "is_active": row.is_active,
-                        "created_at": row.created_at.isoformat() if row.created_at else None,
-                        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                        "created_at": self._safe_serialize_datetime(row.created_at),
+                        "updated_at": self._safe_serialize_datetime(row.updated_at),
                         "created_by": row.created_by
                     })
                 backup_data["data"]["users"] = users
@@ -145,7 +161,7 @@ class PostgreSQLBackupService:
                     exercises.append({
                         "exercise_id": row.exercise_id,
                         "name": row.name,
-                        "type": row.type.value if hasattr(row.type, 'value') else str(row.type) if row.type else None,
+                        "type": self._safe_serialize_enum(row.type),
                         "muscle_group": row.muscle_group,
                         "equipment": row.equipment,
                         "description": row.description
@@ -159,19 +175,19 @@ class PostgreSQLBackupService:
                     sessions.append({
                         "session_id": row.session_id,
                         "user_id": row.user_id,
-                        "date": row.date.isoformat() if row.date else None,
-                        "start_time": row.start_time.isoformat() if row.start_time else None,
-                        "end_time": row.end_time.isoformat() if row.end_time else None,
+                        "date": self._safe_serialize_datetime(row.date),
+                        "start_time": self._safe_serialize_datetime(row.start_time),
+                        "end_time": self._safe_serialize_datetime(row.end_time),
                         "body_weight_kg": row.body_weight_kg,
                         "energy_level": row.energy_level,
                         "notes": row.notes,
-                        "created_at": row.created_at.isoformat() if row.created_at else None,
+                        "created_at": self._safe_serialize_datetime(row.created_at),
                         "duration_minutes": row.duration_minutes,
                         "original_transcription": row.original_transcription,
                         "llm_model_used": row.llm_model_used,
                         "processing_time_seconds": row.processing_time_seconds,
-                        "status": row.status.value if row.status else None,
-                        "last_update": row.last_update.isoformat() if row.last_update else None,
+                        "status": self._safe_serialize_enum(row.status),
+                        "last_update": self._safe_serialize_datetime(row.last_update),
                         "audio_count": row.audio_count
                     })
                 backup_data["data"]["workout_sessions"] = sessions

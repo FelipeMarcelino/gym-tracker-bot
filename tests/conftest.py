@@ -13,12 +13,58 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+# Configure test database before importing settings
+os.environ["ENVIRONMENT"] = "test"
+os.environ["TEST_DATABASE_URL"] = "sqlite+aiosqlite:///test_gym_tracker.db"
+
 from config.logging_config import get_logger
 from database.async_connection import async_db
 from services.async_health_service import HealthService
 from services.async_shutdown_service import ShutdownService
 
 logger = get_logger(__name__)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_database():
+    """Setup and cleanup test database for the entire test session"""
+    from config.settings import settings
+    
+    # Print test database info
+    test_db_url = settings.effective_database_url
+    print(f"\n🧪 Using test database: {test_db_url}")
+    
+    yield
+    
+    # Cleanup: remove test database file after all tests
+    if "sqlite" in test_db_url and "test_gym_tracker.db" in test_db_url:
+        import os
+        db_file = "test_gym_tracker.db"
+        if os.path.exists(db_file):
+            os.remove(db_file)
+            print(f"🗑️  Cleaned up test database: {db_file}")
+
+
+@pytest.fixture
+async def clean_test_database():
+    """Clean test database before each test that needs a fresh state"""
+    from database.async_connection import async_db
+    from database.models import Base
+    
+    # Ensure database is initialized
+    await async_db.initialize()
+    
+    # Drop and recreate all tables for a clean state
+    async with async_db.engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+    
+    yield
+    
+    # Cleanup after test
+    await async_db.close()
+    async_db._engine = None
+    async_db._session_factory = None
 
 
 @pytest.fixture
