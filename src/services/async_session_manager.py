@@ -30,7 +30,7 @@ class AsyncSessionManager:
                     self._user_locks[user_id] = asyncio.Lock()
         return self._user_locks[user_id]
 
-    async def get_or_create_session(self, user_id: int) -> Tuple[WorkoutSession, bool]:
+    async def get_or_create_session(self, user_id: str) -> Tuple[WorkoutSession, bool]:
         """Get existing active session or create a new one (async)
         
         Args:
@@ -44,7 +44,7 @@ class AsyncSessionManager:
             DatabaseError: If database operation fails
 
         """
-        if not user_id:
+        if not user_id or not user_id.strip():
             raise ValidationError(
                 message="User ID is required",
                 field="user_id",
