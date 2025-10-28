@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import SQLAlchemyError
@@ -30,7 +30,7 @@ class AsyncSessionManager:
                     self._user_locks[user_id] = asyncio.Lock()
         return self._user_locks[user_id]
 
-    async def get_or_create_session(self, user_id: str) -> Tuple[WorkoutSession, bool]:
+    async def get_or_create_session(self, user_id: Union[str, int]) -> Tuple[WorkoutSession, bool]:
         """Get existing active session or create a new one (async)
         
         Args:
@@ -44,11 +44,17 @@ class AsyncSessionManager:
             DatabaseError: If database operation fails
 
         """
-        if not user_id or not user_id.strip():
+        original_user_id = user_id
+        if user_id is None:
+            normalized_user_id = ""
+        else:
+            normalized_user_id = str(user_id).strip()
+
+        if not normalized_user_id:
             raise ValidationError(
                 message="User ID is required",
                 field="user_id",
-                value=user_id,
+                value=original_user_id,
                 error_code=ErrorCode.MISSING_REQUIRED_FIELD,
                 user_message="User ID cannot be empty",
             )
@@ -56,7 +62,7 @@ class AsyncSessionManager:
         # Clean up stale sessions before checking for active ones
         await self.cleanup_stale_sessions()
 
-        user_lock = await self._get_user_lock(user_id)
+        user_lock = await self._get_user_lock(normalized_user_id)
 
         async with user_lock:
             async with get_async_session_context() as session:
@@ -67,7 +73,7 @@ class AsyncSessionManager:
                 # Find the most recent session for this user
                 stmt = (
                     select(WorkoutSession)
-                    .where(WorkoutSession.user_id == user_id)
+                    .where(WorkoutSession.user_id == normalized_user_id)
                     .order_by(WorkoutSession.date.desc(), WorkoutSession.start_time.desc())
                     .limit(1)
                 )
@@ -76,12 +82,14 @@ class AsyncSessionManager:
 
                 # Check if we can reuse the last session
                 if last_session and self._is_session_active(last_session, timeout_threshold):
-                    logger.info(f"Reusing active session {last_session.session_id} for user {user_id}")
+                    logger.info(
+                        f"Reusing active session {last_session.session_id} for user {normalized_user_id}"
+                    )
                     return last_session, False
 
                 # Create new session
                 new_session = WorkoutSession(
-                    user_id=user_id,
+                    user_id=normalized_user_id,
                     date=now.date(),
                     start_time=now.time(),
                     status=SessionStatus.ATIVA,
@@ -92,7 +100,9 @@ class AsyncSessionManager:
                 await session.commit()
                 await session.refresh(new_session)
 
-                logger.info(f"Created new session {new_session.session_id} for user {user_id}")
+                logger.info(
+                    f"Created new session {new_session.session_id} for user {normalized_user_id}"
+                )
                 return new_session, True
 
     def _is_session_active(self, session: WorkoutSession, timeout_threshold: datetime) -> bool:
