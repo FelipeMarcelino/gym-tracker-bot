@@ -11,6 +11,47 @@ from services.audio_service import AudioTranscriptionService
 from services.exceptions import AudioProcessingError, ServiceUnavailableError, ValidationError
 
 
+class MockAsyncContextManager:
+    """Simple async context manager returning the provided mock file object."""
+
+    def __init__(self, mock_file):
+        self.mock_file = mock_file
+
+    async def __aenter__(self):
+        return self.mock_file
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return None
+
+
+def configure_mock_aiofiles_open(mock_open, *, read_data=b""):
+    """Configure aiofiles.open mock to behave as an async context manager."""
+
+    def _open_side_effect(*args, **kwargs):
+        mode = ""
+        if len(args) > 1:
+            mode = args[1] or ""
+        elif "mode" in kwargs:
+            mode = kwargs["mode"] or ""
+
+        file_mock = AsyncMock()
+
+        # Provide async write capability for write modes
+        file_mock.write = AsyncMock(return_value=None)
+
+        # Provide async read capability when reading the file
+        if "r" in mode:
+            file_mock.read = AsyncMock(return_value=read_data)
+        else:
+            file_mock.read = AsyncMock(return_value=b"")
+
+        return MockAsyncContextManager(file_mock)
+
+    mock_open.side_effect = _open_side_effect
+
+    return mock_open
+
+
 class TestAudioServiceInstantiation:
     """Test audio service instantiation and configuration"""
 
@@ -189,13 +230,14 @@ class TestTranscriptionErrorHandling:
         for error in rate_limit_errors:
             mock_temp_file = MagicMock()
             mock_temp_file.name = "/tmp/test_audio.ogg"
-            
+
             with patch('asyncio.to_thread', return_value=mock_temp_file), \
-                 patch('aiofiles.open'), \
+                 patch('aiofiles.open') as mock_open, \
                  patch('aiofiles.os.remove'):
-                
+                configure_mock_aiofiles_open(mock_open, read_data=test_file)
+
                 audio_service.client.audio.transcriptions.create = AsyncMock(side_effect=error)
-                
+
                 with pytest.raises(ServiceUnavailableError) as exc_info:
                     await audio_service.transcribe_telegram_voice(test_file)
                 
@@ -220,11 +262,12 @@ class TestTranscriptionErrorHandling:
         
         for error in auth_errors:
             with patch('asyncio.to_thread'), \
-                 patch('aiofiles.open'), \
+                 patch('aiofiles.open') as mock_open, \
                  patch('aiofiles.os.remove'):
-                
+                configure_mock_aiofiles_open(mock_open, read_data=test_file)
+
                 audio_service.client.audio.transcriptions.create = AsyncMock(side_effect=error)
-                
+
                 with pytest.raises(ServiceUnavailableError) as exc_info:
                     await audio_service.transcribe_telegram_voice(test_file)
                 
@@ -244,11 +287,12 @@ class TestTranscriptionErrorHandling:
         
         for error in generic_errors:
             with patch('asyncio.to_thread'), \
-                 patch('aiofiles.open'), \
+                 patch('aiofiles.open') as mock_open, \
                  patch('aiofiles.os.remove'):
-                
+                configure_mock_aiofiles_open(mock_open, read_data=test_file)
+
                 audio_service.client.audio.transcriptions.create = AsyncMock(side_effect=error)
-                
+
                 with pytest.raises(AudioProcessingError) as exc_info:
                     await audio_service.transcribe_telegram_voice(test_file)
                 
@@ -263,11 +307,12 @@ class TestTranscriptionErrorHandling:
         
         for empty_result in empty_results:
             with patch('asyncio.to_thread'), \
-                 patch('aiofiles.open'), \
+                 patch('aiofiles.open') as mock_open, \
                  patch('aiofiles.os.remove'):
-                
+                configure_mock_aiofiles_open(mock_open, read_data=test_file)
+
                 audio_service.client.audio.transcriptions.create = AsyncMock(return_value=empty_result)
-                
+
                 with pytest.raises(AudioProcessingError) as exc_info:
                     await audio_service.transcribe_telegram_voice(test_file)
                 
@@ -353,12 +398,13 @@ class TestFileSystemOperations:
         mock_temp_file.name = "/tmp/test_audio.ogg"
         
         with patch('asyncio.to_thread', return_value=mock_temp_file), \
-             patch('aiofiles.open'), \
+             patch('aiofiles.open') as mock_open, \
              patch('aiofiles.os.remove') as mock_remove:
-            
+            configure_mock_aiofiles_open(mock_open, read_data=test_file)
+
             # Mock successful transcription
             audio_service.client.audio.transcriptions.create = AsyncMock(return_value="transcription result")
-            
+
             result = await audio_service.transcribe_telegram_voice(test_file)
             
             assert result == "transcription result"
@@ -373,9 +419,10 @@ class TestFileSystemOperations:
         mock_temp_file.name = "/tmp/test_audio.ogg"
         
         with patch('asyncio.to_thread', return_value=mock_temp_file), \
-             patch('aiofiles.open'), \
+             patch('aiofiles.open') as mock_open, \
              patch('aiofiles.os.remove') as mock_remove:
-            
+            configure_mock_aiofiles_open(mock_open, read_data=test_file)
+
             # Mock successful transcription but failed cleanup
             audio_service.client.audio.transcriptions.create = AsyncMock(return_value="transcription result")
             mock_remove.side_effect = Exception("Permission denied")
@@ -407,11 +454,12 @@ class TestTranscriptionConfiguration:
         mock_temp_file.name = "/tmp/test_audio.ogg"
         
         with patch('asyncio.to_thread', return_value=mock_temp_file), \
-             patch('aiofiles.open'), \
+             patch('aiofiles.open') as mock_open, \
              patch('aiofiles.os.remove'):
-            
+            configure_mock_aiofiles_open(mock_open, read_data=test_file)
+
             audio_service.client.audio.transcriptions.create = AsyncMock(return_value="transcription result")
-            
+
             await audio_service.transcribe_telegram_voice(test_file)
             
             # Verify API call parameters
@@ -431,11 +479,12 @@ class TestTranscriptionConfiguration:
         mock_temp_file.name = "/tmp/test_audio.ogg"
         
         with patch('asyncio.to_thread', return_value=mock_temp_file), \
-             patch('aiofiles.open'), \
+             patch('aiofiles.open') as mock_open, \
              patch('aiofiles.os.remove'):
-            
+            configure_mock_aiofiles_open(mock_open, read_data=test_file)
+
             audio_service.client.audio.transcriptions.create = AsyncMock(return_value="transcription result")
-            
+
             await audio_service.transcribe_telegram_voice(test_file)
             
             call_args = audio_service.client.audio.transcriptions.create.call_args
@@ -454,11 +503,12 @@ class TestTranscriptionConfiguration:
         mock_temp_file.name = "/tmp/test_audio.ogg"
         
         with patch('asyncio.to_thread', return_value=mock_temp_file), \
-             patch('aiofiles.open'), \
+             patch('aiofiles.open') as mock_open, \
              patch('aiofiles.os.remove'):
-            
+            configure_mock_aiofiles_open(mock_open, read_data=test_file)
+
             audio_service.client.audio.transcriptions.create = AsyncMock(return_value="transcription result")
-            
+
             await audio_service.transcribe_telegram_voice(test_file)
             
             call_args = audio_service.client.audio.transcriptions.create.call_args
@@ -492,11 +542,12 @@ class TestEdgeCasesAndStress:
         mock_temp_file.name = "/tmp/large_audio.ogg"
         
         with patch('asyncio.to_thread', return_value=mock_temp_file), \
-             patch('aiofiles.open'), \
+             patch('aiofiles.open') as mock_open, \
              patch('aiofiles.os.remove'):
-            
+            configure_mock_aiofiles_open(mock_open, read_data=large_file)
+
             audio_service.client.audio.transcriptions.create = AsyncMock(return_value="large file transcription")
-            
+
             result = await audio_service.transcribe_telegram_voice(large_file)
             assert result == "large file transcription"
 
@@ -518,11 +569,12 @@ class TestEdgeCasesAndStress:
             mock_temp_file.name = "/tmp/test_audio.ogg"
             
             with patch('asyncio.to_thread', return_value=mock_temp_file), \
-                 patch('aiofiles.open'), \
+                 patch('aiofiles.open') as mock_open, \
                  patch('aiofiles.os.remove'):
-                
+                configure_mock_aiofiles_open(mock_open, read_data=test_file)
+
                 audio_service.client.audio.transcriptions.create = AsyncMock(return_value=unicode_result)
-                
+
                 result = await audio_service.transcribe_telegram_voice(test_file)
                 assert result == unicode_result
 
@@ -544,11 +596,12 @@ class TestEdgeCasesAndStress:
             mock_temp_file.name = "/tmp/test_audio.ogg"
             
             with patch('asyncio.to_thread', return_value=mock_temp_file), \
-                 patch('aiofiles.open'), \
+                 patch('aiofiles.open') as mock_open, \
                  patch('aiofiles.os.remove'):
-                
+                configure_mock_aiofiles_open(mock_open, read_data=test_file)
+
                 audio_service.client.audio.transcriptions.create = AsyncMock(return_value=input_result)
-                
+
                 result = await audio_service.transcribe_telegram_voice(test_file)
                 assert result == expected_output
 
@@ -567,9 +620,10 @@ class TestEdgeCasesAndStress:
         mock_temp_file.name = "/tmp/concurrent_audio.ogg"
         
         with patch('asyncio.to_thread', return_value=mock_temp_file), \
-             patch('aiofiles.open'), \
+             patch('aiofiles.open') as mock_open, \
              patch('aiofiles.os.remove'):
-            
+            configure_mock_aiofiles_open(mock_open, read_data=b"")
+
             # Mock different results for each call
             audio_service.client.audio.transcriptions.create = AsyncMock(
                 side_effect=[f"result_{i}" for i in range(len(test_files))]
@@ -604,20 +658,6 @@ class TestEdgeCasesAndStress:
                 with patch('services.audio_service.AsyncGroq') as mock_groq:
                     service = AudioTranscriptionService()
                     mock_groq.assert_called_with(api_key=api_key)
-
-
-# Helper classes for mocking
-class MockAsyncContextManager:
-    def __init__(self, mock_file):
-        self.mock_file = mock_file
-    
-    async def __aenter__(self):
-        return self.mock_file
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        return None
-
-
 class TestServiceConfigurationEdgeCases:
     """Test service configuration edge cases"""
 
