@@ -10,15 +10,13 @@ from typing import Any, Callable, Deque, Dict
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from config.settings import settings
 from config.messages import messages
+from config.settings import settings
 from models.service_models import (
     ActiveUsersCount,
     CleanupResult,
     RateLimitCheckResult,
     RateLimitConfig,
-    RateLimitInfo,
-    RateLimitStatus,
     RateLimiterStats,
 )
 
@@ -65,7 +63,7 @@ class RateLimiter:
 
     def get_reset_time(self, user_id: int) -> int:
         """Get seconds until rate limit resets for user"""
-        user_queue = self.user_requests[user_id]
+        user_queue = self.user_requests.get(user_id, [])
         if not user_queue:
             return 0
 
@@ -81,9 +79,10 @@ class RateLimiter:
 
         Returns:
             RateLimitCheckResult with is_allowed and remaining_requests
+
         """
         now = time.time()
-        user_queue = self.user_requests[user_id]
+        user_queue = self.user_requests.get(user_id, [])
 
         # Count valid requests (within the window)
         valid_requests = sum(1 for timestamp in user_queue if timestamp > now - self.window_seconds)
@@ -101,17 +100,15 @@ class RateLimiter:
 
         Returns:
             Number of users cleaned up
+
         """
         now = time.time()
         users_to_remove = []
 
         for user_id, user_queue in self.user_requests.items():
-            # Remove expired requests first
-            while user_queue and user_queue[0] <= now - self.window_seconds:
-                user_queue.popleft()
-
-            # If no requests remain or last request is too old, mark for removal
-            if not user_queue or user_queue[-1] <= now - max_inactive_seconds:
+            # If no requests exist or last request is too old, mark for removal
+            # Don't clean expired window requests here - that's handled by is_allowed()
+            if not user_queue or user_queue[-1] < now - max_inactive_seconds:
                 users_to_remove.append(user_id)
 
         for user_id in users_to_remove:
@@ -122,16 +119,16 @@ class RateLimiter:
 
 # Global rate limiters with configurable limits
 _general_limiter = RateLimiter(
-    max_requests=settings.RATE_LIMIT_GENERAL_REQUESTS, 
-    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS
+    max_requests=settings.RATE_LIMIT_GENERAL_REQUESTS,
+    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
 )
 _voice_limiter = RateLimiter(
-    max_requests=settings.RATE_LIMIT_VOICE_REQUESTS, 
-    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS
+    max_requests=settings.RATE_LIMIT_VOICE_REQUESTS,
+    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
 )
 _command_limiter = RateLimiter(
-    max_requests=settings.RATE_LIMIT_COMMAND_REQUESTS, 
-    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS
+    max_requests=settings.RATE_LIMIT_COMMAND_REQUESTS,
+    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
 )
 
 
@@ -147,7 +144,7 @@ def rate_limit_general(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Await
             message = messages.RATE_LIMIT_GENERAL.format(
                 reset_time=reset_time,
                 max_requests=_general_limiter.max_requests,
-                window_seconds=_general_limiter.window_seconds
+                window_seconds=_general_limiter.window_seconds,
             )
             await update.message.reply_text(message)
             logger.warning(f"Rate limit geral: Usuário {user_id} bloqueado por {reset_time}s")
@@ -173,7 +170,7 @@ def rate_limit_voice(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitab
             message = messages.RATE_LIMIT_VOICE.format(
                 reset_time=reset_time,
                 max_requests=_voice_limiter.max_requests,
-                window_seconds=_voice_limiter.window_seconds
+                window_seconds=_voice_limiter.window_seconds,
             )
             await update.message.reply_text(message)
             logger.warning(f"Rate limit de voz: Usuário {user_id} bloqueado por {reset_time}s")
@@ -198,7 +195,7 @@ def rate_limit_commands(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awai
             message = messages.RATE_LIMIT_COMMANDS.format(
                 reset_time=reset_time,
                 max_requests=_command_limiter.max_requests,
-                window_seconds=_command_limiter.window_seconds
+                window_seconds=_command_limiter.window_seconds,
             )
             await update.message.reply_text(message)
             logger.warning(f"Rate limit de comandos: Usuário {user_id} bloqueado por {reset_time}s")
@@ -211,43 +208,8 @@ def rate_limit_commands(func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awai
     return wrapper
 
 
-def get_rate_limit_status(user_id: int) -> RateLimitStatus:
-    """Get current rate limit status for a user"""
-    # Use check_status() instead of is_allowed() to avoid modifying state
-    general_result = _general_limiter.check_status(user_id)
-    voice_result = _voice_limiter.check_status(user_id)
-    commands_result = _command_limiter.check_status(user_id)
-
-    return RateLimitStatus(
-        general=RateLimitInfo(
-            allowed=general_result.is_allowed,
-            remaining=general_result.remaining_requests,
-            reset_time=_general_limiter.get_reset_time(user_id),
-            limit=_general_limiter.max_requests,
-            window=_general_limiter.window_seconds,
-        ),
-        voice=RateLimitInfo(
-            allowed=voice_result.is_allowed,
-            remaining=voice_result.remaining_requests,
-            reset_time=_voice_limiter.get_reset_time(user_id),
-            limit=_voice_limiter.max_requests,
-            window=_voice_limiter.window_seconds,
-        ),
-        commands=RateLimitInfo(
-            allowed=commands_result.is_allowed,
-            remaining=commands_result.remaining_requests,
-            reset_time=_command_limiter.get_reset_time(user_id),
-            limit=_command_limiter.max_requests,
-            window=_command_limiter.window_seconds,
-        ),
-    )
 
 
-def clear_rate_limits(user_id: int) -> None:
-    """Clear rate limits for a user (admin function)"""
-    _general_limiter.user_requests.pop(user_id, None)
-    _voice_limiter.user_requests.pop(user_id, None)
-    _command_limiter.user_requests.pop(user_id, None)
 
 
 def get_rate_limiter_stats() -> RateLimiterStats:
@@ -261,15 +223,15 @@ def get_rate_limiter_stats() -> RateLimiterStats:
         limits={
             "general": RateLimitConfig(
                 requests=_general_limiter.max_requests,
-                window=_general_limiter.window_seconds
+                window=_general_limiter.window_seconds,
             ),
             "voice": RateLimitConfig(
                 requests=_voice_limiter.max_requests,
-                window=_voice_limiter.window_seconds
+                window=_voice_limiter.window_seconds,
             ),
             "commands": RateLimitConfig(
                 requests=_command_limiter.max_requests,
-                window=_command_limiter.window_seconds
+                window=_command_limiter.window_seconds,
             ),
         },
     )
@@ -283,6 +245,7 @@ def cleanup_all_inactive_users(max_inactive_seconds: int = 3600) -> CleanupResul
 
     Returns:
         CleanupResult with cleanup counts per limiter
+
     """
     general_cleaned = _general_limiter.cleanup_inactive_users(max_inactive_seconds)
     voice_cleaned = _voice_limiter.cleanup_inactive_users(max_inactive_seconds)
@@ -293,7 +256,7 @@ def cleanup_all_inactive_users(max_inactive_seconds: int = 3600) -> CleanupResul
     if total_cleaned > 0:
         logger.info(
             f"Cleaned up {total_cleaned} inactive users from rate limiters "
-            f"(general: {general_cleaned}, voice: {voice_cleaned}, commands: {commands_cleaned})"
+            f"(general: {general_cleaned}, voice: {voice_cleaned}, commands: {commands_cleaned})",
         )
 
     return CleanupResult(
