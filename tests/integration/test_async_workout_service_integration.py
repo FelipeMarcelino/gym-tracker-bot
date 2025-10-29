@@ -275,11 +275,12 @@ class TestAsyncWorkoutServiceDatabaseIntegration:
                 audio_count=3,
             )
 
-            # Recent active session
+            # Recent active session (create time 65 minutes ago to ensure it's > 55 minutes)
+            session_start_time = datetime.now() - timedelta(minutes=65)
             recent_session = WorkoutSession(
                 user_id="status_test_user",
-                date=date.today(),
-                start_time=(datetime.now() - timedelta(hours=1)).time(),  # 1 hour ago
+                date=session_start_time.date(),
+                start_time=session_start_time.time(),
                 status=SessionStatus.ATIVA,
                 audio_count=2,
             )
@@ -330,7 +331,7 @@ class TestAsyncWorkoutServiceDatabaseIntegration:
         assert result["is_active"] == SessionStatus.ATIVA
         assert result["resistance_count"] == 1
         assert result["aerobic_count"] == 1
-        assert result["minutes_passed"] >= 55  # Around 1 hour (allowing for test execution time)
+        assert result["minutes_passed"] >= 60  # Should be around 65 minutes (allowing for test execution time)
         assert result["hours_passed"] >= 0
 
     @pytest.mark.asyncio

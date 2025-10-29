@@ -96,9 +96,10 @@ class AudioTranscriptionService:
                         prompt=self.gym_vocabulary,
                     )
                 except Exception as e:
-                    # Check for rate limit errors (HTTP 429 or rate_limit in message)
+                    # Check for rate limit errors (HTTP 429 or rate limit in message)
                     error_str = str(e).lower()
                     is_rate_limit = (
+                        "rate limit" in error_str or
                         "rate_limit" in error_str or
                         "429" in error_str or
                         "too many requests" in error_str or
