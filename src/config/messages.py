@@ -178,11 +178,15 @@ _Em breve vou processar essa informação com IA!_ 🤖"""
 
 🔄 Processando..."""
 
-    AUDIO_SUCCESS_NEW_SESSION = "✅ **Nova sessão criada e áudio/texto processado!**\n\n"
-    AUDIO_SUCCESS_EXISTING_SESSION = "✅ **Áudio/Texto #{audio_count} adicionado à sessão!**\n\n"
+    AUDIO_SUCCESS_NEW_SESSION = (
+        '✅ **Nova sessão criada e áudio/texto processado!**\n\n'
+    )
+    AUDIO_SUCCESS_EXISTING_SESSION = (
+        '✅ **Áudio/Texto #{audio_count} adicionado à sessão!**\n\n'
+    )
 
-    AUDIO_SUCCESS_FOOTER_NEW = "💡 _Envie mais áudios ou texto para adicionar exercícios a esta sessão_"
-    AUDIO_SUCCESS_FOOTER_CONTINUE = "💡 _Continue enviando áudios ou texto ou aguarde 3h para iniciar nova sessão_"
+    AUDIO_SUCCESS_FOOTER_NEW = '💡 _Envie mais áudios ou texto para adicionar exercícios a esta sessão_'
+    AUDIO_SUCCESS_FOOTER_CONTINUE = '💡 _Continue enviando áudios ou texto ou aguarde 3h para iniciar nova sessão_'
 
     # Status messages
     STATUS_NO_SESSION = """📊 **Status**
@@ -233,14 +237,20 @@ Envie um áudio para começar!"""
 
 """
 
-    FINISH_MUSCLE_GROUPS_SECTION = "🎯 **Músculos Trabalhados:** {muscle_groups}\n\n"
+    FINISH_MUSCLE_GROUPS_SECTION = (
+        '🎯 **Músculos Trabalhados:** {muscle_groups}\n\n'
+    )
 
     # Error messages
-    ERROR_INVALID_DATA = "❌ **Dados inválidos detectados**\n\n{errors}"
-    ERROR_PROCESSING = "❌ **Erro no processamento**\n\n{error_details}"
-    ERROR_STATUS_FETCH = "❌ **Erro ao buscar status**\n\n{error_message}\n\n🔄 _Tente novamente_"
-    ERROR_UNEXPECTED = "❌ **Erro inesperado**\n\n{error_message}\n\n🔄 _Tente novamente_"
-    ERROR_FINISH_SESSION = "❌ Erro: {error}"
+    ERROR_INVALID_DATA = '❌ **Dados inválidos detectados**\n\n{errors}'
+    ERROR_PROCESSING = '❌ **Erro no processamento**\n\n{error_details}'
+    ERROR_STATUS_FETCH = (
+        '❌ **Erro ao buscar status**\n\n{error_message}\n\n🔄 _Tente novamente_'
+    )
+    ERROR_UNEXPECTED = (
+        '❌ **Erro inesperado**\n\n{error_message}\n\n🔄 _Tente novamente_'
+    )
+    ERROR_FINISH_SESSION = '❌ Erro: {error}'
     ERROR_SESSION_NOT_FOUND = """❌ Você não tem nenhuma sessão ativa para finalizar.
 
 Envie um áudio de treino para iniciar uma nova sessão!"""
@@ -250,11 +260,15 @@ Envie um áudio de treino para iniciar uma nova sessão!"""
 ⏰ Duração: {duration}min"""
 
     # Specific error messages for different types
-    ERROR_VALIDATION = "❌ **Dados inválidos**\n\n{message}{details}"
-    ERROR_AUDIO_PROCESSING = "🎤 **Erro na transcrição**\n\n{message}{rate_limit_note}"
-    ERROR_LLM_PARSING = "🤖 **Erro na análise**\n\n{message}\n\n💡 _Tente descrever o treino de forma mais clara_"
-    ERROR_SERVICE_UNAVAILABLE = "🔌 **Serviço indisponível**\n\n{message}{details}"
-    ERROR_DATABASE = "💾 **Erro interno**\n\n{message}\n\n🔄 _Tente novamente em alguns instantes_"
+    ERROR_VALIDATION = '❌ **Dados inválidos**\n\n{message}{details}'
+    ERROR_AUDIO_PROCESSING = (
+        '🎤 **Erro na transcrição**\n\n{message}{rate_limit_note}'
+    )
+    ERROR_LLM_PARSING = '🤖 **Erro na análise**\n\n{message}\n\n💡 _Tente descrever o treino de forma mais clara_'
+    ERROR_SERVICE_UNAVAILABLE = (
+        '🔌 **Serviço indisponível**\n\n{message}{details}'
+    )
+    ERROR_DATABASE = '💾 **Erro interno**\n\n{message}\n\n🔄 _Tente novamente em alguns instantes_'
 
     # Rate limit messages
     RATE_LIMIT_GENERAL = """⏰ **Rate limit atingido**
@@ -289,66 +303,70 @@ Você não tem autorização para utilizá-lo.
 _Seu ID: `{user_id}`_"""
 
     # Unknown command
-    UNKNOWN_COMMAND = "❓ Comando não reconhecido.\nUse /help para ver os comandos disponíveis."
+    UNKNOWN_COMMAND = '❓ Comando não reconhecido.\nUse /help para ver os comandos disponíveis.'
 
     @classmethod
     def format_transcription_response(cls, transcription: str) -> str:
         """Format transcription part of success message"""
-        return f"📝 **Você disse:**\n_{transcription}_\n\n"
+        return f'📝 **Você disse:**\n_{transcription}_\n\n'
 
     @classmethod
-    def format_exercise_section(cls, resistance_exercises: list, aerobic_exercises: list) -> str:
+    def format_exercise_section(
+        cls, resistance_exercises: list, aerobic_exercises: list
+    ) -> str:
         """Format the exercises section of success messages"""
-        response = ""
+        response = ''
 
         if resistance_exercises:
-            response += "💪 **Exercícios Adicionados:**\n"
+            response += '💪 **Exercícios Adicionados:**\n'
             for ex in resistance_exercises:
                 response += cls._format_single_exercise(ex)
 
         if aerobic_exercises:
-            response += "🏃 **Exercícios Aeróbicos:**\n"
+            response += '🏃 **Exercícios Aeróbicos:**\n'
             for ex in aerobic_exercises:
                 response += cls._format_single_aerobic_exercise(ex)
-            response += "\n"
+            response += '\n'
 
         return response
 
     @classmethod
     def _format_single_exercise(cls, exercises: Dict[str, Any]) -> str:
         """Format a single resistance exercise"""
-        weights = exercises.get("weights_kg", [])
-        if not weights and exercises.get("weight_kg"):
-            weights = [exercises.get("weight_kg")] * exercises.get("sets", 1)
+        weights = exercises.get('weights_kg', [])
+        if not weights and exercises.get('weight_kg'):
+            weights = [exercises.get('weight_kg')] * exercises.get('sets', 1)
 
-        reps = exercises.get("reps", [])
-        rest_seconds = exercises.get("rest_seconds")
-        difficulty = exercises.get("perceived_difficulty")
+        reps = exercises.get('reps', [])
+        rest_seconds = exercises.get('rest_seconds')
+        difficulty = exercises.get('perceived_difficulty')
 
         response = f"• **{exercises['name'].title()}**:\n"
 
         # Check if it's an isometric exercise by name
-        is_isometric = is_isometric_exercise(exercises.get("name", ""))
+        is_isometric = is_isometric_exercise(exercises.get('name', ''))
 
         # Show series details
         if is_isometric:
             # Format time-based exercises (isometric)
-            for idx,i in enumerate(range(exercises.get("sets", 0))):
-                rep = reps[i] if i < len(reps) else "?"
-                response += f"  └ Série {i+1}: {rep} segundos"
+            for idx, i in enumerate(range(exercises.get('sets', 0))):
+                rep = reps[i] if i < len(reps) else '?'
+                response += f'  └ Série {i+1}: {rep} segundos'
                 if weights:
                     if weights[idx] != 0:
-                        response += f" com {weights[idx]} kgs "
-                response += "\n"
+                        response += f' com {weights[idx]} kgs '
+                response += '\n'
         elif len(set(weights)) > 1:  # Different weights
-            for i in range(exercises.get("sets", 0)):
-                rep = reps[i] if i < len(reps) else "?"
-                weight = weights[i] if i < len(weights) else "?"
-                response += f"  └ Série {i+1}: {rep} reps × {weight}kg\n"
+            for i in range(exercises.get('sets', 0)):
+                rep = reps[i] if i < len(reps) else '?'
+                weight = weights[i] if i < len(weights) else '?'
+                response += f'  └ Série {i+1}: {rep} reps × {weight}kg\n'
         else:  # Same weight for all sets
-            reps_str = ", ".join(map(str, reps))
-            weight = weights[0] if weights else "?"
-            response += f"  └ {exercises.get('sets')}× ({reps_str}) com {weight}kg\n"
+            reps_str = ', '.join(map(str, reps))
+            weight = weights[0] if weights else '?'
+            response += (
+                f"  └ {exercises.get('sets')}× ({reps_str}) com {weight}kg\n"
+            )
 
         # Rest time
         if rest_seconds:
@@ -356,18 +374,18 @@ _Seu ID: `{user_id}`_"""
                 minutes = rest_seconds // 60
                 seconds = rest_seconds % 60
                 if seconds > 0:
-                    response += f"  └ ⏱️ Descanso: {minutes}min {seconds}s\n"
+                    response += f'  └ ⏱️ Descanso: {minutes}min {seconds}s\n'
                 else:
-                    response += f"  └ ⏱️ Descanso: {minutes}min\n"
+                    response += f'  └ ⏱️ Descanso: {minutes}min\n'
             else:
-                response += f"  └ ⏱️ Descanso: {rest_seconds}s\n"
+                response += f'  └ ⏱️ Descanso: {rest_seconds}s\n'
 
         # Difficulty
         if difficulty:
             emoji, desc = cls._get_difficulty_emoji_and_desc(difficulty)
-            response += f"  └ {emoji} RPE: {difficulty}/10 ({desc})\n"
+            response += f'  └ {emoji} RPE: {difficulty}/10 ({desc})\n'
 
-        response += "\n"
+        response += '\n'
         return response
 
     @classmethod
@@ -376,59 +394,65 @@ _Seu ID: `{user_id}`_"""
         response = f"• **{exercises['name'].title()}**:\n"
 
         # Duration (always present)
-        duration = exercises.get("duration_minutes")
+        duration = exercises.get('duration_minutes')
         if duration:
-            response += f"  └ ⏱️ Duração: {duration}min\n"
+            response += f'  └ ⏱️ Duração: {duration}min\n'
 
         # Distance
-        distance = exercises.get("distance_km")
+        distance = exercises.get('distance_km')
         if distance:
-            response += f"  └ 📏 Distância: {distance}km\n"
+            response += f'  └ 📏 Distância: {distance}km\n'
 
         # Heart rate
-        heart_rate = exercises.get("average_heart_rate")
+        heart_rate = exercises.get('average_heart_rate')
         if heart_rate:
-            response += f"  └ ❤️ FC média: {heart_rate} bpm\n"
+            response += f'  └ ❤️ FC média: {heart_rate} bpm\n'
 
         # Calories
-        calories = exercises.get("calories_burned")
+        calories = exercises.get('calories_burned')
         if calories:
-            response += f"  └ 🔥 Calorias: {calories} kcal\n"
+            response += f'  └ 🔥 Calorias: {calories} kcal\n'
 
         # Intensity
-        intensity = exercises.get("intensity_level")
+        intensity = exercises.get('intensity_level')
         if intensity:
-            intensity_emoji, intensity_desc = cls._get_intensity_emoji_and_desc(intensity)
-            response += f"  └ {intensity_emoji} Intensidade: {intensity_desc}\n"
+            (
+                intensity_emoji,
+                intensity_desc,
+            ) = cls._get_intensity_emoji_and_desc(intensity)
+            response += (
+                f'  └ {intensity_emoji} Intensidade: {intensity_desc}\n'
+            )
 
-        response += "\n"
+        response += '\n'
         return response
 
     @classmethod
     def _get_intensity_emoji_and_desc(cls, intensity: str) -> tuple[str, str]:
         """Get emoji and description for aerobic intensity level"""
         intensity_map = {
-            "low": ("😊", "Leve"),
-            "moderate": ("😐", "Moderada"),
-            "high": ("😤", "Alta"),
-            "hiit": ("🔥", "HIIT"),
+            'low': ('😊', 'Leve'),
+            'moderate': ('😐', 'Moderada'),
+            'high': ('😤', 'Alta'),
+            'hiit': ('🔥', 'HIIT'),
         }
-        return intensity_map.get(intensity.lower(), ("⚡", intensity.title()))
+        return intensity_map.get(intensity.lower(), ('⚡', intensity.title()))
 
     @classmethod
-    def _get_difficulty_emoji_and_desc(cls, difficulty: int) -> tuple[str, str]:
+    def _get_difficulty_emoji_and_desc(
+        cls, difficulty: int
+    ) -> tuple[str, str]:
         """Get emoji and description for difficulty level"""
         if difficulty <= 2:
-            return "😊", "Muito fácil"
+            return '😊', 'Muito fácil'
         if difficulty <= 4:
-            return "🙂", "Fácil"
+            return '🙂', 'Fácil'
         if difficulty <= 6:
-            return "😐", "Moderado"
+            return '😐', 'Moderado'
         if difficulty <= 8:
-            return "😤", "Difícil"
-        return "🔥", "Muito difícil"
+            return '😤', 'Difícil'
+        return '🔥', 'Muito difícil'
 
 
 # Global messages instance
 messages = Messages()
-

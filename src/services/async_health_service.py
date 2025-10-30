@@ -17,53 +17,101 @@ logger = get_logger(__name__)
 
 class HealthStatus(BaseModel):
     """Health status data model"""
+
     model_config = ConfigDict(
         json_encoders={datetime: lambda v: v.isoformat()},
-        validate_assignment=True
+        validate_assignment=True,
     )
 
-    status: str = Field(..., pattern="^(healthy|degraded|unhealthy)$", description="Overall health status")
-    timestamp: datetime = Field(..., description="Timestamp of health check")
-    uptime_seconds: int = Field(..., ge=0, description="System uptime in seconds")
-    checks: Dict[str, Any] = Field(default_factory=dict, description="Individual health check results")
-    metrics: Dict[str, Any] = Field(default_factory=dict, description="System and application metrics")
+    status: str = Field(
+        ...,
+        pattern='^(healthy|degraded|unhealthy)$',
+        description='Overall health status',
+    )
+    timestamp: datetime = Field(..., description='Timestamp of health check')
+    uptime_seconds: int = Field(
+        ..., ge=0, description='System uptime in seconds'
+    )
+    checks: Dict[str, Any] = Field(
+        default_factory=dict, description='Individual health check results'
+    )
+    metrics: Dict[str, Any] = Field(
+        default_factory=dict, description='System and application metrics'
+    )
 
 
 class SystemMetrics(BaseModel):
     """System performance metrics"""
+
     model_config = ConfigDict(validate_assignment=True)
 
-    cpu_percent: float = Field(..., ge=0, le=100, description="CPU usage percentage")
-    memory_percent: float = Field(..., ge=0, le=100, description="Memory usage percentage")
-    memory_used_mb: float = Field(..., ge=0, description="Memory used in MB")
-    memory_total_mb: float = Field(..., ge=0, description="Total memory in MB")
-    disk_percent: float = Field(..., ge=0, le=100, description="Disk usage percentage")
-    disk_used_gb: float = Field(..., ge=0, description="Disk used in GB")
-    disk_total_gb: float = Field(..., ge=0, description="Total disk space in GB")
+    cpu_percent: float = Field(
+        ..., ge=0, le=100, description='CPU usage percentage'
+    )
+    memory_percent: float = Field(
+        ..., ge=0, le=100, description='Memory usage percentage'
+    )
+    memory_used_mb: float = Field(..., ge=0, description='Memory used in MB')
+    memory_total_mb: float = Field(..., ge=0, description='Total memory in MB')
+    disk_percent: float = Field(
+        ..., ge=0, le=100, description='Disk usage percentage'
+    )
+    disk_used_gb: float = Field(..., ge=0, description='Disk used in GB')
+    disk_total_gb: float = Field(
+        ..., ge=0, description='Total disk space in GB'
+    )
 
 
 class DatabaseMetrics(BaseModel):
     """Database performance metrics"""
+
     model_config = ConfigDict(validate_assignment=True)
 
-    connection_status: str = Field(..., pattern="^(connected|disconnected|error)$", description="Database connection status")
-    response_time_ms: float = Field(..., ge=0, description="Database response time in milliseconds")
-    active_connections: int = Field(..., ge=0, description="Number of active database connections")
-    total_users: int = Field(..., ge=0, description="Total number of users in database")
-    total_sessions: int = Field(..., ge=0, description="Total number of workout sessions")
-    sessions_today: int = Field(..., ge=0, description="Number of sessions created today")
+    connection_status: str = Field(
+        ...,
+        pattern='^(connected|disconnected|error)$',
+        description='Database connection status',
+    )
+    response_time_ms: float = Field(
+        ..., ge=0, description='Database response time in milliseconds'
+    )
+    active_connections: int = Field(
+        ..., ge=0, description='Number of active database connections'
+    )
+    total_users: int = Field(
+        ..., ge=0, description='Total number of users in database'
+    )
+    total_sessions: int = Field(
+        ..., ge=0, description='Total number of workout sessions'
+    )
+    sessions_today: int = Field(
+        ..., ge=0, description='Number of sessions created today'
+    )
 
 
 class BotMetrics(BaseModel):
     """Bot-specific metrics"""
+
     model_config = ConfigDict(validate_assignment=True)
 
-    total_commands_processed: int = Field(..., ge=0, description="Total commands processed by bot")
-    total_audio_processed: int = Field(..., ge=0, description="Total audio files processed")
-    average_response_time_ms: float = Field(..., ge=0, description="Average response time in milliseconds")
-    percentile_response_time_ms: float = Field(..., ge=0, description="95th percentile response time in milliseconds")
-    error_rate_percent: float = Field(..., ge=0, le=100, description="Error rate percentage")
-    active_sessions: int = Field(..., ge=0, description="Number of active workout sessions")
+    total_commands_processed: int = Field(
+        ..., ge=0, description='Total commands processed by bot'
+    )
+    total_audio_processed: int = Field(
+        ..., ge=0, description='Total audio files processed'
+    )
+    average_response_time_ms: float = Field(
+        ..., ge=0, description='Average response time in milliseconds'
+    )
+    percentile_response_time_ms: float = Field(
+        ..., ge=0, description='95th percentile response time in milliseconds'
+    )
+    error_rate_percent: float = Field(
+        ..., ge=0, le=100, description='Error rate percentage'
+    )
+    active_sessions: int = Field(
+        ..., ge=0, description='Number of active workout sessions'
+    )
 
 
 class HealthService:
@@ -121,7 +169,9 @@ class HealthService:
             index = int(len(sorted_times) * percentile)
             return sorted_times[min(index, len(sorted_times) - 1)]
 
-    def record_audio_processing(self, response_time_ms: float, is_error: bool = False):
+    def record_audio_processing(
+        self, response_time_ms: float, is_error: bool = False
+    ):
         """Record audio processing"""
         with self._metrics_lock:
             self.audio_count += 1
@@ -169,17 +219,17 @@ class HealthService:
             )
 
             check_time = (time.time() - start_time) * 1000
-            logger.debug(f"Health check completed in {check_time:.2f}ms")
+            logger.debug(f'Health check completed in {check_time:.2f}ms')
 
             return health_status
 
         except Exception as e:
-            logger.exception("Error during health check")
+            logger.exception('Error during health check')
             return HealthStatus(
-                status="unhealthy",
+                status='unhealthy',
                 timestamp=datetime.now(),
                 uptime_seconds=int(time.time() - self.start_time),
-                checks={"health_check_error": str(e)},
+                checks={'health_check_error': str(e)},
                 metrics={},
             )
 
@@ -188,19 +238,19 @@ class HealthService:
         checks = {}
 
         # Database connectivity check
-        checks["database"] = await self._check_database()
+        checks['database'] = await self._check_database()
 
         # Async database check
-        checks["async_database"] = await self._check_async_database()
+        checks['async_database'] = await self._check_async_database()
 
         # System resources check
-        checks["system_resources"] = self._check_system_resources()
+        checks['system_resources'] = self._check_system_resources()
 
         # Configuration check
-        checks["configuration"] = self._check_configuration()
+        checks['configuration'] = self._check_configuration()
 
         # Dependencies check
-        checks["dependencies"] = self._check_dependencies()
+        checks['dependencies'] = self._check_dependencies()
 
         return checks
 
@@ -216,24 +266,24 @@ class HealthService:
 
             async with get_async_session_context() as session:
                 # Simple query to test connectivity
-                result = await session.execute(text("SELECT 1"))
+                result = await session.execute(text('SELECT 1'))
                 value = result.scalar()
 
                 response_time = (time.time() - start_time) * 1000
 
             return {
-                "status": "healthy" if value else "unhealthy",
-                "response_time_ms": round(response_time, 2),
-                "message": "Database connection successful",
+                'status': 'healthy' if value else 'unhealthy',
+                'response_time_ms': round(response_time, 2),
+                'message': 'Database connection successful',
             }
 
         except Exception as e:
             response_time = (time.time() - start_time) * 1000
-            logger.exception("Database health check failed")
+            logger.exception('Database health check failed')
             return {
-                "status": "unhealthy",
-                "response_time_ms": round(response_time, 2),
-                "message": f"Database connection failed: {e!s}",
+                'status': 'unhealthy',
+                'response_time_ms': round(response_time, 2),
+                'message': f'Database connection failed: {e!s}',
             }
 
     async def _check_async_database(self) -> Dict[str, Any]:
@@ -247,24 +297,24 @@ class HealthService:
             from database.async_connection import get_async_session_context
 
             async with get_async_session_context() as session:
-                result = await session.execute(text("SELECT 1"))
+                result = await session.execute(text('SELECT 1'))
                 value = result.scalar()
 
                 response_time = (time.time() - start_time) * 1000
 
                 return {
-                    "status": "healthy" if value == 1 else "unhealthy",
-                    "response_time_ms": round(response_time, 2),
-                    "message": "Async database connection successful",
+                    'status': 'healthy' if value == 1 else 'unhealthy',
+                    'response_time_ms': round(response_time, 2),
+                    'message': 'Async database connection successful',
                 }
 
         except Exception as e:
             response_time = (time.time() - start_time) * 1000
-            logger.exception("Async database health check failed")
+            logger.exception('Async database health check failed')
             return {
-                "status": "unhealthy",
-                "response_time_ms": round(response_time, 2),
-                "message": f"Async database connection failed: {e!s}",
+                'status': 'unhealthy',
+                'response_time_ms': round(response_time, 2),
+                'message': f'Async database connection failed: {e!s}',
             }
 
     def _check_system_resources(self) -> Dict[str, Any]:
@@ -277,38 +327,38 @@ class HealthService:
             memory = psutil.virtual_memory()
 
             # Disk usage
-            disk = psutil.disk_usage("/")
+            disk = psutil.disk_usage('/')
 
             # Determine status based on thresholds
-            status = "healthy"
+            status = 'healthy'
             warnings = []
 
             if cpu_percent > 80:
-                status = "degraded"
-                warnings.append(f"High CPU usage: {cpu_percent}%")
+                status = 'degraded'
+                warnings.append(f'High CPU usage: {cpu_percent}%')
 
             if memory.percent > 80:
-                status = "degraded"
-                warnings.append(f"High memory usage: {memory.percent}%")
+                status = 'degraded'
+                warnings.append(f'High memory usage: {memory.percent}%')
 
             if disk.percent > 90:
-                status = "degraded"
-                warnings.append(f"High disk usage: {disk.percent}%")
+                status = 'degraded'
+                warnings.append(f'High disk usage: {disk.percent}%')
 
             return {
-                "status": status,
-                "cpu_percent": cpu_percent,
-                "memory_percent": memory.percent,
-                "disk_percent": disk.percent,
-                "warnings": warnings,
-                "message": "System resources checked",
+                'status': status,
+                'cpu_percent': cpu_percent,
+                'memory_percent': memory.percent,
+                'disk_percent': disk.percent,
+                'warnings': warnings,
+                'message': 'System resources checked',
             }
 
         except Exception as e:
-            logger.exception("System resources check failed")
+            logger.exception('System resources check failed')
             return {
-                "status": "unhealthy",
-                "message": f"System resources check failed: {e!s}",
+                'status': 'unhealthy',
+                'message': f'System resources check failed: {e!s}',
             }
 
     def _check_configuration(self) -> Dict[str, Any]:
@@ -318,30 +368,34 @@ class HealthService:
 
             # Check critical settings
             if not settings.TELEGRAM_BOT_TOKEN:
-                issues.append("TELEGRAM_BOT_TOKEN not configured")
+                issues.append('TELEGRAM_BOT_TOKEN not configured')
 
             if not settings.DATABASE_URL:
-                issues.append("DATABASE_URL not configured")
+                issues.append('DATABASE_URL not configured')
 
             # Check optional but important settings
             warnings = []
             if not settings.GROQ_API_KEY:
-                warnings.append("GROQ_API_KEY not configured")
+                warnings.append('GROQ_API_KEY not configured')
 
-            status = "unhealthy" if issues else ("degraded" if warnings else "healthy")
+            status = (
+                'unhealthy'
+                if issues
+                else ('degraded' if warnings else 'healthy')
+            )
 
             return {
-                "status": status,
-                "issues": issues,
-                "warnings": warnings,
-                "message": "Configuration checked",
+                'status': status,
+                'issues': issues,
+                'warnings': warnings,
+                'message': 'Configuration checked',
             }
 
         except Exception as e:
-            logger.exception("Configuration check failed")
+            logger.exception('Configuration check failed')
             return {
-                "status": "unhealthy",
-                "message": f"Configuration check failed: {e!s}",
+                'status': 'unhealthy',
+                'message': f'Configuration check failed: {e!s}',
             }
 
     def _check_dependencies(self) -> Dict[str, Any]:
@@ -353,27 +407,27 @@ class HealthService:
 
             # Check versions if needed
             versions = {
-                "aiosqlite": getattr(aiosqlite, "__version__", "unknown"),
-                "sqlalchemy": sqlalchemy.__version__,
-                "python-telegram-bot": telegram.__version__,
+                'aiosqlite': getattr(aiosqlite, '__version__', 'unknown'),
+                'sqlalchemy': sqlalchemy.__version__,
+                'python-telegram-bot': telegram.__version__,
             }
 
             return {
-                "status": "healthy",
-                "versions": versions,
-                "message": "Dependencies checked",
+                'status': 'healthy',
+                'versions': versions,
+                'message': 'Dependencies checked',
             }
 
         except ImportError as e:
             return {
-                "status": "unhealthy",
-                "message": f"Missing dependency: {e!s}",
+                'status': 'unhealthy',
+                'message': f'Missing dependency: {e!s}',
             }
         except Exception as e:
-            logger.exception("Dependencies check failed")
+            logger.exception('Dependencies check failed')
             return {
-                "status": "unhealthy",
-                "message": f"Dependencies check failed: {e!s}",
+                'status': 'unhealthy',
+                'message': f'Dependencies check failed: {e!s}',
             }
 
     async def _collect_metrics(self) -> Dict[str, Any]:
@@ -382,19 +436,21 @@ class HealthService:
             metrics = {}
 
             # System metrics
-            metrics["system"] = self._get_system_metrics().model_dump()
+            metrics['system'] = self._get_system_metrics().model_dump()
 
             # Database metrics
-            metrics["database"] = (await self._get_database_metrics()).model_dump()
+            metrics['database'] = (
+                await self._get_database_metrics()
+            ).model_dump()
 
             # Bot metrics (async version to get active sessions)
-            metrics["bot"] = (await self._get_bot_metrics_async()).model_dump()
+            metrics['bot'] = (await self._get_bot_metrics_async()).model_dump()
 
             return metrics
 
         except Exception as e:
-            logger.exception("Error collecting metrics")
-            return {"error": f"Metrics collection failed: {e!s}"}
+            logger.exception('Error collecting metrics')
+            return {'error': f'Metrics collection failed: {e!s}'}
 
     def _get_system_metrics(self) -> SystemMetrics:
         """Get system performance metrics"""
@@ -407,7 +463,7 @@ class HealthService:
         memory_total_mb = memory.total / (1024 * 1024)
 
         # Disk
-        disk = psutil.disk_usage("/")
+        disk = psutil.disk_usage('/')
         disk_used_gb = disk.used / (1024 * 1024 * 1024)
         disk_total_gb = disk.total / (1024 * 1024 * 1024)
 
@@ -434,17 +490,23 @@ class HealthService:
 
             async with get_async_session_context() as session:
                 # Query some basic stats
-                user_count_stmt = select(func.count(User.user_id)).where(User.is_active == True)
+                user_count_stmt = select(func.count(User.user_id)).where(
+                    User.is_active == True
+                )
                 user_result = await session.execute(user_count_stmt)
                 user_count = user_result.scalar()
 
-                session_count_stmt = select(func.count(WorkoutSession.session_id))
+                session_count_stmt = select(
+                    func.count(WorkoutSession.session_id)
+                )
                 session_result = await session.execute(session_count_stmt)
                 total_sessions = session_result.scalar()
 
                 # Sessions today
                 today = datetime.now().date()
-                sessions_today_stmt = select(func.count(WorkoutSession.session_id)).where(
+                sessions_today_stmt = select(
+                    func.count(WorkoutSession.session_id)
+                ).where(
                     WorkoutSession.date == today,
                 )
                 today_result = await session.execute(sessions_today_stmt)
@@ -453,7 +515,7 @@ class HealthService:
                 response_time = (time.time() - start_time) * 1000
 
             return DatabaseMetrics(
-                connection_status="connected",
+                connection_status='connected',
                 response_time_ms=round(response_time, 2),
                 active_connections=1,  # SQLite doesn't have connection pooling
                 total_users=user_count,
@@ -462,16 +524,15 @@ class HealthService:
             )
 
         except Exception:
-            logger.exception("Error getting database metrics")
+            logger.exception('Error getting database metrics')
             return DatabaseMetrics(
-                connection_status="error",
+                connection_status='error',
                 response_time_ms=0,
                 active_connections=0,
                 total_users=0,
                 total_sessions=0,
                 sessions_today=0,
             )
-
 
     async def _get_bot_metrics_async(self) -> BotMetrics:
         """Get bot-specific metrics with async database queries"""
@@ -482,7 +543,8 @@ class HealthService:
         total_operations = self.command_count + self.audio_count
         error_rate = (
             (self.error_count / total_operations * 100)
-            if total_operations > 0 else 0
+            if total_operations > 0
+            else 0
         )
 
         # Get active sessions count from database
@@ -507,7 +569,9 @@ class HealthService:
 
             async with get_async_session_context() as session:
                 # Count sessions with status 'ativa' (active)
-                active_sessions_stmt = select(func.count(WorkoutSession.session_id)).where(
+                active_sessions_stmt = select(
+                    func.count(WorkoutSession.session_id)
+                ).where(
                     WorkoutSession.status == SessionStatus.ATIVA,
                 )
                 result = await session.execute(active_sessions_stmt)
@@ -515,7 +579,7 @@ class HealthService:
                 return count or 0
 
         except Exception:
-            logger.exception("Error getting active sessions count")
+            logger.exception('Error getting active sessions count')
             return 0
 
     def _determine_overall_status(self, checks: Dict[str, Any]) -> str:
@@ -523,19 +587,19 @@ class HealthService:
         statuses = []
 
         for check_name, check_result in checks.items():
-            if isinstance(check_result, dict) and "status" in check_result:
-                statuses.append(check_result["status"])
+            if isinstance(check_result, dict) and 'status' in check_result:
+                statuses.append(check_result['status'])
 
         # If any check is unhealthy, overall is unhealthy
-        if "unhealthy" in statuses:
-            return "unhealthy"
+        if 'unhealthy' in statuses:
+            return 'unhealthy'
 
         # If any check is degraded, overall is degraded
-        if "degraded" in statuses:
-            return "degraded"
+        if 'degraded' in statuses:
+            return 'degraded'
 
         # Otherwise, healthy
-        return "healthy"
+        return 'healthy'
 
     async def get_simple_health(self) -> Dict[str, Any]:
         """Get simple health status for quick checks"""
@@ -549,40 +613,40 @@ class HealthService:
                 from sqlalchemy import text
 
                 from database.async_connection import get_async_session_context
+
                 async with get_async_session_context() as session:
-                    await session.execute(text("SELECT 1"))
-                db_status = "healthy"
+                    await session.execute(text('SELECT 1'))
+                db_status = 'healthy'
             except:
-                db_status = "unhealthy"
+                db_status = 'unhealthy'
 
             uptime = int(time.time() - self.start_time)
 
-            status = "healthy"
-            if cpu > 90 or memory.percent > 90 or db_status == "unhealthy":
-                status = "unhealthy"
+            status = 'healthy'
+            if cpu > 90 or memory.percent > 90 or db_status == 'unhealthy':
+                status = 'unhealthy'
             elif cpu > 80 or memory.percent > 80:
-                status = "degraded"
+                status = 'degraded'
 
             return {
-                "status": status,
-                "uptime_seconds": uptime,
-                "timestamp": datetime.now().isoformat(),
-                "checks": {
-                    "database": db_status,
-                    "cpu_ok": cpu < 80,
-                    "memory_ok": memory.percent < 80,
+                'status': status,
+                'uptime_seconds': uptime,
+                'timestamp': datetime.now().isoformat(),
+                'checks': {
+                    'database': db_status,
+                    'cpu_ok': cpu < 80,
+                    'memory_ok': memory.percent < 80,
                 },
             }
 
         except Exception as e:
-            logger.exception("Simple health check failed")
+            logger.exception('Simple health check failed')
             return {
-                "status": "unhealthy",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                'status': 'unhealthy',
+                'error': str(e),
+                'timestamp': datetime.now().isoformat(),
             }
 
 
 # Global health service instance
 health_service = HealthService()
-

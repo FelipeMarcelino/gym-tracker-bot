@@ -17,22 +17,26 @@ logger = get_logger(__name__)
 
 @admin_only
 @rate_limit_commands
-@error_handler("health check command")
+@error_handler('health check command')
 @validate_input(CommonSchemas.admin_command())
-async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
+async def health_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    validated_data: dict = None,
+) -> None:
     """Comando /health - Health check básico (ADMIN ONLY)"""
     try:
         # Get simple health status
         health_status = await health_service.get_simple_health()
 
         status_emoji = {
-            "healthy": "✅",
-            "degraded": "⚠️",
-            "unhealthy": "❌",
-        }.get(health_status["status"], "❓")
+            'healthy': '✅',
+            'degraded': '⚠️',
+            'unhealthy': '❌',
+        }.get(health_status['status'], '❓')
 
-        uptime_hours = health_status["uptime_seconds"] // 3600
-        uptime_minutes = (health_status["uptime_seconds"] % 3600) // 60
+        uptime_hours = health_status['uptime_seconds'] // 3600
+        uptime_minutes = (health_status['uptime_seconds'] % 3600) // 60
 
         response = f"""🏥 **Health Check**
 
@@ -47,27 +51,31 @@ async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE, val
 
 Use /healthfull for detailed report."""
 
-        await update.message.reply_text(response, parse_mode="Markdown")
+        await update.message.reply_text(response, parse_mode='Markdown')
 
     except Exception:
-        logger.exception("Error in health command")
+        logger.exception('Error in health command')
         await update.message.reply_text(
-            "❌ **Health Check Failed**\n\nUnable to perform health check.",
-            parse_mode="Markdown",
+            '❌ **Health Check Failed**\n\nUnable to perform health check.',
+            parse_mode='Markdown',
         )
 
 
 @admin_only
 @rate_limit_commands
-@error_handler("full health check command")
+@error_handler('full health check command')
 @validate_input(CommonSchemas.admin_command())
-async def health_full_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
+async def health_full_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    validated_data: dict = None,
+) -> None:
     """Comando /healthfull - Health check completo (ADMIN ONLY)"""
     try:
         # Show loading message
         status_msg = await update.message.reply_text(
-            "🔍 **Running comprehensive health check...**",
-            parse_mode="Markdown",
+            '🔍 **Running comprehensive health check...**',
+            parse_mode='Markdown',
         )
 
         # Get comprehensive health status
@@ -75,10 +83,10 @@ async def health_full_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         # Format the response
         status_emoji = {
-            "healthy": "✅",
-            "degraded": "⚠️",
-            "unhealthy": "❌",
-        }.get(health_status.status, "❓")
+            'healthy': '✅',
+            'degraded': '⚠️',
+            'unhealthy': '❌',
+        }.get(health_status.status, '❓')
 
         uptime_hours = health_status.uptime_seconds // 3600
         uptime_minutes = (health_status.uptime_seconds % 3600) // 60
@@ -93,27 +101,27 @@ async def health_full_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         # Add individual check results
         for check_name, check_result in health_status.checks.items():
-            if isinstance(check_result, dict) and "status" in check_result:
+            if isinstance(check_result, dict) and 'status' in check_result:
                 check_emoji = {
-                    "healthy": "✅",
-                    "degraded": "⚠️",
-                    "unhealthy": "❌",
-                }.get(check_result["status"], "❓")
+                    'healthy': '✅',
+                    'degraded': '⚠️',
+                    'unhealthy': '❌',
+                }.get(check_result['status'], '❓')
 
-                check_title = check_name.replace("_", " ").title()
+                check_title = check_name.replace('_', ' ').title()
                 response += f"\n{check_emoji} **{check_title}:** {check_result['status']}"
 
-                if "response_time_ms" in check_result:
+                if 'response_time_ms' in check_result:
                     response += f" ({check_result['response_time_ms']}ms)"
 
                 # Add warnings if any
-                if check_result.get("warnings"):
-                    for warning in check_result["warnings"]:
-                        response += f"\n   ⚠️ {warning}"
+                if check_result.get('warnings'):
+                    for warning in check_result['warnings']:
+                        response += f'\n   ⚠️ {warning}'
 
         # Add metrics summary
-        if "system" in health_status.metrics:
-            system = health_status.metrics["system"]
+        if 'system' in health_status.metrics:
+            system = health_status.metrics['system']
             response += f"""
 
 **📊 System Metrics:**
@@ -121,8 +129,8 @@ async def health_full_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 💻 Memory: {system['memory_percent']:.1f}% ({system['memory_used_mb']}MB/{system['memory_total_mb']}MB)
 💾 Disk: {system['disk_percent']:.1f}% ({system['disk_used_gb']:.1f}GB/{system['disk_total_gb']:.1f}GB)"""
 
-        if "database" in health_status.metrics:
-            db = health_status.metrics["database"]
+        if 'database' in health_status.metrics:
+            db = health_status.metrics['database']
             response += f"""
 
 **🗄️ Database Metrics:**
@@ -131,8 +139,8 @@ async def health_full_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 📅 Sessions Today: {db['sessions_today']}
 ⚡ Response Time: {db['response_time_ms']}ms"""
 
-        if "bot" in health_status.metrics:
-            bot = health_status.metrics["bot"]
+        if 'bot' in health_status.metrics:
+            bot = health_status.metrics['bot']
             response += f"""
 
 **🤖 Bot Metrics:**
@@ -142,21 +150,25 @@ async def health_full_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 ❌ Error Rate: {bot['error_rate_percent']}%"""
 
         # Update the status message
-        await status_msg.edit_text(response, parse_mode="Markdown")
+        await status_msg.edit_text(response, parse_mode='Markdown')
 
     except Exception:
-        logger.exception("Error in full health command")
+        logger.exception('Error in full health command')
         await update.message.reply_text(
-            "❌ **Health Check Failed**\n\nUnable to perform comprehensive health check.",
-            parse_mode="Markdown",
+            '❌ **Health Check Failed**\n\nUnable to perform comprehensive health check.',
+            parse_mode='Markdown',
         )
 
 
 @admin_only
 @rate_limit_commands
-@error_handler("metrics command")
+@error_handler('metrics command')
 @validate_input(CommonSchemas.admin_command())
-async def metrics_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
+async def metrics_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    validated_data: dict = None,
+) -> None:
     """Comando /metrics - Métricas do sistema (ADMIN ONLY)"""
     try:
         # Get comprehensive health status for metrics
@@ -168,8 +180,8 @@ async def metrics_command(update: Update, context: ContextTypes.DEFAULT_TYPE, va
 ⏱️ **Uptime:** {health_status.uptime_seconds // 3600}h {(health_status.uptime_seconds % 3600) // 60}m"""
 
         # System metrics
-        if "system" in health_status.metrics:
-            system = health_status.metrics["system"]
+        if 'system' in health_status.metrics:
+            system = health_status.metrics['system']
             response += f"""
 
 **🖥️ System Performance:**
@@ -180,8 +192,8 @@ async def metrics_command(update: Update, context: ContextTypes.DEFAULT_TYPE, va
 • Disk: {system['disk_used_gb']:.1f}GB / {system['disk_total_gb']:.1f}GB"""
 
         # Database metrics
-        if "database" in health_status.metrics:
-            db = health_status.metrics["database"]
+        if 'database' in health_status.metrics:
+            db = health_status.metrics['database']
             response += f"""
 
 **🗄️ Database Stats:**
@@ -192,8 +204,8 @@ async def metrics_command(update: Update, context: ContextTypes.DEFAULT_TYPE, va
 • Sessions Today: {db['sessions_today']:,}"""
 
         # Bot metrics
-        if "bot" in health_status.metrics:
-            bot = health_status.metrics["bot"]
+        if 'bot' in health_status.metrics:
+            bot = health_status.metrics['bot']
             response += f"""
 
 **🤖 Bot Performance:**
@@ -209,43 +221,71 @@ async def metrics_command(update: Update, context: ContextTypes.DEFAULT_TYPE, va
 **🎯 Performance Indicators:**"""
 
         # CPU status
-        if "system" in health_status.metrics:
-            cpu = health_status.metrics["system"]["cpu_percent"]
-            cpu_status = "🟢 Good" if cpu < 50 else "🟡 Moderate" if cpu < 80 else "🔴 High"
-            response += f"\n• CPU Load: {cpu_status}"
+        if 'system' in health_status.metrics:
+            cpu = health_status.metrics['system']['cpu_percent']
+            cpu_status = (
+                '🟢 Good'
+                if cpu < 50
+                else '🟡 Moderate'
+                if cpu < 80
+                else '🔴 High'
+            )
+            response += f'\n• CPU Load: {cpu_status}'
 
             # Memory status
-            mem = health_status.metrics["system"]["memory_percent"]
-            mem_status = "🟢 Good" if mem < 50 else "🟡 Moderate" if mem < 80 else "🔴 High"
-            response += f"\n• Memory Usage: {mem_status}"
+            mem = health_status.metrics['system']['memory_percent']
+            mem_status = (
+                '🟢 Good'
+                if mem < 50
+                else '🟡 Moderate'
+                if mem < 80
+                else '🔴 High'
+            )
+            response += f'\n• Memory Usage: {mem_status}'
 
         # Database performance
-        if "database" in health_status.metrics:
-            db_time = health_status.metrics["database"]["response_time_ms"]
-            db_status = "🟢 Fast" if db_time < 50 else "🟡 Moderate" if db_time < 200 else "🔴 Slow"
-            response += f"\n• Database Speed: {db_status}"
+        if 'database' in health_status.metrics:
+            db_time = health_status.metrics['database']['response_time_ms']
+            db_status = (
+                '🟢 Fast'
+                if db_time < 50
+                else '🟡 Moderate'
+                if db_time < 200
+                else '🔴 Slow'
+            )
+            response += f'\n• Database Speed: {db_status}'
 
         # Bot performance
-        if "bot" in health_status.metrics:
-            error_rate = health_status.metrics["bot"]["error_rate_percent"]
-            error_status = "🟢 Low" if error_rate < 1 else "🟡 Moderate" if error_rate < 5 else "🔴 High"
-            response += f"\n• Error Rate: {error_status}"
+        if 'bot' in health_status.metrics:
+            error_rate = health_status.metrics['bot']['error_rate_percent']
+            error_status = (
+                '🟢 Low'
+                if error_rate < 1
+                else '🟡 Moderate'
+                if error_rate < 5
+                else '🔴 High'
+            )
+            response += f'\n• Error Rate: {error_status}'
 
-        await update.message.reply_text(response, parse_mode="Markdown")
+        await update.message.reply_text(response, parse_mode='Markdown')
 
     except Exception:
-        logger.exception("Error in metrics command")
+        logger.exception('Error in metrics command')
         await update.message.reply_text(
-            "❌ **Metrics Failed**\n\nUnable to collect system metrics.",
-            parse_mode="Markdown",
+            '❌ **Metrics Failed**\n\nUnable to collect system metrics.',
+            parse_mode='Markdown',
         )
 
 
 @admin_only
 @rate_limit_commands
-@error_handler("performance command")
+@error_handler('performance command')
 @validate_input(CommonSchemas.admin_command())
-async def performance_command(update: Update, context: ContextTypes.DEFAULT_TYPE, validated_data: dict = None) -> None:
+async def performance_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    validated_data: dict = None,
+) -> None:
     """Comando /performance - Performance monitoring (ADMIN ONLY)"""
     try:
         # Get bot metrics
@@ -256,27 +296,33 @@ async def performance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         recommendations = []
 
         if system_metrics.cpu_percent > 80:
-            recommendations.append("🔴 High CPU usage detected - consider optimization")
+            recommendations.append(
+                '🔴 High CPU usage detected - consider optimization'
+            )
         elif system_metrics.cpu_percent > 60:
-            recommendations.append("🟡 Moderate CPU usage - monitor closely")
+            recommendations.append('🟡 Moderate CPU usage - monitor closely')
 
         if system_metrics.memory_percent > 80:
-            recommendations.append("🔴 High memory usage - consider cleanup")
+            recommendations.append('🔴 High memory usage - consider cleanup')
         elif system_metrics.memory_percent > 60:
-            recommendations.append("🟡 Moderate memory usage - monitor closely")
+            recommendations.append('🟡 Moderate memory usage - monitor closely')
 
         if bot_metrics.error_rate_percent > 5:
-            recommendations.append("🔴 High error rate - investigate issues")
+            recommendations.append('🔴 High error rate - investigate issues')
         elif bot_metrics.error_rate_percent > 1:
-            recommendations.append("🟡 Elevated error rate - monitor closely")
+            recommendations.append('🟡 Elevated error rate - monitor closely')
 
         if bot_metrics.average_response_time_ms > 2000:
-            recommendations.append("🔴 Slow response times - optimize handlers")
+            recommendations.append('🔴 Slow response times - optimize handlers')
         elif bot_metrics.average_response_time_ms > 1000:
-            recommendations.append("🟡 Moderate response times - consider optimization")
+            recommendations.append(
+                '🟡 Moderate response times - consider optimization'
+            )
 
         if not recommendations:
-            recommendations.append("🟢 All performance metrics are within normal ranges")
+            recommendations.append(
+                '🟢 All performance metrics are within normal ranges'
+            )
 
         response = f"""⚡ **Performance Report**
 
@@ -299,12 +345,11 @@ async def performance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 • CPU Usage: < 60% (Current: {system_metrics.cpu_percent:.1f}%)
 • Memory Usage: < 60% (Current: {system_metrics.memory_percent:.1f}%)"""
 
-        await update.message.reply_text(response, parse_mode="Markdown")
+        await update.message.reply_text(response, parse_mode='Markdown')
 
     except Exception:
-        logger.exception("Error in performance command")
+        logger.exception('Error in performance command')
         await update.message.reply_text(
-            "❌ **Performance Report Failed**\n\nUnable to generate performance report.",
-            parse_mode="Markdown",
+            '❌ **Performance Report Failed**\n\nUnable to generate performance report.',
+            parse_mode='Markdown',
         )
-

@@ -5,7 +5,12 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.pool import NullPool
 
 from config.logging_config import get_logger
@@ -18,12 +23,12 @@ logger = get_logger(__name__)
 class AsyncDatabaseConnection:
     """Async database connection manager with connection pooling"""
 
-    _instance: Optional["AsyncDatabaseConnection"] = None
+    _instance: Optional['AsyncDatabaseConnection'] = None
     _engine: Optional[AsyncEngine] = None
     _session_factory: Optional[async_sessionmaker[AsyncSession]] = None
     _lock: asyncio.Lock = asyncio.Lock()
 
-    def __new__(cls) -> "AsyncDatabaseConnection":
+    def __new__(cls) -> 'AsyncDatabaseConnection':
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
@@ -36,20 +41,26 @@ class AsyncDatabaseConnection:
                 database_url = settings.effective_database_url
 
                 # Convert database URL to async version if needed
-                if database_url.startswith("sqlite:///"):
-                    async_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
-                elif database_url.startswith("postgresql://"):
+                if database_url.startswith('sqlite:///'):
+                    async_url = database_url.replace(
+                        'sqlite:///', 'sqlite+aiosqlite:///'
+                    )
+                elif database_url.startswith('postgresql://'):
                     # Railway provides postgresql:// but we need postgresql+asyncpg://
-                    async_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
-                elif database_url.startswith("postgres://"):
+                    async_url = database_url.replace(
+                        'postgresql://', 'postgresql+asyncpg://'
+                    )
+                elif database_url.startswith('postgres://'):
                     # Some services use postgres:// instead of postgresql://
-                    async_url = database_url.replace("postgres://", "postgresql+asyncpg://")
+                    async_url = database_url.replace(
+                        'postgres://', 'postgresql+asyncpg://'
+                    )
                 else:
                     # Already in async format or other database
                     async_url = database_url
 
                 # Configure engine based on database type
-                if "sqlite" in async_url:
+                if 'sqlite' in async_url:
                     # SQLite-specific configuration (no connection pooling)
                     self._engine = create_async_engine(
                         async_url,
@@ -62,10 +73,10 @@ class AsyncDatabaseConnection:
                         async_url,
                         echo=False,  # True for debug SQL
                         pool_pre_ping=True,
-                        pool_size=10,           # Connection pool size
-                        max_overflow=20,        # Additional connections beyond pool_size
-                        pool_recycle=3600,      # Recycle connections after 1 hour
-                        pool_timeout=30,        # Timeout for getting connection from pool
+                        pool_size=10,  # Connection pool size
+                        max_overflow=20,  # Additional connections beyond pool_size
+                        pool_recycle=3600,  # Recycle connections after 1 hour
+                        pool_timeout=30,  # Timeout for getting connection from pool
                     )
 
                 self._session_factory = async_sessionmaker(
@@ -78,7 +89,7 @@ class AsyncDatabaseConnection:
                 async with self._engine.begin() as conn:
                     await conn.run_sync(Base.metadata.create_all)
 
-                logger.info(f"Async database initialized: {async_url}")
+                logger.info(f'Async database initialized: {async_url}')
 
     async def get_session(self) -> AsyncSession:
         """Get an async database session"""
@@ -104,7 +115,7 @@ class AsyncDatabaseConnection:
         """Close the async database connection"""
         if self._engine:
             await self._engine.dispose()
-            logger.info("Async database connection closed")
+            logger.info('Async database connection closed')
 
 
 # Global async database instance
@@ -122,4 +133,3 @@ async def get_async_session_context() -> AsyncGenerator[AsyncSession, None]:
     """Get an async session as a context manager"""
     async with async_db.get_session_context() as session:
         yield session
-

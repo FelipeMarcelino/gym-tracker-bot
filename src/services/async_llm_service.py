@@ -5,8 +5,16 @@ from groq import AsyncGroq
 
 from config.logging_config import get_logger
 from config.settings import settings
-from services.exceptions import ErrorCode, LLMParsingError, ServiceUnavailableError, ValidationError
-from services.workout_validation import validate_workout_data, get_user_friendly_error_message
+from services.exceptions import (
+    ErrorCode,
+    LLMParsingError,
+    ServiceUnavailableError,
+    ValidationError,
+)
+from services.workout_validation import (
+    validate_workout_data,
+    get_user_friendly_error_message,
+)
 
 logger = get_logger(__name__)
 
@@ -16,35 +24,37 @@ class LLMParsingService:
 
     def __init__(self) -> None:
 
-        logger.info("Inicializando Groq LLM...")
+        logger.info('Inicializando Groq LLM...')
 
         if not settings.GROQ_API_KEY:
             raise ServiceUnavailableError(
-                "GROQ_API_KEY não configurada",
-                "Configure a variável de ambiente GROQ_API_KEY",
+                'GROQ_API_KEY não configurada',
+                'Configure a variável de ambiente GROQ_API_KEY',
                 error_code=ErrorCode.GROQ_API_ERROR,
             )
 
         try:
             self.client = AsyncGroq(api_key=settings.GROQ_API_KEY)
             self.model = settings.LLM_MODEL
-            logger.info(f"LLM Service inicializado: {self.model} (Async Groq API)")
+            logger.info(
+                f'LLM Service inicializado: {self.model} (Async Groq API)'
+            )
         except Exception as e:
             raise ServiceUnavailableError(
-                "Falha ao inicializar cliente Groq LLM",
-                f"Erro: {e!s}",
+                'Falha ao inicializar cliente Groq LLM',
+                f'Erro: {e!s}',
                 error_code=ErrorCode.GROQ_API_ERROR,
             )
 
     async def parse_workout(self, transcription: str) -> Dict[str, Any]:
         """Parse uma transcrição de treino usando Groq API
-        
+
         Args:
             transcription: Texto transcrito do áudio
-            
+
         Returns:
             Dict com dados estruturados do treino
-            
+
         Raises:
             ValidationError: Se a transcrição é inválida
             LLMParsingError: Se o parsing falhar
@@ -53,106 +63,112 @@ class LLMParsingService:
         """
         if not transcription or not transcription.strip():
             raise ValidationError(
-                message="Transcrição vazia ou inválida",
-                field="transcription",
+                message='Transcrição vazia ou inválida',
+                field='transcription',
                 value=transcription,
                 error_code=ErrorCode.MISSING_REQUIRED_FIELD,
-                user_message="Por favor, envie um áudio com conteúdo válido",
+                user_message='Por favor, envie um áudio com conteúdo válido',
             )
 
         if len(transcription) > settings.MAX_TRANSCRIPTION_LENGTH:
             raise ValidationError(
-                message=f"Transcrição muito longa (máximo {settings.MAX_TRANSCRIPTION_LENGTH:,} caracteres)",
-                field="transcription",
+                message=f'Transcrição muito longa (máximo {settings.MAX_TRANSCRIPTION_LENGTH:,} caracteres)',
+                field='transcription',
                 value=len(transcription),
                 error_code=ErrorCode.VALUE_OUT_OF_RANGE,
-                user_message=f"Áudio muito longo. Máximo permitido: {settings.MAX_TRANSCRIPTION_LENGTH:,} caracteres",
+                user_message=f'Áudio muito longo. Máximo permitido: {settings.MAX_TRANSCRIPTION_LENGTH:,} caracteres',
             )
 
         prompt = self._build_prompt(transcription)
 
-        logger.info(f"Enviando transcrição para Groq API ({self.model})...")
+        logger.info(f'Enviando transcrição para Groq API ({self.model})...')
 
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
-                messages=[{
-                    "role": "user",
-                    "content": prompt,
-                }],
+                messages=[
+                    {
+                        'role': 'user',
+                        'content': prompt,
+                    }
+                ],
                 temperature=settings.LLM_TEMPERATURE,
                 max_completion_tokens=settings.LLM_MAX_TOKENS,
             )
 
             if not response.choices or not response.choices[0].message:
                 raise LLMParsingError(
-                    message="Resposta vazia do LLM",
-                    details="O modelo não retornou uma resposta válida",
+                    message='Resposta vazia do LLM',
+                    details='O modelo não retornou uma resposta válida',
                     model=self.model,
                     error_code=ErrorCode.LLM_INVALID_RESPONSE,
-                    user_message="O sistema de IA não conseguiu processar o áudio. Tente novamente.",
+                    user_message='O sistema de IA não conseguiu processar o áudio. Tente novamente.',
                 )
 
             content = response.choices[0].message.content
             if not content:
                 raise LLMParsingError(
-                    message="Conteúdo vazio na resposta do LLM",
-                    details="O modelo retornou uma resposta vazia",
+                    message='Conteúdo vazio na resposta do LLM',
+                    details='O modelo retornou uma resposta vazia',
                     model=self.model,
                     error_code=ErrorCode.LLM_INVALID_RESPONSE,
-                    user_message="O sistema de IA retornou uma resposta vazia. Tente novamente.",
+                    user_message='O sistema de IA retornou uma resposta vazia. Tente novamente.',
                 )
 
             # Limpar markdown se presente
-            content = content.replace("```json", "").replace("```", "").strip()
+            content = content.replace('```json', '').replace('```', '').strip()
 
             # Parsear JSON
             try:
                 parsed_data = json.loads(content)
             except json.JSONDecodeError as e:
-                logger.error(f"Erro ao parsear JSON: {e}")
-                logger.error(f"Resposta do Groq: {content[:500]}...")
+                logger.error(f'Erro ao parsear JSON: {e}')
+                logger.error(f'Resposta do Groq: {content[:500]}...')
                 raise LLMParsingError(
-                    message="Resposta do LLM não é JSON válido",
-                    details=f"Erro de parsing: {e!s}",
+                    message='Resposta do LLM não é JSON válido',
+                    details=f'Erro de parsing: {e!s}',
                     model=self.model,
                     response=content,
                     error_code=ErrorCode.LLM_INVALID_RESPONSE,
-                    user_message="O sistema de IA retornou uma resposta inválida. Tente descrever o treino de forma mais clara.",
+                    user_message='O sistema de IA retornou uma resposta inválida. Tente descrever o treino de forma mais clara.',
                 )
 
             # Validar estrutura básica
             if not isinstance(parsed_data, dict):
                 raise LLMParsingError(
-                    message="Resposta do LLM deve ser um objeto JSON",
-                    details=f"Recebido: {type(parsed_data)}",
+                    message='Resposta do LLM deve ser um objeto JSON',
+                    details=f'Recebido: {type(parsed_data)}',
                     model=self.model,
                     response=content,
                     error_code=ErrorCode.LLM_INVALID_RESPONSE,
-                    user_message="O sistema de IA retornou dados em formato incorreto. Tente novamente.",
+                    user_message='O sistema de IA retornou dados em formato incorreto. Tente novamente.',
                 )
 
-            logger.info("Groq API parseou com sucesso!")
-            
+            logger.info('Groq API parseou com sucesso!')
+
             # Validate the parsed workout data
             validation_result = validate_workout_data(parsed_data)
-            
-            if not validation_result["is_valid"]:
+
+            if not validation_result['is_valid']:
                 # Generate user-friendly error message
-                error_message = get_user_friendly_error_message(validation_result["errors"])
-                
-                logger.warning(f"Validação falhou: {len(validation_result['errors'])} erros encontrados")
-                
+                error_message = get_user_friendly_error_message(
+                    validation_result['errors']
+                )
+
+                logger.warning(
+                    f"Validação falhou: {len(validation_result['errors'])} erros encontrados"
+                )
+
                 # Raise ValidationError with user-friendly message
                 raise ValidationError(
-                    message="Dados incompletos no treino parseado",
-                    field="workout_data",
+                    message='Dados incompletos no treino parseado',
+                    field='workout_data',
                     value=None,  # Don't include full data in error for privacy
                     error_code=ErrorCode.MISSING_REQUIRED_FIELD,
-                    user_message=error_message
+                    user_message=error_message,
                 )
-            
-            logger.info("Dados do treino validados com sucesso!")
+
+            logger.info('Dados do treino validados com sucesso!')
             return parsed_data
 
         except (ValidationError, LLMParsingError):
@@ -163,66 +179,66 @@ class LLMParsingService:
 
             # Check for rate limit errors (HTTP 429 or rate_limit in message)
             is_rate_limit = (
-                "rate_limit" in error_str or
-                "429" in error_str or
-                "too many requests" in error_str or
-                (hasattr(e, "status_code") and e.status_code == 429)
+                'rate_limit' in error_str
+                or '429' in error_str
+                or 'too many requests' in error_str
+                or (hasattr(e, 'status_code') and e.status_code == 429)
             )
 
             if is_rate_limit:
                 raise ServiceUnavailableError(
-                    message="Limite de taxa do Groq API excedido",
-                    details="Tente novamente em alguns segundos",
-                    service="Groq API",
+                    message='Limite de taxa do Groq API excedido',
+                    details='Tente novamente em alguns segundos',
+                    service='Groq API',
                     error_code=ErrorCode.LLM_RATE_LIMIT_EXCEEDED,
-                    user_message="Muitas solicitações ao sistema de IA. Aguarde alguns segundos e tente novamente.",
+                    user_message='Muitas solicitações ao sistema de IA. Aguarde alguns segundos e tente novamente.',
                     retry_after=30,
                     cause=e,
                 )
 
             # Check for authentication errors (HTTP 401)
             is_auth_error = (
-                "unauthorized" in error_str or
-                "401" in error_str or
-                ("invalid" in error_str and "key" in error_str) or
-                (hasattr(e, "status_code") and e.status_code == 401)
+                'unauthorized' in error_str
+                or '401' in error_str
+                or ('invalid' in error_str and 'key' in error_str)
+                or (hasattr(e, 'status_code') and e.status_code == 401)
             )
 
             if is_auth_error:
                 raise ServiceUnavailableError(
-                    message="Chave API Groq inválida",
-                    details="Verifique a configuração GROQ_API_KEY",
-                    service="Groq API",
+                    message='Chave API Groq inválida',
+                    details='Verifique a configuração GROQ_API_KEY',
+                    service='Groq API',
                     error_code=ErrorCode.GROQ_API_ERROR,
-                    user_message="Erro de autenticação com o sistema de IA. Contate o administrador.",
+                    user_message='Erro de autenticação com o sistema de IA. Contate o administrador.',
                     cause=e,
                 )
 
             # Check for timeout errors
             is_timeout = (
-                "timeout" in error_str or
-                "timed out" in error_str or
-                (hasattr(e, "status_code") and e.status_code == 504)
+                'timeout' in error_str
+                or 'timed out' in error_str
+                or (hasattr(e, 'status_code') and e.status_code == 504)
             )
 
             if is_timeout:
                 raise ServiceUnavailableError(
-                    message="Timeout na conexão com Groq API",
+                    message='Timeout na conexão com Groq API',
                     details=str(e),
-                    service="Groq API",
+                    service='Groq API',
                     error_code=ErrorCode.LLM_TIMEOUT,
-                    user_message="O sistema de IA demorou muito para responder. Tente novamente.",
+                    user_message='O sistema de IA demorou muito para responder. Tente novamente.',
                     cause=e,
                 )
 
             # Generic error
-            logger.exception("Erro inesperado no LLM parsing")
+            logger.exception('Erro inesperado no LLM parsing')
             raise LLMParsingError(
-                message="Erro inesperado no parsing",
-                details=f"Erro interno: {e!s}",
+                message='Erro inesperado no parsing',
+                details=f'Erro interno: {e!s}',
                 model=self.model,
                 error_code=ErrorCode.LLM_PARSING_FAILED,
-                user_message="Erro inesperado no sistema de IA. Tente novamente.",
+                user_message='Erro inesperado no sistema de IA. Tente novamente.',
                 cause=e,
             )
 
@@ -496,6 +512,7 @@ IMPORTANTE sobre EXERCÍCIOS AERÓBICOS:
 - Não invente dados
 
 Retorne APENAS o JSON, sem texto adicional."""
+
 
 # Service instantiation moved to container.py
 # This module only defines the service class
