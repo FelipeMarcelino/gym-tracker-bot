@@ -67,7 +67,11 @@ class TestServiceContainer:
         # Arrange
         container = ServiceContainer()
         mock_service1 = MockService("service1")
-        mock_service2 = AudioTranscriptionService()
+        
+        # Mock the settings to avoid actual API calls
+        with patch('services.audio_service.settings') as mock_settings:
+            mock_settings.GROQ_API_KEY = "test_key"
+            mock_service2 = AudioTranscriptionService()
         
         # Act
         container.register_service(MockService, mock_service1)
