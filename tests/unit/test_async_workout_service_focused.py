@@ -5,6 +5,7 @@ complex async mocking issues. They test the core methods with simpler mocking.
 """
 
 import pytest
+import uuid
 from datetime import datetime, time, date, timedelta
 from unittest.mock import MagicMock, AsyncMock, patch
 
@@ -32,22 +33,22 @@ class TestAsyncWorkoutServiceValidation:
             await workout_service.add_exercises_to_session_batch(None, valid_data, user_id)
         assert exc_info.value.error_code == ErrorCode.MISSING_REQUIRED_FIELD
         
-        # Test zero session_id
-        with pytest.raises(ValidationError) as exc_info:
-            await workout_service.add_exercises_to_session_batch(0, valid_data, user_id)
-        assert exc_info.value.error_code == ErrorCode.MISSING_REQUIRED_FIELD
+        # Test invalid UUID string
+        with pytest.raises((ValidationError, Exception)) as exc_info:
+            await workout_service.add_exercises_to_session_batch("invalid-uuid", valid_data, user_id)
         
-        # Test negative session_id
+        # Test non-existent UUID (should trigger SESSION_NOT_FOUND)
+        non_existent_uuid = uuid.uuid4()
         with pytest.raises(ValidationError) as exc_info:
-            await workout_service.add_exercises_to_session_batch(-1, valid_data, user_id)
-        assert exc_info.value.error_code == ErrorCode.MISSING_REQUIRED_FIELD
+            await workout_service.add_exercises_to_session_batch(non_existent_uuid, valid_data, user_id)
+        assert exc_info.value.error_code == ErrorCode.SESSION_NOT_FOUND
 
     @pytest.mark.asyncio
     async def test_add_exercises_user_id_validation(self, workout_service):
         """Test user ID validation"""
         
         valid_data = {"resistance_exercises": []}
-        session_id = 1
+        session_id = uuid.uuid4()
         
         # Test None user_id
         with pytest.raises(ValidationError) as exc_info:
@@ -68,7 +69,7 @@ class TestAsyncWorkoutServiceValidation:
     async def test_add_exercises_parsed_data_validation(self, workout_service):
         """Test parsed data validation"""
         
-        session_id = 1
+        session_id = uuid.uuid4()
         user_id = "test_user"
         
         # Test None parsed_data

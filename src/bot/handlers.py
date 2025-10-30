@@ -2,6 +2,7 @@ import asyncio
 import time
 from datetime import datetime
 from typing import Any, Dict
+from uuid import UUID
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -496,7 +497,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE, valid
 def _format_success_response(
     transcription: str,
     parsed_data: Dict[str, Any],
-    session_id: int,
+    session_id: UUID,
     processing_time: float,
     is_new_session: bool,
     audio_count: int,

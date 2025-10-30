@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -22,7 +23,7 @@ class AsyncWorkoutService:
 
     async def add_exercises_to_session_batch(
         self,
-        session_id: int,
+        session_id: UUID,
         parsed_data: Dict[str, Any],
         user_id: str,
     ) -> bool:
@@ -41,7 +42,7 @@ class AsyncWorkoutService:
             DatabaseError: If database operation fails
 
         """
-        if not session_id or session_id <= 0:
+        if not session_id:
             raise ValidationError(
                 message="Invalid session ID",
                 field="session_id",
@@ -165,7 +166,7 @@ class AsyncWorkoutService:
     async def _process_resistance_exercises_async(
         self,
         session,
-        session_id: int,
+        session_id: UUID,
         resistance_exercises: List[Dict[str, Any]],
         existing_count: int,
     ) -> None:
@@ -230,7 +231,7 @@ class AsyncWorkoutService:
     async def _process_aerobic_exercises_async(
         self,
         session,
-        session_id: int,
+        session_id: UUID,
         aerobic_exercises: List[Dict[str, Any]],
     ) -> None:
         """Process aerobic exercises in batch (async)"""
@@ -376,7 +377,17 @@ class AsyncWorkoutService:
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
 
+<<<<<<< Updated upstream
     async def finish_session(self, session_id: int, user_id: str) -> Dict[str, Any]:
+||||||| Stash base
+    async def finish_session(
+        self, session_id: int, user_id: str
+    ) -> Dict[str, Any]:
+=======
+    async def finish_session(
+        self, session_id: UUID, user_id: str
+    ) -> Dict[str, Any]:
+>>>>>>> Stashed changes
         """Finish a workout session with optimized stats calculation (async)
         
         Args:
