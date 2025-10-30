@@ -3,6 +3,7 @@
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, Union
+from uuid import UUID
 
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import SQLAlchemyError
@@ -115,7 +116,7 @@ class AsyncSessionManager:
 
     async def update_session_metadata(
         self,
-        session_id: int,
+        session_id: UUID,
         transcription: str = None,
         processing_time: float = None,
         model_used: str = None,
@@ -137,7 +138,7 @@ class AsyncSessionManager:
             DatabaseError: If database operation fails
 
         """
-        if not session_id or session_id <= 0:
+        if not session_id:
             return False
 
         try:
@@ -279,7 +280,17 @@ class AsyncSessionManager:
                 cause=e,
             )
 
+<<<<<<< Updated upstream
     async def get_session_by_id(self, session_id: int, user_id: str = None) -> Optional[WorkoutSession]:
+||||||| Stash base
+    async def get_session_by_id(
+        self, session_id: int, user_id: str = None
+    ) -> Optional[WorkoutSession]:
+=======
+    async def get_session_by_id(
+        self, session_id: UUID, user_id: str = None
+    ) -> Optional[WorkoutSession]:
+>>>>>>> Stashed changes
         """Get a specific session by ID with optional user validation (async)
         
         Args:
@@ -352,7 +363,7 @@ class AsyncSessionManager:
                 cause=e,
             )
 
-    async def batch_finish_sessions(self, session_ids: list[int]) -> int:
+    async def batch_finish_sessions(self, session_ids: list[UUID]) -> int:
         """Batch finish multiple sessions (async)
         
         Args:

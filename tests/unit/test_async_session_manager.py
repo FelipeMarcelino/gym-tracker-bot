@@ -6,6 +6,7 @@ and validation rules without complex database mocking.
 
 import pytest
 import asyncio
+import uuid
 from datetime import datetime, timedelta
 from unittest.mock import patch, AsyncMock, MagicMock
 
@@ -103,7 +104,7 @@ class TestSessionValidation:
 
     def test_update_session_metadata_invalid_session_id_validation(self, session_manager):
         """Test update metadata with invalid session IDs"""
-        invalid_session_ids = [None, 0, -1, -999]
+        invalid_session_ids = [None]
         
         for invalid_id in invalid_session_ids:
             # This should return False for invalid session IDs
@@ -148,7 +149,7 @@ class TestSessionMetadataValidation:
     async def test_update_metadata_field_validation(self, session_manager):
         """Test metadata field validation and filtering"""
         # Test with valid session ID but focus on field validation logic
-        session_id = 123
+        session_id = uuid.uuid4()
         
         # Test transcription handling
         try:
@@ -175,7 +176,7 @@ class TestSessionMetadataValidation:
     @pytest.mark.asyncio
     async def test_update_metadata_processing_time_validation(self, session_manager):
         """Test processing time validation"""
-        session_id = 123
+        session_id = uuid.uuid4()
         
         processing_time_cases = [
             0.0,      # Zero time
@@ -200,7 +201,7 @@ class TestSessionMetadataValidation:
     @pytest.mark.asyncio
     async def test_update_metadata_model_validation(self, session_manager):
         """Test model name validation"""
-        session_id = 123
+        session_id = uuid.uuid4()
         
         model_cases = [
             "",                    # Empty string
@@ -226,7 +227,7 @@ class TestSessionMetadataValidation:
     @pytest.mark.asyncio
     async def test_update_metadata_kwargs_filtering(self, session_manager):
         """Test kwargs filtering for valid WorkoutSession attributes"""
-        session_id = 123
+        session_id = uuid.uuid4()
         
         # Test with various kwargs
         kwargs_cases = [
@@ -253,7 +254,7 @@ class TestSessionMetadataValidation:
     @pytest.mark.asyncio
     async def test_update_metadata_no_changes(self, session_manager):
         """Test update metadata with no actual changes"""
-        session_id = 123
+        session_id = uuid.uuid4()
         
         # Test with all None/empty values
         try:

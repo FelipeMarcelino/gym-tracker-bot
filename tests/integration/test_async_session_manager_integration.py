@@ -6,6 +6,7 @@ session lifecycle management, and database consistency.
 
 import pytest
 import asyncio
+import uuid
 from datetime import datetime, timedelta
 
 from services.async_session_manager import AsyncSessionManager
@@ -477,7 +478,7 @@ class TestDatabaseConsistencyIntegration(TestSessionManagerIntegration):
             session_ids.append(session.session_id)
         
         # Batch finish with mix of valid and invalid IDs
-        mixed_ids = session_ids + [999999, 999998]  # Add nonexistent IDs
+        mixed_ids = session_ids + [uuid.uuid4(), uuid.uuid4()]  # Add nonexistent UUIDs
         finished_count = await session_manager.batch_finish_sessions(mixed_ids)
         
         # Should finish only the valid sessions
