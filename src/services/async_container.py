@@ -18,7 +18,7 @@ from services.async_workout_service import AsyncWorkoutService
 from services.rate_limit_cleanup_service import RateLimitCleanupService
 
 logger = get_logger(__name__)
-T = TypeVar("T")
+T = TypeVar('T')
 
 
 class AsyncServiceContainer:
@@ -29,7 +29,9 @@ class AsyncServiceContainer:
         self._lock = asyncio.Lock()
         self._initialized = False
 
-    async def register_service(self, service_type: Type[T], instance: T) -> None:
+    async def register_service(
+        self, service_type: Type[T], instance: T
+    ) -> None:
         """Register a service instance (async)"""
         async with self._lock:
             self._services[service_type] = instance
@@ -49,7 +51,10 @@ class AsyncServiceContainer:
                     instance = AsyncAnalyticsService()
                 elif service_type == AsyncExportService:
                     instance = AsyncExportService()
-                elif hasattr(service_type, '__name__') and 'backup' in service_type.__name__.lower():
+                elif (
+                    hasattr(service_type, '__name__')
+                    and 'backup' in service_type.__name__.lower()
+                ):
                     instance = BackupFactory.create_backup_service()
                 elif service_type == HealthService:
                     instance = HealthService()
@@ -60,7 +65,9 @@ class AsyncServiceContainer:
                 elif service_type == RateLimitCleanupService:
                     instance = RateLimitCleanupService()
                 else:
-                    raise ValueError(f"Unknown async service type: {service_type}")
+                    raise ValueError(
+                        f'Unknown async service type: {service_type}'
+                    )
 
                 self._services[service_type] = instance
 
@@ -78,14 +85,16 @@ class AsyncServiceContainer:
 
         # Create services outside the lock
         backup_service = BackupFactory.create_backup_service()
-        
+
         services_to_create = {
             AsyncUserService: AsyncUserService(),
             AsyncWorkoutService: AsyncWorkoutService(),
             AsyncSessionManager: AsyncSessionManager(),
             AsyncAnalyticsService: AsyncAnalyticsService(),
             AsyncExportService: AsyncExportService(),
-            type(backup_service): backup_service,  # Dynamic type for backup service
+            type(
+                backup_service
+            ): backup_service,  # Dynamic type for backup service
             HealthService: HealthService(),
             LLMParsingService: LLMParsingService(),
             ShutdownService: ShutdownService(),
@@ -107,9 +116,11 @@ class AsyncServiceContainer:
             session_manager = self._services[AsyncSessionManager]
             cleaned_count = await session_manager.cleanup_stale_sessions()
             if cleaned_count > 0:
-                logger.info(f"🧹 Startup cleanup: {cleaned_count} stale sessions marked as finished")
+                logger.info(
+                    f'🧹 Startup cleanup: {cleaned_count} stale sessions marked as finished'
+                )
             else:
-                logger.info("🧹 Startup cleanup: No stale sessions found")
+                logger.info('🧹 Startup cleanup: No stale sessions found')
 
             self._initialized = True
 
@@ -137,7 +148,6 @@ async def get_async_container() -> AsyncServiceContainer:
             if _async_container is None:
                 _async_container = AsyncServiceContainer()
     return _async_container
-
 
 
 # Convenience functions for async services
@@ -177,11 +187,11 @@ async def get_async_backup_service():
     # Try to get the backup service, creating it if needed
     backup_service = BackupFactory.create_backup_service()
     service_type = type(backup_service)
-    
+
     # Register if not already registered
     if service_type not in container._services:
         await container.register_service(service_type, backup_service)
-    
+
     return await container.get_service(service_type)
 
 
@@ -224,7 +234,6 @@ async def shutdown_async_services() -> None:
     _async_container = None
 
 
-
 @asynccontextmanager
 async def async_service_context():
     """Context manager for async services lifecycle"""
@@ -233,4 +242,3 @@ async def async_service_context():
         yield
     finally:
         await shutdown_async_services()
-
