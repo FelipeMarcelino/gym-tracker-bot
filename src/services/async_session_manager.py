@@ -3,8 +3,9 @@
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, Union
+from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from config.logging_config import get_logger
@@ -83,7 +84,7 @@ class AsyncSessionManager:
                 # Check if we can reuse the last session
                 if last_session and self._is_session_active(last_session, timeout_threshold):
                     logger.info(
-                        f"Reusing active session {last_session.session_id} for user {normalized_user_id}"
+                        f"Reusing active session {last_session.session_id} for user {normalized_user_id}",
                     )
                     return last_session, False
 
@@ -101,7 +102,7 @@ class AsyncSessionManager:
                 await session.refresh(new_session)
 
                 logger.info(
-                    f"Created new session {new_session.session_id} for user {normalized_user_id}"
+                    f"Created new session {new_session.session_id} for user {normalized_user_id}",
                 )
                 return new_session, True
 
@@ -115,7 +116,7 @@ class AsyncSessionManager:
 
     async def update_session_metadata(
         self,
-        session_id: int,
+        session_id: UUID,
         transcription: str = None,
         processing_time: float = None,
         model_used: str = None,
@@ -137,7 +138,7 @@ class AsyncSessionManager:
             DatabaseError: If database operation fails
 
         """
-        if not session_id or session_id <= 0:
+        if not session_id:
             return False
 
         try:
@@ -279,7 +280,9 @@ class AsyncSessionManager:
                 cause=e,
             )
 
-    async def get_session_by_id(self, session_id: int, user_id: str = None) -> Optional[WorkoutSession]:
+    async def get_session_by_id(
+        self, session_id: UUID, user_id: str = None,
+    ) -> Optional[WorkoutSession]:
         """Get a specific session by ID with optional user validation (async)
         
         Args:
@@ -352,7 +355,7 @@ class AsyncSessionManager:
                 cause=e,
             )
 
-    async def batch_finish_sessions(self, session_ids: list[int]) -> int:
+    async def batch_finish_sessions(self, session_ids: list[UUID]) -> int:
         """Batch finish multiple sessions (async)
         
         Args:

@@ -5,6 +5,7 @@ analytics, and session status handling. These tests focus on business rules and
 edge cases rather than mocked dependencies.
 """
 
+import uuid
 from datetime import date, datetime, time, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -89,17 +90,16 @@ class TestAddExercisesToSessionBatch:
         assert exc_info.value.error_code == ErrorCode.MISSING_REQUIRED_FIELD
         assert "Invalid session ID" in exc_info.value.message
 
-        # Test with zero session_id
+        # Test with invalid UUID string (should trigger database error or validation error)
+        with pytest.raises((ValidationError, Exception)) as exc_info:
+            await workout_service.add_exercises_to_session_batch("invalid-uuid", valid_parsed_data, "user123")
+
+        # Test with non-existent but valid UUID format (should trigger SESSION_NOT_FOUND)
+        non_existent_uuid = uuid.uuid4()
         with pytest.raises(ValidationError) as exc_info:
-            await workout_service.add_exercises_to_session_batch(0, valid_parsed_data, "user123")
+            await workout_service.add_exercises_to_session_batch(non_existent_uuid, valid_parsed_data, "user123")
 
-        assert exc_info.value.error_code == ErrorCode.MISSING_REQUIRED_FIELD
-
-        # Test with negative session_id
-        with pytest.raises(ValidationError) as exc_info:
-            await workout_service.add_exercises_to_session_batch(-1, valid_parsed_data, "user123")
-
-        assert exc_info.value.error_code == ErrorCode.MISSING_REQUIRED_FIELD
+        assert exc_info.value.error_code == ErrorCode.SESSION_NOT_FOUND
 
     @pytest.mark.asyncio
     async def test_add_exercises_validation_invalid_user_id(self, workout_service, valid_parsed_data):
@@ -406,7 +406,7 @@ class TestProcessResistanceExercisesAsync:
     async def test_process_resistance_exercises_new_exercises(self, workout_service):
         """Test processing resistance exercises with new exercises"""
         mock_session = AsyncMock()
-        session_id = 1
+        session_id = uuid.uuid4()
         existing_count = 0
 
         resistance_exercises = [
@@ -450,7 +450,7 @@ class TestProcessResistanceExercisesAsync:
     async def test_process_resistance_exercises_existing_exercises(self, workout_service):
         """Test processing with existing exercises in database"""
         mock_session = AsyncMock()
-        session_id = 1
+        session_id = uuid.uuid4()
         existing_count = 2
 
         resistance_exercises = [
@@ -483,7 +483,7 @@ class TestProcessResistanceExercisesAsync:
     async def test_process_resistance_exercises_skip_empty_names(self, workout_service):
         """Test skipping exercises with empty names"""
         mock_session = AsyncMock()
-        session_id = 1
+        session_id = uuid.uuid4()
         existing_count = 0
 
         resistance_exercises = [
@@ -522,7 +522,7 @@ class TestProcessResistanceExercisesAsync:
     async def test_process_resistance_exercises_order_calculation(self, workout_service):
         """Test correct order calculation for exercises"""
         mock_session = AsyncMock()
-        session_id = 1
+        session_id = uuid.uuid4()
         existing_count = 5  # 5 exercises already in session
 
         resistance_exercises = [
@@ -556,7 +556,7 @@ class TestProcessAerobicExercisesAsync:
     async def test_process_aerobic_exercises_new_exercises(self, workout_service):
         """Test processing aerobic exercises with new exercises"""
         mock_session = AsyncMock()
-        session_id = 1
+        session_id = uuid.uuid4()
 
         aerobic_exercises = [
             {
@@ -599,7 +599,7 @@ class TestProcessAerobicExercisesAsync:
     async def test_process_aerobic_exercises_skip_empty_names(self, workout_service):
         """Test skipping aerobic exercises with empty names"""
         mock_session = AsyncMock()
-        session_id = 1
+        session_id = uuid.uuid4()
 
         aerobic_exercises = [
             {
@@ -809,10 +809,11 @@ class TestFinishSession:
                 with patch.object(workout_service, "_calculate_session_stats_sync") as mock_stats:
                     mock_stats.return_value = {"total_sets": 6, "total_volume_kg": 1200}
 
-                    result = await workout_service.finish_session(1, "user123")
+                    test_session_id = uuid.uuid4()
+                    result = await workout_service.finish_session(test_session_id, "user123")
 
                     assert result["success"] is True
-                    assert result["session_id"] == 1
+                    assert result["session_id"] == test_session_id
                     assert result["duration_minutes"] == 90  # 1.5 hours
                     assert "stats" in result
 
