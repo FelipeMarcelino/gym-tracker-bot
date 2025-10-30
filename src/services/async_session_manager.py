@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, Union
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from config.logging_config import get_logger
@@ -84,7 +84,7 @@ class AsyncSessionManager:
                 # Check if we can reuse the last session
                 if last_session and self._is_session_active(last_session, timeout_threshold):
                     logger.info(
-                        f"Reusing active session {last_session.session_id} for user {normalized_user_id}"
+                        f"Reusing active session {last_session.session_id} for user {normalized_user_id}",
                     )
                     return last_session, False
 
@@ -102,7 +102,7 @@ class AsyncSessionManager:
                 await session.refresh(new_session)
 
                 logger.info(
-                    f"Created new session {new_session.session_id} for user {normalized_user_id}"
+                    f"Created new session {new_session.session_id} for user {normalized_user_id}",
                 )
                 return new_session, True
 
@@ -280,17 +280,9 @@ class AsyncSessionManager:
                 cause=e,
             )
 
-<<<<<<< Updated upstream
-    async def get_session_by_id(self, session_id: int, user_id: str = None) -> Optional[WorkoutSession]:
-||||||| Stash base
     async def get_session_by_id(
-        self, session_id: int, user_id: str = None
+        self, session_id: UUID, user_id: str = None,
     ) -> Optional[WorkoutSession]:
-=======
-    async def get_session_by_id(
-        self, session_id: UUID, user_id: str = None
-    ) -> Optional[WorkoutSession]:
->>>>>>> Stashed changes
         """Get a specific session by ID with optional user validation (async)
         
         Args:
