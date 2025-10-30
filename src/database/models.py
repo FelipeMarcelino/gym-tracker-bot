@@ -2,42 +2,9 @@ import enum
 import uuid
 from datetime import datetime
 
-<<<<<<< Updated upstream
 from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, Time
-||||||| Stash base
-from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
-    Date,
-    DateTime,
-    Enum,
-    Float,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
-    Time,
-)
-=======
-from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
-    Date,
-    DateTime,
-    Enum,
-    Float,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
-    Time,
-)
 from sqlalchemy.dialects.postgresql import UUID
->>>>>>> Stashed changes
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -55,9 +22,9 @@ class SessionStatus(enum.Enum):
 
 class User(Base):
     """Usuários autorizados do sistema"""
-    
+
     __tablename__ = "users"
-    
+
     user_id = Column(String(50), primary_key=True)  # Telegram user ID
     username = Column(String(100))  # Telegram username (optional)
     first_name = Column(String(100))  # Telegram first name
@@ -67,7 +34,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     created_by = Column(String(50))  # User ID of who created this user
-    
+
     def __repr__(self):
         return f"<User(user_id='{self.user_id}', username='{self.username}', is_admin={self.is_admin})>"
 
@@ -120,20 +87,10 @@ class WorkoutExercise(Base):
     __tablename__ = "workout_exercises"
 
     workout_exercise_id = Column(Integer, primary_key=True, autoincrement=True)
-<<<<<<< Updated upstream
-    session_id = Column(Integer, ForeignKey("workout_sessions.session_id", ondelete="CASCADE"))
+    session_id = Column(
+        UUID(as_uuid=True), ForeignKey("workout_sessions.session_id", ondelete="CASCADE"),
+    )
     exercise_id = Column(Integer, ForeignKey("exercises.exercise_id"))
-||||||| Stash base
-    session_id = Column(
-        Integer, ForeignKey('workout_sessions.session_id', ondelete='CASCADE')
-    )
-    exercise_id = Column(Integer, ForeignKey('exercises.exercise_id'))
-=======
-    session_id = Column(
-        UUID(as_uuid=True), ForeignKey('workout_sessions.session_id', ondelete='CASCADE')
-    )
-    exercise_id = Column(Integer, ForeignKey('exercises.exercise_id'))
->>>>>>> Stashed changes
     order_in_workout = Column(Integer)
     sets = Column(Integer)
     reps = Column(JSON)  # Array: [12, 10, 8]
@@ -152,20 +109,10 @@ class AerobicExercise(Base):
     __tablename__ = "aerobic_exercises"
 
     aerobic_id = Column(Integer, primary_key=True, autoincrement=True)
-<<<<<<< Updated upstream
-    session_id = Column(Integer, ForeignKey("workout_sessions.session_id", ondelete="CASCADE"))
+    session_id = Column(
+        UUID(as_uuid=True), ForeignKey("workout_sessions.session_id", ondelete="CASCADE"),
+    )
     exercise_id = Column(Integer, ForeignKey("exercises.exercise_id"))
-||||||| Stash base
-    session_id = Column(
-        Integer, ForeignKey('workout_sessions.session_id', ondelete='CASCADE')
-    )
-    exercise_id = Column(Integer, ForeignKey('exercises.exercise_id'))
-=======
-    session_id = Column(
-        UUID(as_uuid=True), ForeignKey('workout_sessions.session_id', ondelete='CASCADE')
-    )
-    exercise_id = Column(Integer, ForeignKey('exercises.exercise_id'))
->>>>>>> Stashed changes
     duration_minutes = Column(Float)
     distance_km = Column(Float)
     average_heart_rate = Column(Integer)

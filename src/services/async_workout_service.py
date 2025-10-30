@@ -377,17 +377,9 @@ class AsyncWorkoutService:
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
 
-<<<<<<< Updated upstream
-    async def finish_session(self, session_id: int, user_id: str) -> Dict[str, Any]:
-||||||| Stash base
     async def finish_session(
-        self, session_id: int, user_id: str
+        self, session_id: UUID, user_id: str,
     ) -> Dict[str, Any]:
-=======
-    async def finish_session(
-        self, session_id: UUID, user_id: str
-    ) -> Dict[str, Any]:
->>>>>>> Stashed changes
         """Finish a workout session with optimized stats calculation (async)
         
         Args:
